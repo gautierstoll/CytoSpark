@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="sbt: io.github.pityka:nspl-core_2.11:0.0.19:jar">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.ivy2/cache/io.github.pityka/nspl-core_2.11/jars/nspl-core_2.11-0.0.19.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.ivy2/cache/io.github.pityka/nspl-core_2.11/srcs/nspl-core_2.11-0.0.19-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>
