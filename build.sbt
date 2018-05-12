@@ -30,6 +30,7 @@ libraryDependencies  ++= Seq(
   "org.scalanlp" %% "breeze-viz" % "0.13.2"
 )
 
+
 libraryDependencies += "io.github.pityka" %% "nspl-awt" % "0.0.19"
 libraryDependencies +=
   "io.github.pityka" %% "saddle-core-fork" % "1.3.4-fork1" exclude ("com.googlecode.efficient-java-matrix-library", "ejml")

@@ -16,7 +16,6 @@ val FirstAnalysisSegment = FileList.take(50).drop(42).toList.map(_.head.toChar).
 val LastAnalysisSegment = FileList.take(58).drop(50).toList.map(_.head.toChar).filter(_ != ' ').mkString("").toInt
 val FCSTextSegment = FileList.take(LastTextSegment + 1).drop(FirstTextSegment).toList.map(_.head)
 
-//TestSessSpark.stop
 
 def TextSegmentMap(InList: List[Byte]): Map[String, String] = {
   def LengthSecondCharSep(InList: List[Byte]): Int = {
@@ -76,13 +75,14 @@ def FCSArrayDoublefromFCS(FCSLine: List[Byte], Bit4Float: List[Int]): List[Doubl
     case 4 => ByteBuffer.wrap(ArrayBytes).getFloat
     case 8 => ByteBuffer.wrap(ArrayBytes).getDouble
   }
+
   (0 to (Bit4Float.length - 1)).toList.
     map(x => FCSLine.zip(ByteAggregate(BittoFloat)).filter(_._2 == x).map(y => y._1)).
     map(z => ByteToDoubleSizeDependant(z.toArray))
 }
- val DataList = FileList.zipWithIndex().filter(x => ((x._2 >= FirstDataSegment) && (x._2 <= LastDataSegment))).
- //val DataList = FileList.zipWithIndex().filter(x => ((x._2 >= FirstDataSegment) && (x._2 <= (FirstDataSegment+103)))).
-  map(y => ((y._2-FirstDataSegment) /(BittoFloat.sum/8),y._1.head)).groupByKey.
-  map(x => (x._1,FCSArrayDoublefromFCS(x._2.toList, BittoFloat))
+val DataList = FileList.zipWithIndex().filter(x => ((x._2 >= FirstDataSegment) && (x._2 <= LastDataSegment))).
+  //val DataList = FileList.zipWithIndex().filter(x => ((x._2 >= FirstDataSegment) && (x._2 <= (FirstDataSegment+103)))).
+  map(y => ((y._2 - FirstDataSegment) / (BittoFloat.sum / 8), y._1.head)).groupByKey.
+  map(x => (x._1, FCSArrayDoublefromFCS(x._2.toList, BittoFloat))
 //val DataDF = TestSessSpark.createDataFrame(DataList)
 

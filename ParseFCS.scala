@@ -12,44 +12,38 @@ class FCSParser(FCSName: String) {
   val FCSFile = new String(FCSName)
 
   private val FCSFileBuffer = new BufferedInputStream(new FileInputStream(FCSFile))
-  //private val FCSFileStr = Stream.continually(FCSFileBuffer.read).takeWhile(-1 !=).map(_.toByte)
 
-  private var BinaryFileIndex: Int = 0;
-
-
+  private var BinaryFileIndex: Int = 0
   for (i <- (0 to 9)) yield {
     BinaryFileIndex += 1; FCSFileBuffer.read
-  };
-  BinaryFileIndex += 10;
+  }
+  BinaryFileIndex += 10
   private val FirstTextSegment = (for (i <- (1 to 8)) yield {
     FCSFileBuffer.read
   }).
     map(_.toChar).filter(_ != ' ').mkString("").toInt;
-  BinaryFileIndex += 8;
-
+  BinaryFileIndex += 8
   for (i <- (BinaryFileIndex to 17)) yield {
     FCSFileBuffer.read
-  };
-  BinaryFileIndex = 18;
+  }
+  BinaryFileIndex = 18
   private val LastTextSegment = (for (i <- (1 to 8)) yield {
     FCSFileBuffer.read
   }).
-    map(_.toChar).filter(_ != ' ').mkString("").toInt;
-  BinaryFileIndex += 8;
-
+    map(_.toChar).filter(_ != ' ').mkString("").toInt
+  BinaryFileIndex += 8
   for (i <- (BinaryFileIndex to 41)) yield {
     FCSFileBuffer.read
-  };
-  BinaryFileIndex = 42;
+  }
+  BinaryFileIndex = 42
   private val FirstAnalysisSegment = (for (i <- (1 to 8)) yield {
     FCSFileBuffer.read
   }).
-    map(_.toChar).filter(_ != ' ').mkString("").toInt;
-  BinaryFileIndex += 8;
-
+    map(_.toChar).filter(_ != ' ').mkString("").toInt
+  BinaryFileIndex += 8
   for (i <- (BinaryFileIndex to 49)) yield {
     FCSFileBuffer.read
-  };
+  }
   BinaryFileIndex = 50;
   private val LastAnalysisSegment = (for (i <- (1 to 8)) yield {
     FCSFileBuffer.read
@@ -61,13 +55,11 @@ class FCSParser(FCSName: String) {
     def DropUntilSinglSep(SepByte: Byte, Offset: Int, CharList: List[Byte]): Int = {
       var NewOffset = Offset + CharList.drop(Offset).takeWhile(_ != SepByte).length
       CharList.drop(NewOffset) match {
-        case SepByte :: Nil => NewOffset
-        // two separators is not a separator
+        case SepByte :: Nil => NewOffset // two separators is not a separator
         case SepByte :: SepByte :: yy => DropUntilSinglSep(SepByte, NewOffset + 2, CharList)
         case SepByte :: yy => NewOffset
         case yy => {
-          sys.error("Error in Parsing text segment");
-          0
+          sys.error("Error in Parsing text segment"); 0
         }
       }
     }
@@ -89,7 +81,6 @@ class FCSParser(FCSName: String) {
     }
   }
 
-
   for (i <- (BinaryFileIndex to (FirstTextSegment - 1))) yield {
     FCSFileBuffer.read
   };
@@ -99,30 +90,31 @@ class FCSParser(FCSName: String) {
     FCSFileBuffer.read
   }).map(_.toByte)
   BinaryFileIndex = LastTextSegment + 1;
-  val FCSTextSegmentMap = TextSegmentMap(FCSTextSegment.toList)
+  private val FCSTextSegmentMap = TextSegmentMap(FCSTextSegment.toList)
   println("Mode: " + FCSTextSegmentMap("$MODE"))
   println("Data type: " + FCSTextSegmentMap("$DATATYPE"))
   println("Number of chanels: " + FCSTextSegmentMap("$PAR"))
   println("Byte order: " + FCSTextSegmentMap("$BYTEORD"))
 
-  val FirstDataSegment = FCSTextSegmentMap("$BEGINDATA").toList.filter(_ != ' ').mkString("").toInt
-  val LastDataSegment = FCSTextSegmentMap("$ENDDATA").toList.filter(_ != ' ').mkString("").toInt
+  private val FirstDataSegment = FCSTextSegmentMap("$BEGINDATA").toList.filter(_ != ' ').mkString("").toInt
+  private val LastDataSegment = FCSTextSegmentMap("$ENDDATA").toList.filter(_ != ' ').mkString("").toInt
   val NbPar = FCSTextSegmentMap("$PAR").toInt
   val NbEvent = FCSTextSegmentMap("$TOT").toArray.filter(_ != ' ').mkString("").toInt
-  //val NbEvent: Int = 5
   val BittoFloat = (1 to NbPar).
     map(x => "$P".concat(x.toString).concat("B")).map(x => FCSTextSegmentMap(x).toInt).toList
+  val compensatedParam = (1 to BittoFloat.length).filter(x => FCSTextSegmentMap.contains("$P"+x+"S"))
+  val compensatedIndex = (1 to NbEvent).flatMap(x=> compensatedParam.map(y => (x-1)*NbPar + (y-1)))
   for (i <- (BinaryFileIndex to (FirstDataSegment - 1))) yield {
     FCSFileBuffer.read
   }
   BinaryFileIndex = FirstDataSegment
   private val dataFCSList = {
     for (indexFCS <- (0 to (NbEvent * BittoFloat.length - 1))) yield {
-      if (BittoFloat(indexFCS - (indexFCS / BittoFloat.length)*BittoFloat.length) == 32) {
+      if (BittoFloat(indexFCS - (indexFCS / BittoFloat.length) * BittoFloat.length) == 32) {
         BinaryFileIndex += 4
         ByteBuffer.wrap((1 to 4).map(x => FCSFileBuffer.read.toByte).toArray).getFloat.toDouble
       }
-      else if (BittoFloat(indexFCS - (indexFCS / BittoFloat.length)*BittoFloat.length) == 64) {
+      else if (BittoFloat(indexFCS - (indexFCS / BittoFloat.length) * BittoFloat.length) == 64) {
         BinaryFileIndex += 8
         ByteBuffer.wrap((1 to 8).map(x => FCSFileBuffer.read.toByte).toArray).getDouble
       }
@@ -141,8 +133,7 @@ class FCSParser(FCSName: String) {
     return (FCSMatrix)
   }
 
-  def getMatFCS: Mat[Double] = {
-    val fcsMat: Mat[Double] = Mat(BittoFloat.length, NbEvent, dataFCSList.toArray)
-    fcsMat
-  }
+  def getMatFCS: Mat[Double] = Mat(NbEvent,BittoFloat.length, dataFCSList.toArray)
+  def getMatCompParamFCS: Mat[Double] =
+    Mat(NbEvent,compensatedParam.length,compensatedIndex.map(x => dataFCSList(x)).toArray)
 }
