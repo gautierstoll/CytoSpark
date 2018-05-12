@@ -9,7 +9,7 @@ TestSessSpark.conf.set("spark.executor.memory", "10g")
 TestSessSpark.conf.set("spark.driver.memory", "2g")
 TestSessSpark.conf.set("spark.cores.max", "6")
 
-val FileList = TestSessSpark.sparkContext.binaryRecords("Specimen_001_Tube_008 Tumor8.fcs", 1)
+val FileList = TestSessSpark.sparkContext.binaryRecords("Exp 12 T cells_Tube_001.fcs", 1)
 val FirstTextSegment = FileList.take(18).drop(10).toList.map(_.head.toChar).filter(_ != ' ').mkString("").toInt
 val LastTextSegment = FileList.take(26).drop(18).toList.map(_.head.toChar).filter(_ != ' ').mkString("").toInt
 val FirstAnalysisSegment = FileList.take(50).drop(42).toList.map(_.head.toChar).filter(_ != ' ').mkString("").toInt
@@ -80,9 +80,9 @@ def FCSArrayDoublefromFCS(FCSLine: List[Byte], Bit4Float: List[Int]): List[Doubl
     map(x => FCSLine.zip(ByteAggregate(BittoFloat)).filter(_._2 == x).map(y => y._1)).
     map(z => ByteToDoubleSizeDependant(z.toArray))
 }
- //val DataList = FileList.zipWithIndex().filter(x => ((x._2 >= FirstDataSegment) && (x._2 <= LastDataSegment))).
- val DataList = FileList.zipWithIndex().filter(x => ((x._2 >= FirstDataSegment) && (x._2 <= (FirstDataSegment+103)))).
+ val DataList = FileList.zipWithIndex().filter(x => ((x._2 >= FirstDataSegment) && (x._2 <= LastDataSegment))).
+ //val DataList = FileList.zipWithIndex().filter(x => ((x._2 >= FirstDataSegment) && (x._2 <= (FirstDataSegment+103)))).
   map(y => ((y._2-FirstDataSegment) /(BittoFloat.sum/8),y._1.head)).groupByKey.
-  map(x => FCSArrayDoublefromFCS(x._2.toList, BittoFloat))
-val DataDF = TestSessSpark.createDataFrame(DataList)
+  map(x => (x._1,FCSArrayDoublefromFCS(x._2.toList, BittoFloat))
+//val DataDF = TestSessSpark.createDataFrame(DataList)
 
