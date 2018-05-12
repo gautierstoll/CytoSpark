@@ -7,6 +7,7 @@ class FCSParser(FCSName: String) {
   import breeze.linalg._
   import breeze.numerics._
   import java.nio.ByteBuffer
+  import org.saddle._
 
   val FCSFile = new String(FCSName)
 
@@ -35,8 +36,6 @@ class FCSParser(FCSName: String) {
   }).
     map(_.toChar).filter(_ != ' ').mkString("").toInt;
   BinaryFileIndex += 8;
-  //val FirstDataSegment = FCSFileStr.drop(26).take(8).map(_.toChar).filter(_ != ' ').mkString("").toInt
-  //val LastDataSegment = FCSFileStr.drop(34).take(8).map(_.toChar).filter(_ != ' ').mkString("").toInt
 
   for (i <- (BinaryFileIndex to 41)) yield {
     FCSFileBuffer.read
@@ -108,38 +107,41 @@ class FCSParser(FCSName: String) {
 
   val FirstDataSegment = FCSTextSegmentMap("$BEGINDATA").toList.filter(_ != ' ').mkString("").toInt
   val LastDataSegment = FCSTextSegmentMap("$ENDDATA").toList.filter(_ != ' ').mkString("").toInt
-  //val FCSDataStr = FCSFileStr.drop(FirstDataSegment).take(LastDataSegment - FirstDataSegment + 1)
   val NbPar = FCSTextSegmentMap("$PAR").toInt
   val NbEvent = FCSTextSegmentMap("$TOT").toArray.filter(_ != ' ').mkString("").toInt
-  //val NbEvent: Int = 100000
+  //val NbEvent: Int = 5
   val BittoFloat = (1 to NbPar).
     map(x => "$P".concat(x.toString).concat("B")).map(x => FCSTextSegmentMap(x).toInt).toList
-
-  private def GetMatrixFCS(NbEvents4Matrix: Int = NbEvent, BittoFloat4Matrix: List[Int] = BittoFloat,
-                           FCSByteStr: BufferedInputStream): DenseMatrix[Double] = {
-    var FCSMatrix = new DenseMatrix[Double](NbEvents4Matrix, BittoFloat4Matrix.length)
-    for (Row <- (0 to (NbEvents4Matrix - 1)); Col <- (0 to (BittoFloat4Matrix.length - 1))) yield {
-      if (BittoFloat(Col) == 32) {
-        FCSMatrix(Row, Col) = ByteBuffer.wrap((1 to 4).map(x => FCSByteStr.read.toByte).toArray).getFloat;
-        BinaryFileIndex += 4;
+  for (i <- (BinaryFileIndex to (FirstDataSegment - 1))) yield {
+    FCSFileBuffer.read
+  }
+  BinaryFileIndex = FirstDataSegment
+  private val dataFCSList = {
+    for (indexFCS <- (0 to (NbEvent * BittoFloat.length - 1))) yield {
+      if (BittoFloat(indexFCS - (indexFCS / BittoFloat.length)*BittoFloat.length) == 32) {
+        BinaryFileIndex += 4
+        ByteBuffer.wrap((1 to 4).map(x => FCSFileBuffer.read.toByte).toArray).getFloat.toDouble
       }
-      else if (BittoFloat(Col) == 64) {
-        FCSMatrix(Row, Col) = ByteBuffer.wrap((1 to 8).map(x => FCSByteStr.read.toByte).toArray).getDouble
-        BinaryFileIndex += 8;
+      else if (BittoFloat(indexFCS - (indexFCS / BittoFloat.length)*BittoFloat.length) == 64) {
+        BinaryFileIndex += 8
+        ByteBuffer.wrap((1 to 8).map(x => FCSFileBuffer.read.toByte).toArray).getDouble
       }
       else {
-        sys.error("Wrong Byte List")
+        0.0
       }
-      if (Col == 0) {
-        println("Row: " + Row)
-      }
+    }
+  }
+
+  def getMatrixFCS: DenseMatrix[Double] = {
+    var FCSMatrix = new DenseMatrix[Double](NbEvent, BittoFloat.length)
+    for (rowFCS <- (0 to (NbEvent - 1)); colFCS <- (0 to (BittoFloat.length - 1))) {
+      FCSMatrix(rowFCS, colFCS) = dataFCSList(colFCS + rowFCS * (BittoFloat.length))
     }
     return (FCSMatrix)
   }
 
-  for (i <- (BinaryFileIndex to (FirstDataSegment - 1))) yield {
-    FCSFileBuffer.read
-  };
-  BinaryFileIndex = FirstDataSegment
-  val FCSMatrix = GetMatrixFCS(FCSByteStr = FCSFileBuffer)
+  def getMatFCS: Mat[Double] = {
+    val fcsMat: Mat[Double] = Mat(BittoFloat.length, NbEvent, dataFCSList.toArray)
+    fcsMat
+  }
 }

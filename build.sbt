@@ -35,5 +35,6 @@ libraryDependencies +=
   "io.github.pityka" %% "saddle-core-fork" % "1.3.4-fork1" exclude ("com.googlecode.efficient-java-matrix-library", "ejml")
 
 libraryDependencies += "io.github.pityka" %% "nspl-saddle" % "0.0.19"
+libraryDependencies += "org.ejml" % "core" % "0.27"
 
 resolvers += "Sonatype Releases" at "https://oss.sonatype.org/content/repositories/releases/"
