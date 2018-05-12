@@ -132,6 +132,7 @@ class FCSParser(FCSName: String) {
     }
   }
 
+
   def getMatrixFCS: DenseMatrix[Double] = {
     var FCSMatrix = new DenseMatrix[Double](NbEvent, BittoFloat.length)
     for (rowFCS <- (0 to (NbEvent - 1)); colFCS <- (0 to (BittoFloat.length - 1))) {
