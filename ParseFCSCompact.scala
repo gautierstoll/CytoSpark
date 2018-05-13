@@ -7,6 +7,7 @@ class FCSParserCompact(FCSName: String) {
   import breeze.numerics._
   import java.nio.ByteBuffer
   import org.saddle._
+  import stat._
 
   val FCSFile = new String(FCSName)
 
@@ -141,5 +142,9 @@ class FCSParserCompact(FCSName: String) {
       FCSMatrix(rowFCS, colFCS) = dataCompensatedArrayFCS(colFCS + rowFCS*compensatedParam.length)
     }
     return (FCSMatrix)
+  }
+  def kmeanCompesatedSub(nbRowsFCS : Int, it : Int) : kmeans.KMeansResult = {
+    kmeans.apply(Mat(nbRowsFCS,compensatedParam.length,dataCompensatedArrayFCS),
+      Mat(nbRowsFCS,compensatedParam.length,dataCompensatedArrayFCS),it)
   }
 }
