@@ -98,7 +98,7 @@ class FCSParserCompact(FCSName: String) {
 
   private val FirstDataSegment = FCSTextSegmentMap("$BEGINDATA").toList.filter(_ != ' ').mkString("").toInt
   private val LastDataSegment = FCSTextSegmentMap("$ENDDATA").toList.filter(_ != ' ').mkString("").toInt
-  private val NbPar = FCSTextSegmentMap("$PAR").toInt
+  val NbPar = FCSTextSegmentMap("$PAR").toInt
   val NbEvent = FCSTextSegmentMap("$TOT").toArray.filter(_ != ' ').mkString("").toInt
   val BittoFloat = (1 to NbPar).
     map(x => "$P".concat(x.toString).concat("B")).map(x => FCSTextSegmentMap(x).toInt).toList

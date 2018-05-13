@@ -103,7 +103,7 @@ class FCSParser(FCSName: String) {
   val BittoFloat = (1 to NbPar).
     map(x => "$P".concat(x.toString).concat("B")).map(x => FCSTextSegmentMap(x).toInt).toList
   val compensatedParam = (1 to BittoFloat.length).filter(x => FCSTextSegmentMap.contains("$P"+x+"S"))
-  val compensatedIndex = (1 to NbEvent).flatMap(x=> compensatedParam.map(y => (x-1)*NbPar + (y-1)))
+  private val compensatedIndex = (1 to NbEvent).flatMap(x=> compensatedParam.map(y => (x-1)*NbPar + (y-1)))
   for (i <- (BinaryFileIndex to (FirstDataSegment - 1))) yield {
     FCSFileBuffer.read
   }
