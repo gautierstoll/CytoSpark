@@ -8,6 +8,7 @@ class FCSParserCompact(FCSName: String) {
   import java.nio.ByteBuffer
   import org.saddle._
   import stat._
+  import scala.util._
 
   val FCSFile = new String(FCSName)
 
@@ -143,8 +144,10 @@ class FCSParserCompact(FCSName: String) {
     }
     return (FCSMatrix)
   }
-  def kmeanCompesatedSub(nbRowsFCS : Int, it : Int) : kmeans.KMeansResult = {
-    kmeans.apply(Mat(nbRowsFCS,compensatedParam.length,dataCompensatedArrayFCS),
-      Mat(nbRowsFCS,compensatedParam.length,dataCompensatedArrayFCS),it)
+  def kmeanCompesatedSub(nbRowsFCS : Int, sizeK : Int, it : Int, seed : Int) : kmeans.KMeansResult = {
+    val dataSubFCS=dataCompensatedMatFCS.row((0 to (nbRowsFCS-1)).toArray)
+    val rand4K = new Random(seed)
+    val dataInitK = dataSubFCS.row((1 to sizeK).map(x => rand4K.nextInt(nbRowsFCS)).toArray)
+    kmeans.apply(dataSubFCS,dataInitK,it)
   }
 }
