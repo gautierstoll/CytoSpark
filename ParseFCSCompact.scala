@@ -11,7 +11,8 @@ class FCSParserCompact(fcsNameInput: String, minValCytInput : Double) {
   import stat._
   import scala.util._
   //import scala.math._
-  import org.nspl.{DiscreteColors, TableLayout, point, sequence, xyplot,Plots}
+  //import org.nspl.{DiscreteColors, TableLayout, point,sequence, xyplot,Plots,PointLegend,Shape}
+  import org.nspl._
   import org.nspl.saddle._
   import org.nspl.data._
   import org.nspl.awtrenderer._
@@ -104,6 +105,7 @@ class FCSParserCompact(fcsNameInput: String, minValCytInput : Double) {
   println("Data type: " + fcsTextSegmentMap("$DATATYPE"))
   println("Number of chanels: " + fcsTextSegmentMap("$PAR"))
   println("Byte order: " + fcsTextSegmentMap("$BYTEORD"))
+  println("Number of events: "+fcsTextSegmentMap("$TOT"))
 
   private val firstDataSegment = fcsTextSegmentMap("$BEGINDATA").toList.filter(_ != ' ').mkString("").toInt
   private val lastDataSegment = fcsTextSegmentMap("$ENDDATA").toList.filter(_ != ' ').mkString("").toInt
@@ -121,6 +123,7 @@ class FCSParserCompact(fcsNameInput: String, minValCytInput : Double) {
 
   private var dataCompensatedArrayFCS = new Array[Double](nbEvent * compensatedParam.length)
   for (indexFCS <- (0 to (nbEvent * nbPar - 1))) {
+    print(indexFCS+"\r")
     if (bitToFloat(indexFCS - (indexFCS / bitToFloat.length) * bitToFloat.length) == 32) {
       binaryFileIndex += 4
       val tempFileArray = ByteBuffer.wrap((1 to 4).map(x => fcsFileBuffer.read.toByte).toArray)
@@ -153,11 +156,12 @@ class FCSParserCompact(fcsNameInput: String, minValCytInput : Double) {
   }
 
 
-  def kmeanCompensatedSubPlot(nbRowsFCS: Int, sizeK: Int, it: Int, seed: Int, maxComb : Int) = {
+  def kmeanCompensatedSubPlot(nbRowsFCS: Int, sizeK: Int, it: Int, seed: Int, maxComb : Int,pngFile : String) = {
     val dataSubFCS = dataCompensatedMatFCS.row((0 to (nbRowsFCS - 1)).toArray)
     val rand4K = new Random(seed)
     val dataInitK = dataSubFCS.row((1 to sizeK).map(x => rand4K.nextInt(nbRowsFCS)).toArray)
     val resK = kmeans.apply(dataSubFCS, dataInitK, it)
+    println(resK.means)
     //val dataMatrixSubFCS = kmeans.matToSparse(dataSubFCS)
     val projections = 0 until maxComb combinations (2) map { g =>
       val c1 = g(0)
@@ -168,9 +172,38 @@ class FCSParserCompact(fcsNameInput: String, minValCytInput : Double) {
         Mat(col1, col2, resK.clusters.map(_.toDouble)) -> point(
           labelText = false,
           color = DiscreteColors(resK.clusters.length)))(
-        extraLegend = resK.clusters.toArray.map(
+        extraLegend = resK.clusters.toArray.distinct.map(
           x =>
-            x -> PointLegend(shape = Shape.rectangle(0, 0, 1, 1),
+            x.toString -> PointLegend(shape = Shape.rectangle(0, 0, 1, 1),
+              color = DiscreteColors(resK.clusters.length)(x.toDouble))),
+        xlab = compensatedParam.map(x=> fcsTextSegmentMap("$P" + x+ "S")).toList(c1),
+        ylab = compensatedParam.map(x=> fcsTextSegmentMap("$P" + x+ "S")).toList(c2)
+      )
+    }
+    val plot2DKMean = sequence(projections.toList, TableLayout(4))
+    val pngFileKMean = new File(pngFile)
+    pngToFile(pngFileKMean,plot2DKMean.build)
+  }
+
+  def kmeanCompensatedSubPlotSeq(nbRowsFCS: Int, sizeK: Int, it: Int, seed: Int, maxComb : Int) = {
+    val dataSubFCS = dataCompensatedMatFCS.row((0 to (nbRowsFCS - 1)).toArray)
+    val rand4K = new Random(seed)
+    val dataInitK = dataSubFCS.row((1 to sizeK).map(x => rand4K.nextInt(nbRowsFCS)).toArray)
+    val resK = kmeans.apply(dataSubFCS, dataInitK, it)
+    println(resK.means)
+    //val dataMatrixSubFCS = kmeans.matToSparse(dataSubFCS)
+    val projections = 0 until maxComb combinations (2) map { g =>
+      val c1 = g(0)
+      val c2 = g(1)
+      val col1 = dataSubFCS.col(c1)
+      val col2 = dataSubFCS.col(c2)
+      xyplot(
+        Mat(col1, col2, resK.clusters.map(_.toDouble)) -> point(
+          labelText = false,
+          color = DiscreteColors(resK.clusters.length)))(
+        extraLegend = resK.clusters.toArray.distinct.map(
+          x =>
+            x.toString -> PointLegend(shape = Shape.rectangle(0, 0, 1, 1),
               color = DiscreteColors(resK.clusters.length)(x.toDouble))),
         xlab = compensatedParam.map(x=> fcsTextSegmentMap("$P" + x+ "S")).toList(c1),
         ylab = compensatedParam.map(x=> fcsTextSegmentMap("$P" + x+ "S")).toList(c2)
@@ -178,4 +211,5 @@ class FCSParserCompact(fcsNameInput: String, minValCytInput : Double) {
     }
     sequence(projections.toList, TableLayout(4))
   }
+
 }
