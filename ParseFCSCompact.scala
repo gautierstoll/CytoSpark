@@ -151,68 +151,12 @@ class FCSParserCompact(fcsNameInput: String, minValCytInput: Double) {
     }
     return (FCSMatrix)
   }
-//
-//
-//  def kmeanCompensatedSubPlot(nbRowsFCS: Int, sizeK: Int, it: Int, seed: Int, maxComb: Int, pngFile: String) = {
-//    val dataSubFCS = dataCompensatedMatFCS.row((0 to (nbRowsFCS - 1)).toArray)
-//    val rand4K = new Random(seed)
-//    val dataInitK = dataSubFCS.row((1 to sizeK).map(x => rand4K.nextInt(nbRowsFCS)).toArray)
-//    val resK = kmeans.apply(dataSubFCS, dataInitK, it)
-//    println(resK.means)
-//    //val dataMatrixSubFCS = kmeans.matToSparse(dataSubFCS)
-//    val projections = 0 until maxComb combinations (2) map { g =>
-//      val c1 = g(0)
-//      val c2 = g(1)
-//      val col1 = dataSubFCS.col(c1)
-//      val col2 = dataSubFCS.col(c2)
-//      xyplot(
-//        Mat(col1, col2, resK.clusters.map(_.toDouble)) -> point(
-//          labelText = false,
-//          color = DiscreteColors(resK.clusters.length)))(
-//        extraLegend = resK.clusters.toArray.distinct.map(
-//          x =>
-//            x.toString -> PointLegend(shape = Shape.rectangle(0, 0, 1, 1),
-//              color = DiscreteColors(resK.clusters.length)(x.toDouble))),
-//        xlab = compensatedParam.map(x => fcsTextSegmentMap("$P" + x + "S")).toList(c1),
-//        ylab = compensatedParam.map(x => fcsTextSegmentMap("$P" + x + "S")).toList(c2)
-//      )
-//    }
-//    val plot2DKMean = sequence(projections.toList, TableLayout(4))
-//    val pngFileKMean = new File(pngFile)
-//    pngToFile(pngFileKMean, plot2DKMean.build)
-//  }
-//
-//  def kmeanCompensatedSubPlotSeq(nbRowsFCS: Int, sizeK: Int, it: Int, seed: Int, maxComb: Int) = {
-//    val dataSubFCS = dataCompensatedMatFCS.row((0 to (nbRowsFCS - 1)).toArray)
-//    val rand4K = new Random(seed)
-//    val dataInitK = dataSubFCS.row((1 to sizeK).map(x => rand4K.nextInt(nbRowsFCS)).toArray)
-//    val resK = kmeans.apply(dataSubFCS, dataInitK, it)
-//    println(resK.means)
-//    //val dataMatrixSubFCS = kmeans.matToSparse(dataSubFCS)
-//    val projections = 0 until maxComb combinations (2) map { g =>
-//      val c1 = g(0)
-//      val c2 = g(1)
-//      val col1 = dataSubFCS.col(c1)
-//      val col2 = dataSubFCS.col(c2)
-//      xyplot(
-//        Mat(col1, col2, resK.clusters.map(_.toDouble)) -> point(
-//          labelText = false,
-//          color = DiscreteColors(resK.clusters.length)))(
-//        extraLegend = resK.clusters.toArray.distinct.map(
-//          x =>
-//            x.toString -> PointLegend(shape = Shape.rectangle(0, 0, 1, 1),
-//              color = DiscreteColors(resK.clusters.length)(x.toDouble))),
-//        xlab = compensatedParam.map(x => fcsTextSegmentMap("$P" + x + "S")).toList(c1),
-//        ylab = compensatedParam.map(x => fcsTextSegmentMap("$P" + x + "S")).toList(c2)
-//      )
-//    }
-//    sequence(projections.toList, TableLayout(4))
-//  }
 
   def kmeansCompensated(kMeanFCSInput: KMeanFCSInput): KMeansResult = {
     val dataSubFCS = dataCompensatedMatFCS.row((0 to (kMeanFCSInput.nbRows - 1)).toArray)
     val rand4K = new Random(kMeanFCSInput.seedK)
-    val dataInitK = dataSubFCS.row((1 to kMeanFCSInput.clusterNb).map(x => rand4K.nextInt(kMeanFCSInput.nbRows)).toArray)
+    val dataInitK = dataSubFCS.row((1 to kMeanFCSInput.clusterNb).
+      map(x => rand4K.nextInt(kMeanFCSInput.nbRows)).toArray)
     kmeans.apply(dataSubFCS, dataInitK, kMeanFCSInput.iterations)
   }
 }
@@ -220,19 +164,25 @@ class FCSParserCompact(fcsNameInput: String, minValCytInput: Double) {
 case class KMeanFCSInput(clusterNb: Int = 5, nbRows: Int = 100, iterations: Int = 100, seedK: Int = 0) {}
 
 object FCSPlotting {
-  def kMeanFCSPlotSeq(fcsParsed: FCSParserCompact, kMeanR: KMeansResult)
+  def kMeanFCSPlotSeq(fcsParsed: FCSParserCompact, kMeanR: KMeansResult, exludeCluster : Array[Int] = Array())
  : Build[ElemList[Elems2[XYPlotArea,Legend]]] = {
-    val dataSubFCS = fcsParsed.dataCompensatedMatFCS.row((0 to (kMeanR.clusters.length - 1)).toArray)
+    val keepIndex = (0 to (kMeanR.clusters.length - 1)).
+      filter(x => (! exludeCluster.contains(kMeanR.clusters(x).toArray.head))).toArray
+    val dataSubFCS = fcsParsed.dataCompensatedMatFCS.row(keepIndex)
+    val subKMeanR = KMeansResult(
+      clusters = kMeanR.clusters.filter(x => !(exludeCluster.contains(x))),
+      means = kMeanR.means
+    )
     val projections = 0 until fcsParsed.compensatedParam.length combinations(2) map { g =>
       val c1 = g(0)
       val c2 = g(1)
       val col1 = dataSubFCS.col(c1)
       val col2 = dataSubFCS.col(c2)
       xyplot(
-        Mat(col1, col2, kMeanR.clusters.map(_.toDouble)) -> point(
-          labelText = false,
+        Mat(col1, col2, subKMeanR.clusters.map(_.toDouble)) -> point(
+          labelText = false, size = 4.0/log10(kMeanR.clusters.length),
           color = DiscreteColors(kMeanR.clusters.length)))(
-        extraLegend = kMeanR.clusters.toArray.distinct.map(
+        extraLegend = subKMeanR.clusters.toArray.distinct.map(
           x =>
             x.toString -> PointLegend(shape = Shape.rectangle(0, 0, 1, 1),
               color = DiscreteColors(kMeanR.clusters.length)(x.toDouble))),
