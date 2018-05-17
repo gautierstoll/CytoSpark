@@ -5,7 +5,7 @@ import java.nio.ByteBuffer
 import org.apache.spark.sql.types._
 
 
-class FCSParserSpark(fcsNameInput: String, minValCytInput: Double) {
+class FCSParserSpark(fcsNameInput: String, minValCytInput: Double,sessFCSSpark : SparkSession) {
   def textSegmentMap(inList: List[Byte]): Map[String, String] = {
     def lengthSecondCharSep(inList: List[Byte]): Int = {
       def dropUntilSinglSep(SepByte: Byte, offset: Int, charList: List[Byte]): Int = {
@@ -44,7 +44,13 @@ class FCSParserSpark(fcsNameInput: String, minValCytInput: Double) {
   val minValCyt = minValCytInput
 
 
-  val fileList = TestSessSpark.sparkContext.binaryRecords(fcsFile, 1)
+//  val sessFCSSpark = SparkSession.builder().
+//    appName("Test Spark Session").config("spark.master", "local").getOrCreate();
+//  sessFCSSpark.conf.set("spark.executor.memory", "10g")
+//  sessFCSSpark.conf.set("spark.driver.memory", "2g")
+//  sessFCSSpark.conf.set("spark.cores.max", "6")
+
+  val fileList = sessFCSSpark.sparkContext.binaryRecords(fcsFile, 1)
   val firstTextSegment = fileList.take(offsetByteText._2+1 ).drop(offsetByteText._1).
     toList.map(_.head.toChar).filter(_ != ' ').mkString("").toInt
   val lastTextSegment = fileList.take(offsetByteText._3+1 ).drop(offsetByteText._2+1).
@@ -66,9 +72,11 @@ class FCSParserSpark(fcsNameInput: String, minValCytInput: Double) {
   //val FCSDataStr = FCSFileStr.drop(firstDataSegment).take(lastDataSegment - firstDataSegment + 1)
   val nbPar = fcsTextSegmentMap("$PAR").toInt
   val nbEvent = fcsTextSegmentMap("$TOT").toArray.filter(_ != ' ').mkString("").toInt
-  
+
   val bitToFloat = (1 to nbPar).
     map(x => "$P".concat(x.toString).concat("B")).map(x => fcsTextSegmentMap(x).toInt).toList
+  val compensatedParam = (1 to bitToFloat.length).filter(x => fcsTextSegmentMap.contains("$P" + x + "S"))
+  compensatedParam.map(x => println("$P" + x + "S -> " + fcsTextSegmentMap("$P" + x + "S")))
 
   def fcsArrayDoublefromFCS(fcsLine: List[Byte], bit4Float: List[Int]): List[Double] = {
     def byteAggregate(listOfBit: List[Int], Index: Int = 0): List[Int] = listOfBit match {
@@ -86,7 +94,8 @@ class FCSParserSpark(fcsNameInput: String, minValCytInput: Double) {
       map(x => fcsLine.zip(byteAggregate(bitToFloat)).filter(_._2 == x).map(y => y._1)).
       map(z => byteToDoubleSizeDependant(z.toArray))
   }
-  val dataList = fileList.zipWithIndex().filter(x => ((x._2 >= firstDataSegment) && (x._2 <= lastDataSegment))).
-    map(y => ((y._2 - firstDataSegment) / (bitToFloat.sum / 8), y._1.head)).groupByKey.
-    map(x => (x._1, fcsArrayDoublefromFCS(x._2.toList, bitToFloat))
+   val dataList : org.apache.spark.rdd.RDD[(Array[Byte],Long)] =
+     fileList.zipWithIndex().filter(x => ((x._2 >= firstDataSegment) && (x._2 <= lastDataSegment)))
+//    map(y => ((y._2 - firstDataSegment) / (bitToFloat.sum / 8), y._1.head)).groupByKey.
+//    map(x => (x._1, fcsArrayDoublefromFCS(x._2.toList, bitToFloat)))
 }
