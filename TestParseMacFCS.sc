@@ -12,6 +12,8 @@ import org.nspl.saddle._
 import org.nspl.data._
 import stat.sparse._
 import stat.kmeans._
+import awtrenderer._
+import stat._
 
 def testKplot(data: SMat, res: KMeansResult, max: Int) = {
 
@@ -29,3 +31,7 @@ def testKplot(data: SMat, res: KMeansResult, max: Int) = {
   sequence(projections.toList, TableLayout(4))
 
 }
+
+
+
+
