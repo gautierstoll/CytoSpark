@@ -42,13 +42,13 @@ class FCSParserSpark(fcsNameInput: String, minValCytInput: Double) {
   private val offsetByteAnalysis: (Int, Int, Int) = (42, 49, 57)
   val fcsFile = new String(fcsNameInput)
   val minValCyt = minValCytInput
+  
   val sessFCSSpark = SparkSession.builder().
     appName("Test Spark Session").config("spark.master", "local").getOrCreate();
   sessFCSSpark.conf.set("spark.executor.memory", "10g")
   sessFCSSpark.conf.set("spark.driver.memory", "2g")
   sessFCSSpark.conf.set("spark.cores.max", "6")
 
-  
   val fileList = sessFCSSpark.sparkContext.binaryRecords(fcsFile, 1)
   val firstTextSegment = fileList.take(offsetByteText._2+1 ).drop(offsetByteText._1).
     toList.map(_.head.toChar).filter(_ != ' ').mkString("").toInt
