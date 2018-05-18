@@ -3,17 +3,18 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import java.nio.ByteBuffer
 import org.apache.spark.sql.types._
+import breeze.numerics._
 
-case class FCSHeader (
-                   fcsFileName : String,
-                     firstDataSegment : Long,
-                     lastDataSegment : Long,
-                   parameterMap : Map[String,String],
-                     nbEvent : Long,
-                     nbPar : Int,
-                     bitToFloat : List[Int],
-                     compensatedParam : scala.collection.immutable.IndexedSeq[Int],
-                   minValCyt : Double) {}
+case class FCSHeader(
+                      fcsFileName: String,
+                      firstDataSegment: Long,
+                      lastDataSegment: Long,
+                      parameterMap: Map[String, String],
+                      nbEvent: Long,
+                      nbPar: Int,
+                      bitToFloat: List[Int],
+                      compensatedParam: scala.collection.immutable.IndexedSeq[Int],
+                      minValCyt: Double) {}
 
 class FCSParserSpark(fcsNameInput: String, minValCytInput: Double, sessFCSSpark: SparkSession) {
   def textSegmentMap(inList: List[Byte]): Map[String, String] = {
@@ -103,15 +104,28 @@ object FCSTreatSpark {
       case 4 => ByteBuffer.wrap(arrayBytes).getFloat
       case 8 => ByteBuffer.wrap(arrayBytes).getDouble
     }
+
     (0 to (bit4Float.length - 1)).toList.
       map(x => fcsLine.zip(byteAggregate(bit4Float)).filter(_._2 == x).map(y => y._1)).
       map(z => byteToDoubleSizeDependant(z.toArray))
   }
 
-  def rddFCSDouble(byteRDD: RDD[Array[Byte]], fcsHeader : FCSHeader):
+  def rddFCSDouble(byteRDD: RDD[Array[Byte]], fcsHeader: FCSHeader):
   RDD[(Long, List[Double])] =
     byteRDD.zipWithIndex().
       filter(x => ((x._2 >= fcsHeader.firstDataSegment) && (x._2 <= fcsHeader.lastDataSegment))).
-      map(y => ((y._2 -  fcsHeader.firstDataSegment/ (fcsHeader.bitToFloat.sum / 8)), y._1.head)).groupByKey.
+      map(y => ((y._2 - fcsHeader.firstDataSegment) / (fcsHeader.bitToFloat.sum / 8), y._1.head)).groupByKey.
       map(x => (x._1, fcsArrayDoublefromFCS(x._2.toList, fcsHeader.bitToFloat)))
+
+  def rddFCSDoubleCompensated(byteRDD: RDD[Array[Byte]], fcsHeader: FCSHeader):
+  RDD[(Long, List[Double])] =
+    byteRDD.zipWithIndex().
+      filter(x => ((x._2 >= fcsHeader.firstDataSegment) && (x._2 <= fcsHeader.lastDataSegment))).
+      map(y => ((y._2 - fcsHeader.firstDataSegment)/ (fcsHeader.bitToFloat.sum / 8), y._1.head)).groupByKey.
+      map(x =>
+        (x._1,
+          fcsArrayDoublefromFCS(
+            fcsHeader.compensatedParam.toList.map(z => x._2.toList(z - 1)).toList, // not correct
+            fcsHeader.compensatedParam.toList.map(z => fcsHeader.bitToFloat(z - 1))).map(x => log10(x - fcsHeader.minValCyt))))
 }
+
