@@ -3,6 +3,8 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import java.nio.ByteBuffer
 import org.apache.spark.sql.types._
+import org.apache.spark.sql._
+
 import breeze.numerics._
 
 case class FCSHeader(
@@ -93,7 +95,7 @@ class FCSParserSpark(fcsNameInput: String, minValCytInput: Double, sessFCSSpark:
 }
 
 object FCSTreatSpark {
-  def fcsArrayDoublefromFCS(fcsLine: List[Byte], bit4Float: List[Int]): List[Double] = {
+  private def fcsArrayDoublefromFCS(fcsLine: List[Byte], bit4Float: List[Int]): List[Double] = {
     def byteAggregate(listOfBit: List[Int], Index: Int = 0): List[Int] = listOfBit match {
       case n :: Nil => List.fill(n / 8)(Index)
       case n :: xx => List.fill(n / 8)(Index) ::: byteAggregate(xx, Index + 1)
@@ -122,12 +124,17 @@ object FCSTreatSpark {
     byteRDD.zipWithIndex().
       filter(x => ((x._2 >= fcsHeader.firstDataSegment) && (x._2 <= fcsHeader.lastDataSegment))).
       map(y => ((y._2 - fcsHeader.firstDataSegment)/ (fcsHeader.bitToFloat.sum / 8), y._1.head)).groupByKey.
-//      map(x =>
-//        (x._1,
-//          fcsArrayDoublefromFCS(
-//            fcsHeader.compensatedParam.toList.map(z => x._2.toList(z - 1)).toList, // not correct
-//            fcsHeader.compensatedParam.toList.map(z => fcsHeader.bitToFloat(z - 1))).map(x => log10(x - fcsHeader.minValCyt))))
       map(x => (x._1, fcsArrayDoublefromFCS(x._2.toList, fcsHeader.bitToFloat))).
       map(x=> (x._1,(fcsHeader.compensatedParam.toList.map(z => log10(x._2.toList(z-1)-fcsHeader.minValCyt)))))
+
+  def dataSetFCSDoubleCompensated(byteRDD: RDD[Array[Byte]], fcsHeader: FCSHeader,sparkSession: SparkSession) ={
+    val fields = StructField("Index",LongType,nullable = true) :: fcsHeader.compensatedParam.map(x =>
+      StructField(fcsHeader.parameterMap("$P" + x + "S"),DoubleType, nullable = true)).toList
+    val schema = StructType(fields)
+    sparkSession.createDataFrame(
+      rddFCSDoubleCompensated(byteRDD,fcsHeader).map(x => Row.merge(Row(x._1),Row.fromSeq(x._2))),
+      schema)
+  }
+
 }
 
