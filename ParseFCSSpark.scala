@@ -122,10 +122,12 @@ object FCSTreatSpark {
     byteRDD.zipWithIndex().
       filter(x => ((x._2 >= fcsHeader.firstDataSegment) && (x._2 <= fcsHeader.lastDataSegment))).
       map(y => ((y._2 - fcsHeader.firstDataSegment)/ (fcsHeader.bitToFloat.sum / 8), y._1.head)).groupByKey.
-      map(x =>
-        (x._1,
-          fcsArrayDoublefromFCS(
-            fcsHeader.compensatedParam.toList.map(z => x._2.toList(z - 1)).toList, // not correct
-            fcsHeader.compensatedParam.toList.map(z => fcsHeader.bitToFloat(z - 1))).map(x => log10(x - fcsHeader.minValCyt))))
+//      map(x =>
+//        (x._1,
+//          fcsArrayDoublefromFCS(
+//            fcsHeader.compensatedParam.toList.map(z => x._2.toList(z - 1)).toList, // not correct
+//            fcsHeader.compensatedParam.toList.map(z => fcsHeader.bitToFloat(z - 1))).map(x => log10(x - fcsHeader.minValCyt))))
+      map(x => (x._1, fcsArrayDoublefromFCS(x._2.toList, fcsHeader.bitToFloat))).
+      map(x=> (x._1,(fcsHeader.compensatedParam.toList.map(z => log10(x._2.toList(z-1)-fcsHeader.minValCyt)))))
 }
 
