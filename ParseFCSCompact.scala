@@ -164,37 +164,71 @@ class FCSParserCompact(fcsNameInput: String, minValCytInput: Double) {
 case class KMeanFCSInput(clusterNb: Int = 5, nbRows: Int = 100, iterations: Int = 100, seedK: Int = 0) {}
 
 object FCSPlotting {
-  def kMeanFCSPlotSeq(fcsParsed: FCSParserCompact, kMeanR: KMeansResult, exludeCluster : Array[Int] = Array())
- : Build[ElemList[Elems2[XYPlotArea,Legend]]] = {
+  def kMeanFCSPlotSeq(fcsParsed: FCSParserCompact, kMeanR: KMeansResult, exludeCluster: Array[Int] = Array())
+  : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
     val keepIndex = (0 to (kMeanR.clusters.length - 1)).
-      filter(x => (! exludeCluster.contains(kMeanR.clusters(x).toArray.head))).toArray
+      filter(x => (!exludeCluster.contains(kMeanR.clusters(x).toArray.head))).toArray
     val dataSubFCS = fcsParsed.dataCompensatedMatFCS.row(keepIndex)
     val subKMeanR = KMeansResult(
       clusters = kMeanR.clusters.filter(x => !(exludeCluster.contains(x))),
       means = kMeanR.means
     )
-    val projections = 0 until fcsParsed.compensatedParam.length combinations(2) map { g =>
+    val projections = 0 until fcsParsed.compensatedParam.length combinations (2) map { g =>
       val c1 = g(0)
       val c2 = g(1)
       val col1 = dataSubFCS.col(c1)
       val col2 = dataSubFCS.col(c2)
       xyplot(
         Mat(col1, col2, subKMeanR.clusters.map(_.toDouble)) -> point(
-          labelText = false, size = 4.0/log10(kMeanR.clusters.length),
-          color = DiscreteColors(kMeanR.clusters.length)))(
+          labelText = false, size = 4.0 / log10(kMeanR.clusters.length),
+          color = DiscreteColors(kMeanR.means.length)))(
+
         extraLegend = subKMeanR.clusters.toArray.distinct.map(
           x =>
             x.toString -> PointLegend(shape = Shape.rectangle(0, 0, 1, 1),
-              color = DiscreteColors(kMeanR.clusters.length)(x.toDouble))),
+              color = DiscreteColors(kMeanR.means.length)(x.toDouble))),
+
         xlab = fcsParsed.compensatedParam.map(x => fcsParsed.fcsTextSegmentMap("$P" + x + "S")).toList(c1),
         ylab = fcsParsed.compensatedParam.map(x => fcsParsed.fcsTextSegmentMap("$P" + x + "S")).toList(c2)
       )
     }
     sequence(projections.toList, TableLayout(4))
   }
-  def plotKSeqToPng(plotSeq : Build[ElemList[Elems2[org.nspl.XYPlotArea,org.nspl.Legend]]],
-                    fileName : String, widthPng : Int = 1000) = {
+
+  def kMeanFCSPlotClustersSeq(fcsParsed: FCSParserCompact,kMeanR: KMeansResult, exludeCluster: Array[Int] = Array())
+  : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
+    val clusterSize = kMeanR.clusters.toArray.groupBy(x => x).map(x => (x._1, x._2.length)).
+      filter(x => (!exludeCluster.contains(x._2)))
+  val clusterMean = kMeanR.means.zipWithIndex.filter(x => (!exludeCluster.contains(x._2)))
+    val projections = 0 until kMeanR.means.head.length combinations (2) map { g =>
+      val c1 = g(0)
+      val c2 = g(1)
+      val col1 = clusterMean.map(x=> x._1.at(c1).toDouble).toArray
+      val col2 = clusterMean.map(x=> x._1.at(c2).toDouble).toArray
+      val totalSize = clusterSize.map(_._2.toDouble).sum
+      xyplot(
+        Mat(Vec(col1), Vec(col2),
+          Vec(clusterSize.map(x => x._1.toDouble).toArray),
+          Vec(clusterSize.map(x => 10*log10(x._2.toDouble)/log10(totalSize.toDouble)).toArray)) ->
+      point(
+          labelText = false,
+          color = DiscreteColors(kMeanR.means.length)))(
+
+        extraLegend = clusterSize.toArray.map(
+          x =>
+            x._1.toString -> PointLegend(shape = Shape.rectangle(0, 0, 1, 1),
+              color = DiscreteColors(kMeanR.means.length)(x._1.toDouble))),
+        xlab = fcsParsed.compensatedParam.map(x => fcsParsed.fcsTextSegmentMap("$P" + x + "S")).toList(c1),
+        ylab = fcsParsed.compensatedParam.map(x => fcsParsed.fcsTextSegmentMap("$P" + x + "S")).toList(c2)
+      )
+    }
+    sequence(projections.toList, TableLayout(4))
+
+  }
+
+  def plotKSeqToPng(plotSeq: Build[ElemList[Elems2[org.nspl.XYPlotArea, org.nspl.Legend]]],
+                    fileName: String, widthPng: Int = 1000) = {
     val filePng = new File(fileName)
-    pngToFile(filePng,plotSeq.build,widthPng)
+    pngToFile(filePng, plotSeq.build, widthPng)
   }
 }
