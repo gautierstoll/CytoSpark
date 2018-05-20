@@ -33,5 +33,3 @@ def testKplot(data: SMat, res: KMeansResult, max: Int) = {
 }
 
 
-
-
