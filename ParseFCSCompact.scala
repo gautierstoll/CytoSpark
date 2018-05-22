@@ -159,25 +159,29 @@ class FCSParserCompact(fcsNameInput: String, minValCytInput: Double) {
       map(x => rand4K.nextInt(kMeanFCSInput.nbRows)).toArray)
     kmeans.apply(dataSubFCS, dataInitK, kMeanFCSInput.iterations)
   }
-  def kmeansCompensatedTestConv(kMeanFCSInput: KMeanFCSInput,stepK : Int,seedArrayK : Array[Int]) :
+
+  def kmeansCompensatedTestConv(kMeanFCSInput: KMeanFCSInput, stepK: Int, seedArrayK: Array[Int]):
   Array[List[IndexedSeq[Vec[Double]]]] = {
-    def listMeanKMeans(initKMeans : IndexedSeq[Vec[Double]],nbRows : Int,iterations:Int,step : Int)
+    def listMeanKMeans(initKMeans: IndexedSeq[Vec[Double]], nbRows: Int, iterations: Int, step: Int)
     : List[IndexedSeq[Vec[Double]]] = {
-      if (step == 0) {Nil}
+      if (step == 0) {
+        Nil
+      }
       else {
-        val meanKMeans= kmeans.apply(dataCompensatedMatFCS.row((0 to (nbRows - 1)).toArray),
-          Mat(initKMeans.length,initKMeans.head.length,
-            initKMeans.flatMap(_.toArray).toArray),iterations).means
-        meanKMeans :: listMeanKMeans(meanKMeans,nbRows,iterations,step-1)
-        }
+        val meanKMeans = kmeans.apply(dataCompensatedMatFCS.row((0 to (nbRows - 1)).toArray),
+          Mat(initKMeans.length, initKMeans.head.length,
+            initKMeans.flatMap(_.toArray).toArray), iterations).means
+        meanKMeans :: listMeanKMeans(meanKMeans, nbRows, iterations, step - 1)
+      }
     }
-    seedArrayK.map( seedKFromArray => {
+
+    seedArrayK.map(seedKFromArray => {
       val rand4K = new Random(seedKFromArray)
       //val kMeanFCSInputSeedK = KMeanFCSInput(kMeanFCSInput.clusterNb,kMeanFCSInput.nbRows,
       //  kMeanFCSInput.iterations,seedKFromArray) // seedKFromArray no used in KMeanFCSInputSeedK
       val dataInitK = dataCompensatedMatFCS.row((0 to (kMeanFCSInput.nbRows - 1)).toArray).
         row((1 to kMeanFCSInput.clusterNb).map(x => rand4K.nextInt(kMeanFCSInput.nbRows)).toArray)
-      listMeanKMeans(dataInitK.rows,kMeanFCSInput.nbRows,kMeanFCSInput.iterations,stepK)
+      listMeanKMeans(dataInitK.rows, kMeanFCSInput.nbRows, kMeanFCSInput.iterations, stepK)
     })
   }
 }
@@ -242,7 +246,7 @@ object FCSPlotting {
             labelText = false,
             color = DiscreteColors(kMeanR.means.length)))(
         xlim = xMinMaxFCSComp, ylim = yMinMaxFCSComp,
-          extraLegend = clusterSize.toArray.map(
+        extraLegend = clusterSize.toArray.map(
           x =>
             x._1.toString -> PointLegend(shape = Shape.rectangle(0, 0, 1, 1),
               color = DiscreteColors(kMeanR.means.length)(x._1.toDouble))),
@@ -254,9 +258,31 @@ object FCSPlotting {
 
   }
 
-  def plotKSeqToPng(plotSeq: Build[ElemList[Elems2[org.nspl.XYPlotArea, org.nspl.Legend]]],
-                    fileName: String, widthPng: Int = 1000) = {
-    val filePng = new File(fileName)
-    pngToFile(filePng, plotSeq.build, widthPng)
+  def kMeanFCSPlotClustersConv(clusterConv: Array[List[IndexedSeq[Vec[Double]]]])
+  : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
+
+    val paramLinesPlot = (0 to (clusterConv.head.head.head.length - 1)).map(paramComp => {
+      val dataConvMat = Mat(((for (runIndex <- (0 to (clusterConv.length - 1));
+                                  clusterIndex <- (0 to (clusterConv.head.head.length - 1))) yield {
+        (for (convIndex <- (0 to (clusterConv.head.length -1))) yield
+          {
+            clusterConv(runIndex).toArray.
+              zipWithIndex.filter(_._2 == convIndex).map(_._1).head.
+              zipWithIndex.filter(_._2 == clusterIndex).map(_._1).head.toArray.
+              zipWithIndex.filter(_._2 == paramComp).map(_._1).head}).toArray}).toList :::
+        List((0 to (clusterConv.head.length -1)).map(_.toDouble).toArray)).toArray)
+      xyplot(dataConvMat -> (0 to (dataConvMat.numCols-2)).map(dataColIndex =>
+        line(xCol = dataConvMat.numCols,yCol = dataColIndex,
+          //color = DiscreteColors(clusterConv.length)((dataColIndex/clusterConv.head.head.length).toDouble),
+          color = Color.black,
+          stroke = Stroke(1d))).toList.head)()
+    })
+    sequence(paramLinesPlot.toList, TableLayout(4))
   }
+
+def plotKSeqToPng(plotSeq: Build[ElemList[Elems2[org.nspl.XYPlotArea, org.nspl.Legend]]],
+                  fileName: String, widthPng: Int = 1000) = {
+  val filePng = new File(fileName)
+  pngToFile(filePng, plotSeq.build, widthPng)
+}
 }
