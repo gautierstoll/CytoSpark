@@ -172,9 +172,9 @@ class FCSParserCompact(fcsNameInput: String, minValCytInput: Double) {
         }
     }
     seedArrayK.map( seedKFromArray => {
-      val rand4K = new Random(kMeanFCSInput.seedK)
-      val kMeanFCSInputSeedK = KMeanFCSInput(kMeanFCSInput.clusterNb,kMeanFCSInput.nbRows,
-        kMeanFCSInput.iterations,seedKFromArray)
+      val rand4K = new Random(seedKFromArray)
+      //val kMeanFCSInputSeedK = KMeanFCSInput(kMeanFCSInput.clusterNb,kMeanFCSInput.nbRows,
+      //  kMeanFCSInput.iterations,seedKFromArray) // seedKFromArray no used in KMeanFCSInputSeedK
       val dataInitK = dataCompensatedMatFCS.row((0 to (kMeanFCSInput.nbRows - 1)).toArray).
         row((1 to kMeanFCSInput.clusterNb).map(x => rand4K.nextInt(kMeanFCSInput.nbRows)).toArray)
       listMeanKMeans(dataInitK.rows,kMeanFCSInput.nbRows,kMeanFCSInput.iterations,stepK)
