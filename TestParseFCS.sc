@@ -13,7 +13,7 @@ import org.nspl.awtrenderer._
 
 val exp12FCS = new FCSParserCompact("Exp 12 T cells_Tube_001.fcs",-1000)
 val kMeanExp12_0 = exp12FCS.kmeansCompensated(KMeanFCSInput(6,1000,10,0))
-val testConv = exp12FCS.kmeansCompensatedTestConv(KMeanFCSInput(6,1000,10,10),5,Array(0,10))
+val testConv = exp12FCS.kmeansCompensatedTestConv(KMeanFCSInput(6,10000,10,10),7,Array(0,10,30))
 
 def matrixClustersConv(clusterConv: Array[List[IndexedSeq[Vec[Double]]]]) = {
   (0 to (clusterConv.head.head.head.length - 1)).map(paramComp => {

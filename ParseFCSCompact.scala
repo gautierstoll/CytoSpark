@@ -276,9 +276,9 @@ object FCSPlotting {
       val xLimDataConv = Option(0.0,(clusterConv.head.length -1).toDouble)
       xyplot(dataConvMat -> (0 to (dataConvMat.numCols-2)).map(dataColIndex =>
         line(xCol = (dataConvMat.numCols-1),yCol = dataColIndex,
-          //color = DiscreteColors(clusterConv.length)((dataColIndex/clusterConv.head.head.length).toDouble),
-          color = Color.black,
-          stroke = Stroke(1d))).toList)(xlim=xLimDataConv,ylim = yLimDataConv)
+          color = DiscreteColors(clusterConv.length)((dataColIndex/clusterConv.head.head.length).toDouble),
+          //color = Color.black,
+          stroke = Stroke(1d))).toList)(xlim = xLimDataConv,ylim = yLimDataConv)
     })
     sequence(paramLinesPlot.toList, TableLayout(4))
   }
