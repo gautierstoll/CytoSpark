@@ -271,11 +271,14 @@ object FCSPlotting {
               zipWithIndex.filter(_._2 == clusterIndex).map(_._1).head.toArray.
               zipWithIndex.filter(_._2 == paramComp).map(_._1).head}).toArray}).toList :::
         List((0 to (clusterConv.head.length -1)).map(_.toDouble).toArray)).toArray)
+      val yLimDataConv = Option(dataConvMat.col((0 to dataConvMat.numCols-2).toArray).toArray.min,
+        dataConvMat.col((0 to dataConvMat.numCols-2).toArray).toArray.max)
+      val xLimDataConv = Option(0.0,(clusterConv.head.length -1).toDouble)
       xyplot(dataConvMat -> (0 to (dataConvMat.numCols-2)).map(dataColIndex =>
-        line(xCol = dataConvMat.numCols,yCol = dataColIndex,
+        line(xCol = (dataConvMat.numCols-1),yCol = dataColIndex,
           //color = DiscreteColors(clusterConv.length)((dataColIndex/clusterConv.head.head.length).toDouble),
           color = Color.black,
-          stroke = Stroke(1d))).toList.head)()
+          stroke = Stroke(1d))).toList)(xlim=xLimDataConv,ylim = yLimDataConv)
     })
     sequence(paramLinesPlot.toList, TableLayout(4))
   }
