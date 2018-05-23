@@ -263,29 +263,56 @@ object FCSPlotting {
 
     val paramLinesPlot = (0 to (clusterConv.head.head.head.length - 1)).map(paramComp => {
       val dataConvMat = Mat(((for (runIndex <- (0 to (clusterConv.length - 1));
-                                  clusterIndex <- (0 to (clusterConv.head.head.length - 1))) yield {
-        (for (convIndex <- (0 to (clusterConv.head.length -1))) yield
-          {
-            clusterConv(runIndex).toArray.
-              zipWithIndex.filter(_._2 == convIndex).map(_._1).head.
-              zipWithIndex.filter(_._2 == clusterIndex).map(_._1).head.toArray.
-              zipWithIndex.filter(_._2 == paramComp).map(_._1).head}).toArray}).toList :::
-        List((0 to (clusterConv.head.length -1)).map(_.toDouble).toArray)).toArray)
-      val yLimDataConv = Option(dataConvMat.col((0 to dataConvMat.numCols-2).toArray).toArray.min,
-        dataConvMat.col((0 to dataConvMat.numCols-2).toArray).toArray.max)
-      val xLimDataConv = Option(0.0,(clusterConv.head.length -1).toDouble)
-      xyplot(dataConvMat -> (0 to (dataConvMat.numCols-2)).map(dataColIndex =>
-        line(xCol = (dataConvMat.numCols-1),yCol = dataColIndex,
-          color = DiscreteColors(clusterConv.length)((dataColIndex/clusterConv.head.head.length).toDouble),
+                                   clusterIndex <- (0 to (clusterConv.head.head.length - 1))) yield {
+        (for (convIndex <- (0 to (clusterConv.head.length - 1))) yield {
+          clusterConv(runIndex).toArray.
+            zipWithIndex.filter(_._2 == convIndex).map(_._1).head.
+            zipWithIndex.filter(_._2 == clusterIndex).map(_._1).head.toArray.
+            zipWithIndex.filter(_._2 == paramComp).map(_._1).head
+        }).toArray
+      }).toList :::
+        List((0 to (clusterConv.head.length - 1)).map(_.toDouble).toArray)).toArray)
+      val yLimDataConv = Option(dataConvMat.col((0 to dataConvMat.numCols - 2).toArray).toArray.min,
+        dataConvMat.col((0 to dataConvMat.numCols - 2).toArray).toArray.max)
+      val xLimDataConv = Option(0.0, (clusterConv.head.length - 1).toDouble)
+      xyplot(dataConvMat -> (0 to (dataConvMat.numCols - 2)).map(dataColIndex =>
+        line(xCol = (dataConvMat.numCols - 1), yCol = dataColIndex,
+          color = DiscreteColors(clusterConv.length - 1)((dataColIndex / clusterConv.head.head.length).toDouble),
           //color = Color.black,
-          stroke = Stroke(1d))).toList)(xlim = xLimDataConv,ylim = yLimDataConv)
+          stroke = Stroke(2d))).toList)(xlim = xLimDataConv, ylim = yLimDataConv)
     })
     sequence(paramLinesPlot.toList, TableLayout(4))
   }
 
-def plotKSeqToPng(plotSeq: Build[ElemList[Elems2[org.nspl.XYPlotArea, org.nspl.Legend]]],
-                  fileName: String, widthPng: Int = 1000) = {
-  val filePng = new File(fileName)
-  pngToFile(filePng, plotSeq.build, widthPng)
-}
+  def kMeanFCS2DPlotClustersConv(clusterConv: Array[List[IndexedSeq[Vec[Double]]]])
+  : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
+    val param2DPlot = 0 until (clusterConv.head.head.head.length) combinations (2) map { comb2D =>
+      val dataConvMat = Mat((for (runIndex <- (0 to (clusterConv.length - 1));
+                                  clusterIndex <- (0 to (clusterConv.head.head.length - 1))) yield {
+        (for (convIndex <- (0 to (clusterConv.head.length - 1)); combIndex <- List(0, 1)) yield {
+          clusterConv(runIndex).toArray.
+            zipWithIndex.filter(_._2 == convIndex).map(_._1).head.
+            zipWithIndex.filter(_._2 == clusterIndex).map(_._1).head.toArray.
+            zipWithIndex.filter(_._2 == comb2D(combIndex)).map(_._1).head
+        }).toArray
+      }).toArray)
+      val xLimDataConv = Option(dataConvMat.col((0 to dataConvMat.numCols / 2 - 1).map(_ * 2).toArray).toArray.min,
+        dataConvMat.col((0 to dataConvMat.numCols - 1).map(_ * 2).toArray).toArray.max)
+      val yLimDataConv = Option(dataConvMat.col((0 to dataConvMat.numCols / 2 - 1).map(_ * 2 + 1).toArray).toArray.min,
+        dataConvMat.col((0 to dataConvMat.numCols - 1).map(_ * 2 + 1).toArray).toArray.max)
+      xyplot(dataConvMat -> (0 to (dataConvMat.numCols / 2 - 1)).map(dataColIndex =>
+        line(xCol = (dataColIndex * 2), yCol = dataColIndex * 2 + 1,
+          color = DiscreteColors(clusterConv.length - 1)((dataColIndex / clusterConv.head.head.length).toDouble),
+          //color = Color.black,
+          stroke = Stroke(2d))).toList)(xlim = xLimDataConv, ylim = yLimDataConv)
+    }
+    sequence(param2DPlot.toList, TableLayout(4))
+  }
+
+
+  def plotKSeqToPng(plotSeq: Build[ElemList[Elems2[org.nspl.XYPlotArea, org.nspl.Legend]]],
+                    fileName: String, widthPng: Int = 1000) = {
+    val filePng = new File(fileName)
+    pngToFile(filePng, plotSeq.build, widthPng)
+  }
 }
