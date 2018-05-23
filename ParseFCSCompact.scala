@@ -288,8 +288,9 @@ object FCSPlotting {
   : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
     val param2DPlot = 0 until (clusterConv.head.head.head.length) combinations (2) map { comb2D =>
       val dataConvMat = Mat((for (runIndex <- (0 to (clusterConv.length - 1));
-                                  clusterIndex <- (0 to (clusterConv.head.head.length - 1))) yield {
-        (for (convIndex <- (0 to (clusterConv.head.length - 1)); combIndex <- List(0, 1)) yield {
+                                  clusterIndex <- (0 to (clusterConv.head.head.length - 1));
+                                  combIndex <- List(0, 1)) yield {
+        (for (convIndex <- (0 to (clusterConv.head.length - 1))) yield {
           clusterConv(runIndex).toArray.
             zipWithIndex.filter(_._2 == convIndex).map(_._1).head.
             zipWithIndex.filter(_._2 == clusterIndex).map(_._1).head.toArray.
@@ -297,9 +298,9 @@ object FCSPlotting {
         }).toArray
       }).toArray)
       val xLimDataConv = Option(dataConvMat.col((0 to dataConvMat.numCols / 2 - 1).map(_ * 2).toArray).toArray.min,
-        dataConvMat.col((0 to dataConvMat.numCols - 1).map(_ * 2).toArray).toArray.max)
+        dataConvMat.col((0 to dataConvMat.numCols/2 - 1).map(_ * 2).toArray).toArray.max)
       val yLimDataConv = Option(dataConvMat.col((0 to dataConvMat.numCols / 2 - 1).map(_ * 2 + 1).toArray).toArray.min,
-        dataConvMat.col((0 to dataConvMat.numCols - 1).map(_ * 2 + 1).toArray).toArray.max)
+        dataConvMat.col((0 to dataConvMat.numCols/2 - 1).map(_ * 2 + 1).toArray).toArray.max)
       xyplot(dataConvMat -> (0 to (dataConvMat.numCols / 2 - 1)).map(dataColIndex =>
         line(xCol = (dataColIndex * 2), yCol = dataColIndex * 2 + 1,
           color = DiscreteColors(clusterConv.length - 1)((dataColIndex / clusterConv.head.head.length).toDouble),
