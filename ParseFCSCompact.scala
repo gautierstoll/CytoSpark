@@ -161,6 +161,30 @@ class FCSParserCompact(fcsNameInput: String, minValCytInput: Double) {
     kmeans.apply(dataSubFCS, dataInitK, kMeanFCSInput.iterations)
   }
 
+  def kmeansCompensatedEuclidConv (kMeanFCSInput: KMeanFCSInput, stepK: Int, seedArrayK: Array[Int]):
+  Array[List[Double]] = {
+    def listEuclid(initKMeans: IndexedSeq[Vec[Double]], nbRows: Int, iterations: Int, step: Int) : List[Double] = {
+      if (step == 0) {
+        Nil
+      }
+      else {
+        println("Step "+ step)
+        val stepKMeans = kmeans.apply(dataCompensatedMatFCS.row((0 until nbRows).toArray),
+          Mat(initKMeans.length, initKMeans.head.length,
+            initKMeans.flatMap(_.toArray).toArray), iterations)
+        stepKMeans.clusters.toArray.zip(kmeans.matToSparse(dataCompensatedMatFCS.row((0 until nbRows).toArray))).
+          map( x => kmeans.euclid(x._2,stepKMeans.means(x._1))).sum ::
+          listEuclid(stepKMeans.means,nbRows,iterations,step-1)
+      }
+    }
+    seedArrayK.map(seedKFromArray => {
+      val rand4K = new Random(seedKFromArray)
+      val dataInitK = dataCompensatedMatFCS.row((0 until kMeanFCSInput.nbRows).toArray).
+        row((1 to kMeanFCSInput.clusterNb).map(x => rand4K.nextInt(kMeanFCSInput.nbRows)).toArray)
+      listEuclid(dataInitK.rows, kMeanFCSInput.nbRows, kMeanFCSInput.iterations, stepK)
+    })
+  }
+
   def kmeansCompensatedTestConv(kMeanFCSInput: KMeanFCSInput, stepK: Int, seedArrayK: Array[Int]):
   Array[List[IndexedSeq[Vec[Double]]]] = {
     def listMeanKMeans(initKMeans: IndexedSeq[Vec[Double]], nbRows: Int, iterations: Int, step: Int)
@@ -207,12 +231,12 @@ object FCSPlotting {
       xyplot(
         Mat(col1, col2, subKMeanR.clusters.map(_.toDouble)) -> point(
           labelText = false, size = 4.0 / log10(kMeanR.clusters.length),
-          color = DiscreteColors(kMeanR.means.length)))(
+          color = DiscreteColors(kMeanR.means.length-1)))(
         xlim = xMinMaxFCSComp, ylim = yMinMaxFCSComp,
         extraLegend = subKMeanR.clusters.toArray.distinct.map(
           x =>
             x.toString -> PointLegend(shape = Shape.rectangle(0, 0, 1, 1),
-              color = DiscreteColors(kMeanR.means.length)(x.toDouble))),
+              color = DiscreteColors(kMeanR.means.length-1)(x.toDouble))),
 
         xlab = fcsParsed.compensatedParam.map(x => fcsParsed.fcsTextSegmentMap("$P" + x + "S")).toList(c1),
         ylab = fcsParsed.compensatedParam.map(x => fcsParsed.fcsTextSegmentMap("$P" + x + "S")).toList(c2)
@@ -243,12 +267,12 @@ object FCSPlotting {
           Vec(clusterSize.map(x => 10 * log10(x._2.toDouble) / log10(totalSize.toDouble)).toArray)) ->
           point(
             labelText = false,
-            color = DiscreteColors(kMeanR.means.length)))(
+            color = DiscreteColors(kMeanR.means.length-1)))(
         xlim = xMinMaxFCSComp, ylim = yMinMaxFCSComp,
         extraLegend = clusterSize.toArray.map(
           x =>
             x._1.toString -> PointLegend(shape = Shape.rectangle(0, 0, 1, 1),
-              color = DiscreteColors(kMeanR.means.length)(x._1.toDouble))),
+              color = DiscreteColors(kMeanR.means.length-1)(x._1.toDouble))),
         xlab = fcsParsed.compensatedParam.map(x => fcsParsed.fcsTextSegmentMap("$P" + x + "S")).toList(c1),
         ylab = fcsParsed.compensatedParam.map(x => fcsParsed.fcsTextSegmentMap("$P" + x + "S")).toList(c2)
       )
