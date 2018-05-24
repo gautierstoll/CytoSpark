@@ -1,7 +1,4 @@
 import java.nio._
-
-
-
 import Array._
 import breeze.linalg._
 import breeze.numerics._
@@ -12,6 +9,7 @@ import org.nspl.data._
 import org.nspl.awtrenderer._
 import stat._
 //import java.nio.ByteBuffer
+
 
 val exp12FCS = new FCSParserCompact("Exp 12 T cells_Tube_001.fcs",-1000)
 
@@ -36,4 +34,3 @@ val kMeanExp12_50 = exp12FCS.kmeansCompensated(KMeanFCSInput(6,1000,100,50))
 
 val kMeanExp12_50Val = kMeanExp12_50.clusters.toArray.zip(kmeans.matToSparse(exp12FCS.dataCompensatedMatFCS)).
   map( x => kmeans.euclid(x._2,kMeanExp12_50.means(x._1))).sum
-
