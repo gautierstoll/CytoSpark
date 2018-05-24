@@ -1,5 +1,7 @@
 import java.nio._
 
+
+
 import Array._
 import breeze.linalg._
 import breeze.numerics._
@@ -11,6 +13,7 @@ import org.nspl.awtrenderer._
 import stat._
 //import java.nio.ByteBuffer
 
+val exp12FCS = new FCSParserCompact("Exp 12 T cells_Tube_001.fcs",-1000)
 
 val kMeanExp12_0 = exp12FCS.kmeansCompensated(KMeanFCSInput(6,1000,100,0))
 
