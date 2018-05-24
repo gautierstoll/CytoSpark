@@ -54,7 +54,7 @@ class FCSParserSpark(fcsNameInput: String, minValCytInput: Double, sessFCSSpark:
   private val offsetByteText: (Int, Int, Int) = (10, 17, 25)
   private val offsetByteAnalysis: (Int, Int, Int) = (42, 49, 57)
 
-  val fileList = sessFCSSpark.sparkContext.binaryRecords(fcsNameInput, 1)
+  val fileList : RDD[Array[Byte]]  = sessFCSSpark.sparkContext.binaryRecords(fcsNameInput, 1)
   private val firstTextSegment = fileList.take(offsetByteText._2 + 1).drop(offsetByteText._1).
     toList.map(_.head.toChar).filter(_ != ' ').mkString("").toInt
   private val lastTextSegment = fileList.take(offsetByteText._3 + 1).drop(offsetByteText._2 + 1).
