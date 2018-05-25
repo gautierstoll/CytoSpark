@@ -13,6 +13,8 @@ import org.nspl.awtrenderer._
 import org.saddle.io._
 import stat.kmeans._
 import stat.sparse.SMat
+import stat.sparse.SVec
+
 
 class FCSParserCompact(fcsNameInput: String, minValCytInput: Double) {
 
@@ -40,19 +42,19 @@ class FCSParserCompact(fcsNameInput: String, minValCytInput: Double) {
     val keyLength = lengthSecondCharSep(inList) - 1
     val valLength = lengthSecondCharSep(inList.drop(keyLength + 1)) - 1
     if (inList.length <= (keyLength + valLength + 3)) {
-      Map(inList.slice(1,1+keyLength).map(_.toChar).mkString("") ->
-        inList.slice(1+keyLength+1,1+keyLength+1+valLength).map(_.toChar).mkString(""))
+      Map(inList.slice(1, 1 + keyLength).map(_.toChar).mkString("") ->
+        inList.slice(1 + keyLength + 1, 1 + keyLength + 1 + valLength).map(_.toChar).mkString(""))
     }
     else {
-      Map(inList.slice(1,1+keyLength).map(_.toChar).mkString("") ->
-        inList.slice(1+keyLength+1,1+keyLength+1+valLength).map(_.toChar).mkString("")) ++
+      Map(inList.slice(1, 1 + keyLength).map(_.toChar).mkString("") ->
+        inList.slice(1 + keyLength + 1, 1 + keyLength + 1 + valLength).map(_.toChar).mkString("")) ++
         textSegmentMap(inList.drop(1 + keyLength + 1 + valLength))
     }
   }
 
 
   val fcsFile = new String(fcsNameInput)
-  val minValCyt : Double = minValCytInput
+  val minValCyt: Double = minValCytInput
 
   private val fcsFileBuffer = new BufferedInputStream(new FileInputStream(fcsFile))
 
@@ -97,7 +99,7 @@ class FCSParserCompact(fcsNameInput: String, minValCytInput: Double) {
     fcsFileBuffer.read
   }).map(_.toByte)
   binaryFileIndex = lastTextSegment + 1
-  val fcsTextSegmentMap : Map[String,String] = textSegmentMap(fcsTextSegment.toList)
+  val fcsTextSegmentMap: Map[String, String] = textSegmentMap(fcsTextSegment.toList)
   println("Mode: " + fcsTextSegmentMap("$MODE"))
   println("Data type: " + fcsTextSegmentMap("$DATATYPE"))
   println("Number of chanels: " + fcsTextSegmentMap("$PAR"))
@@ -106,11 +108,11 @@ class FCSParserCompact(fcsNameInput: String, minValCytInput: Double) {
 
   private val firstDataSegment = fcsTextSegmentMap("$BEGINDATA").toList.filter(_ != ' ').mkString("").toInt
   private val lastDataSegment = fcsTextSegmentMap("$ENDDATA").toList.filter(_ != ' ').mkString("").toInt
-  val nbPar : Int = fcsTextSegmentMap("$PAR").toInt
-  val nbEvent : Int = fcsTextSegmentMap("$TOT").toArray.filter(_ != ' ').mkString("").toInt
-  val bitToFloat : List[Int]= (1 to nbPar).
+  val nbPar: Int = fcsTextSegmentMap("$PAR").toInt
+  val nbEvent: Int = fcsTextSegmentMap("$TOT").toArray.filter(_ != ' ').mkString("").toInt
+  val bitToFloat: List[Int] = (1 to nbPar).
     map(x => "$P".concat(x.toString).concat("B")).map(x => fcsTextSegmentMap(x).toInt).toList
-  val compensatedParam : scala.collection.immutable.IndexedSeq[Int] =
+  val compensatedParam: scala.collection.immutable.IndexedSeq[Int] =
     (1 to bitToFloat.length).filter(x => fcsTextSegmentMap.contains("$P" + x + "S"))
   compensatedParam.foreach(x => println("$P" + x + "S -> " + fcsTextSegmentMap("$P" + x + "S")))
 
@@ -161,52 +163,84 @@ class FCSParserCompact(fcsNameInput: String, minValCytInput: Double) {
     kmeans.apply(dataSubFCS, dataInitK, kMeanFCSInput.iterations)
   }
 
-  def kmeansCompensatedEuclidConv (kMeanFCSInput: KMeanFCSInput, stepK: Int, seedArrayK: Array[Int]):
-  Array[List[Double]] = {
-    def listEuclid(initKMeans: IndexedSeq[Vec[Double]], nbRows: Int, iterations: Int, step: Int) : List[Double] = {
-      if (step == 0) {
-        Nil
+  def kmeansPPCompensated(kMeanFCSInput: KMeanFCSInput): KMeansResult = {
+    def initClust(initClustListIndex: List[Int], dataArrayIndex: Array[Int], clusterNb: Int, rand4Init: Random):
+    List[Int] = {
+      if (clusterNb == 0) {
+        initClustListIndex
       }
       else {
-        println("Step "+ step)
-        val stepKMeans = kmeans.apply(dataCompensatedMatFCS.row((0 until nbRows).toArray),
-          Mat(initKMeans.length, initKMeans.head.length,
-            initKMeans.flatMap(_.toArray).toArray), iterations)
-        stepKMeans.clusters.toArray.zip(kmeans.matToSparse(dataCompensatedMatFCS.row((0 until nbRows).toArray))).
-          map( x => kmeans.euclid(x._2,stepKMeans.means(x._1))).sum ::
-          listEuclid(stepKMeans.means,nbRows,iterations,step-1)
+        val dataIndexWithMinEuclid = dataArrayIndex.zip(
+          dataArrayIndex.map(dataIndex =>
+            initClustListIndex.map(initClustIndex =>
+              kmeans.euclid(SVec(Series(dataCompensatedMatFCS.row(initClustIndex)), dataCompensatedMatFCS.numCols),
+                dataCompensatedMatFCS.row(dataIndex))).min))
+        val random4Index = rand4Init.nextDouble() * dataIndexWithMinEuclid.map(_._2).sum
+        val indexData4Clust = dataIndexWithMinEuclid.scanLeft(0, 0d)((x, y) => (y._1, x._2 + y._2)).
+          filter(x => x._2 > random4Index).head._1
+        initClust(indexData4Clust :: initClustListIndex,
+          dataArrayIndex.filter(x => x != indexData4Clust), clusterNb - 1, rand4Init)
       }
     }
-    seedArrayK.map(seedKFromArray => {
-      val rand4K = new Random(seedKFromArray)
-      val dataInitK = dataCompensatedMatFCS.row((0 until kMeanFCSInput.nbRows).toArray).
-        row((1 to kMeanFCSInput.clusterNb).map(x => rand4K.nextInt(kMeanFCSInput.nbRows)).toArray)
-      listEuclid(dataInitK.rows, kMeanFCSInput.nbRows, kMeanFCSInput.iterations, stepK)
-    })
+    val rand4K = new Random(kMeanFCSInput.seedK)
+    val initDataIndex = rand4K.nextInt(kMeanFCSInput.nbRows)
+    val clusterIndices = initClust(List(initDataIndex),
+      (0 until kMeanFCSInput.nbRows).filter(x => x != initDataIndex).toArray,
+      kMeanFCSInput.clusterNb-1, rand4K).toArray
+    //val dataIndices = (0 until kMeanFCSInput.nbRows).filter(x => !clusterIndices.contains(x)).toArray
+    kmeans.apply(dataCompensatedMatFCS.row((0 until kMeanFCSInput.nbRows).toArray),
+      dataCompensatedMatFCS.row(clusterIndices),kMeanFCSInput.iterations)
   }
 
-  def kmeansCompensatedTestConv(kMeanFCSInput: KMeanFCSInput, stepK: Int, seedArrayK: Array[Int]):
-  Array[List[IndexedSeq[Vec[Double]]]] = {
-    def listMeanKMeans(initKMeans: IndexedSeq[Vec[Double]], nbRows: Int, iterations: Int, step: Int)
-    : List[IndexedSeq[Vec[Double]]] = {
-      if (step == 0) {
-        Nil
-      }
-      else {
-        val meanKMeans = kmeans.apply(dataCompensatedMatFCS.row((0 until nbRows).toArray),
-          Mat(initKMeans.length, initKMeans.head.length,
-            initKMeans.flatMap(_.toArray).toArray), iterations).means
-        meanKMeans :: listMeanKMeans(meanKMeans, nbRows, iterations, step - 1)
-      }
+def kmeansCompensatedEuclidConv(kMeanFCSInput: KMeanFCSInput, stepK: Int, seedArrayK: Array[Int]):
+Array[(List[Double], KMeansResult)] = { // carefull: it correspond to iterations*stepK + (stepk -1) or something like that
+  def listEuclid(initKMeans: IndexedSeq[Vec[Double]], nbRows: Int, iterations: Int, step: Int):
+  List[(Double, KMeansResult)] = {
+    if (step == 0) {
+      Nil
     }
-
-    seedArrayK.map(seedKFromArray => {
-      val rand4K = new Random(seedKFromArray)
-      val dataInitK = dataCompensatedMatFCS.row((0 until kMeanFCSInput.nbRows).toArray).
-        row((1 to kMeanFCSInput.clusterNb).map(x => rand4K.nextInt(kMeanFCSInput.nbRows)).toArray)
-      listMeanKMeans(dataInitK.rows, kMeanFCSInput.nbRows, kMeanFCSInput.iterations, stepK)
-    })
+    else {
+      println("Step " + step)
+      val stepKMeans = kmeans.apply(dataCompensatedMatFCS.row((0 until nbRows).toArray),
+        Mat(initKMeans.length, initKMeans.head.length,
+          initKMeans.flatMap(_.toArray).toArray), iterations)
+      (stepKMeans.clusters.toArray.zip(kmeans.matToSparse(dataCompensatedMatFCS.row((0 until nbRows).toArray))).
+        map(x => kmeans.euclid(x._2, stepKMeans.means(x._1))).sum, stepKMeans) ::
+        listEuclid(stepKMeans.means, nbRows, iterations, step - 1)
+    }
   }
+
+  seedArrayK.map(seedKFromArray => {
+    val rand4K = new Random(seedKFromArray)
+    val dataInitK = dataCompensatedMatFCS.row((0 until kMeanFCSInput.nbRows).toArray).
+      row((1 to kMeanFCSInput.clusterNb).map(x => rand4K.nextInt(kMeanFCSInput.nbRows)).toArray)
+    val listEuclidRand = listEuclid(dataInitK.rows, kMeanFCSInput.nbRows, kMeanFCSInput.iterations, stepK)
+    (listEuclidRand.map(x => x._1), listEuclidRand.last._2)
+  })
+}
+
+def kmeansCompensatedTestConv(kMeanFCSInput: KMeanFCSInput, stepK: Int, seedArrayK: Array[Int]):
+Array[List[IndexedSeq[Vec[Double]]]] = {
+  def listMeanKMeans(initKMeans: IndexedSeq[Vec[Double]], nbRows: Int, iterations: Int, step: Int)
+  : List[IndexedSeq[Vec[Double]]] = {
+    if (step == 0) {
+      Nil
+    }
+    else {
+      val meanKMeans = kmeans.apply(dataCompensatedMatFCS.row((0 until nbRows).toArray),
+        Mat(initKMeans.length, initKMeans.head.length,
+          initKMeans.flatMap(_.toArray).toArray), iterations).means
+      meanKMeans :: listMeanKMeans(meanKMeans, nbRows, iterations, step - 1)
+    }
+  }
+
+  seedArrayK.map(seedKFromArray => {
+    val rand4K = new Random(seedKFromArray)
+    val dataInitK = dataCompensatedMatFCS.row((0 until kMeanFCSInput.nbRows).toArray).
+      row((1 to kMeanFCSInput.clusterNb).map(x => rand4K.nextInt(kMeanFCSInput.nbRows)).toArray)
+    listMeanKMeans(dataInitK.rows, kMeanFCSInput.nbRows, kMeanFCSInput.iterations, stepK)
+  })
+}
 }
 
 case class KMeanFCSInput(clusterNb: Int = 5, nbRows: Int = 100, iterations: Int = 100, seedK: Int = 0) {}
@@ -231,12 +265,12 @@ object FCSPlotting {
       xyplot(
         Mat(col1, col2, subKMeanR.clusters.map(_.toDouble)) -> point(
           labelText = false, size = 4.0 / log10(kMeanR.clusters.length),
-          color = DiscreteColors(kMeanR.means.length-1)))(
+          color = DiscreteColors(kMeanR.means.length - 1)))(
         xlim = xMinMaxFCSComp, ylim = yMinMaxFCSComp,
         extraLegend = subKMeanR.clusters.toArray.distinct.map(
           x =>
             x.toString -> PointLegend(shape = Shape.rectangle(0, 0, 1, 1),
-              color = DiscreteColors(kMeanR.means.length-1)(x.toDouble))),
+              color = DiscreteColors(kMeanR.means.length - 1)(x.toDouble))),
 
         xlab = fcsParsed.compensatedParam.map(x => fcsParsed.fcsTextSegmentMap("$P" + x + "S")).toList(c1),
         ylab = fcsParsed.compensatedParam.map(x => fcsParsed.fcsTextSegmentMap("$P" + x + "S")).toList(c2)
@@ -267,12 +301,12 @@ object FCSPlotting {
           Vec(clusterSize.map(x => 10 * log10(x._2.toDouble) / log10(totalSize.toDouble)).toArray)) ->
           point(
             labelText = false,
-            color = DiscreteColors(kMeanR.means.length-1)))(
+            color = DiscreteColors(kMeanR.means.length - 1)))(
         xlim = xMinMaxFCSComp, ylim = yMinMaxFCSComp,
         extraLegend = clusterSize.toArray.map(
           x =>
             x._1.toString -> PointLegend(shape = Shape.rectangle(0, 0, 1, 1),
-              color = DiscreteColors(kMeanR.means.length-1)(x._1.toDouble))),
+              color = DiscreteColors(kMeanR.means.length - 1)(x._1.toDouble))),
         xlab = fcsParsed.compensatedParam.map(x => fcsParsed.fcsTextSegmentMap("$P" + x + "S")).toList(c1),
         ylab = fcsParsed.compensatedParam.map(x => fcsParsed.fcsTextSegmentMap("$P" + x + "S")).toList(c2)
       )
@@ -321,9 +355,9 @@ object FCSPlotting {
         }).toArray
       }).toArray)
       val xLimDataConv = Option(dataConvMat.col((0 to dataConvMat.numCols / 2 - 1).map(_ * 2).toArray).toArray.min,
-        dataConvMat.col((0 to dataConvMat.numCols/2 - 1).map(_ * 2).toArray).toArray.max)
+        dataConvMat.col((0 to dataConvMat.numCols / 2 - 1).map(_ * 2).toArray).toArray.max)
       val yLimDataConv = Option(dataConvMat.col((0 to dataConvMat.numCols / 2 - 1).map(_ * 2 + 1).toArray).toArray.min,
-        dataConvMat.col((0 to dataConvMat.numCols/2 - 1).map(_ * 2 + 1).toArray).toArray.max)
+        dataConvMat.col((0 to dataConvMat.numCols / 2 - 1).map(_ * 2 + 1).toArray).toArray.max)
       xyplot(dataConvMat -> (0 to (dataConvMat.numCols / 2 - 1)).map(dataColIndex =>
         line(xCol = (dataColIndex * 2), yCol = dataColIndex * 2 + 1,
           color = DiscreteColors(clusterConv.length - 1)((dataColIndex / clusterConv.head.head.length).toDouble),
