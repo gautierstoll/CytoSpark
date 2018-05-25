@@ -182,65 +182,116 @@ class FCSParserCompact(fcsNameInput: String, minValCytInput: Double) {
           dataArrayIndex.filter(x => x != indexData4Clust), clusterNb - 1, rand4Init)
       }
     }
+
     val rand4K = new Random(kMeanFCSInput.seedK)
     val initDataIndex = rand4K.nextInt(kMeanFCSInput.nbRows)
     val clusterIndices = initClust(List(initDataIndex),
       (0 until kMeanFCSInput.nbRows).filter(x => x != initDataIndex).toArray,
-      kMeanFCSInput.clusterNb-1, rand4K).toArray
+      kMeanFCSInput.clusterNb - 1, rand4K).toArray
     //val dataIndices = (0 until kMeanFCSInput.nbRows).filter(x => !clusterIndices.contains(x)).toArray
     kmeans.apply(dataCompensatedMatFCS.row((0 until kMeanFCSInput.nbRows).toArray),
-      dataCompensatedMatFCS.row(clusterIndices),kMeanFCSInput.iterations)
+      dataCompensatedMatFCS.row(clusterIndices), kMeanFCSInput.iterations)
   }
 
-def kmeansCompensatedEuclidConv(kMeanFCSInput: KMeanFCSInput, stepK: Int, seedArrayK: Array[Int]):
-Array[(List[Double], KMeansResult)] = { // carefull: it correspond to iterations*stepK + (stepk -1) or something like that
-  def listEuclid(initKMeans: IndexedSeq[Vec[Double]], nbRows: Int, iterations: Int, step: Int):
-  List[(Double, KMeansResult)] = {
-    if (step == 0) {
-      Nil
+  def kmeansCompensatedEuclidConv(kMeanFCSInput: KMeanFCSInput, stepK: Int, seedArrayK: Array[Int]):
+  Array[(List[Double], KMeansResult)] = { // carefull: it correspond to iterations*stepK + (stepk -1) or something like that
+    def listEuclid(initKMeans: IndexedSeq[Vec[Double]], nbRows: Int, iterations: Int, step: Int):
+    List[(Double, KMeansResult)] = {
+      if (step == 0) {
+        Nil
+      }
+      else {
+        println("Step " + step)
+        val stepKMeans = kmeans.apply(dataCompensatedMatFCS.row((0 until nbRows).toArray),
+          Mat(initKMeans.length, initKMeans.head.length,
+            initKMeans.flatMap(_.toArray).toArray), iterations)
+        (stepKMeans.clusters.toArray.zip(kmeans.matToSparse(dataCompensatedMatFCS.row((0 until nbRows).toArray))).
+          map(x => kmeans.euclid(x._2, stepKMeans.means(x._1))).sum, stepKMeans) ::
+          listEuclid(stepKMeans.means, nbRows, iterations, step - 1)
+      }
     }
-    else {
-      println("Step " + step)
-      val stepKMeans = kmeans.apply(dataCompensatedMatFCS.row((0 until nbRows).toArray),
-        Mat(initKMeans.length, initKMeans.head.length,
-          initKMeans.flatMap(_.toArray).toArray), iterations)
-      (stepKMeans.clusters.toArray.zip(kmeans.matToSparse(dataCompensatedMatFCS.row((0 until nbRows).toArray))).
-        map(x => kmeans.euclid(x._2, stepKMeans.means(x._1))).sum, stepKMeans) ::
-        listEuclid(stepKMeans.means, nbRows, iterations, step - 1)
-    }
+
+    seedArrayK.map(seedKFromArray => {
+      val rand4K = new Random(seedKFromArray)
+      val dataInitK = dataCompensatedMatFCS.row((0 until kMeanFCSInput.nbRows).toArray).
+        row((1 to kMeanFCSInput.clusterNb).map(x => rand4K.nextInt(kMeanFCSInput.nbRows)).toArray)
+      val listEuclidRand = listEuclid(dataInitK.rows, kMeanFCSInput.nbRows, kMeanFCSInput.iterations, stepK)
+      (listEuclidRand.map(x => x._1), listEuclidRand.last._2)
+    })
   }
 
-  seedArrayK.map(seedKFromArray => {
-    val rand4K = new Random(seedKFromArray)
-    val dataInitK = dataCompensatedMatFCS.row((0 until kMeanFCSInput.nbRows).toArray).
-      row((1 to kMeanFCSInput.clusterNb).map(x => rand4K.nextInt(kMeanFCSInput.nbRows)).toArray)
-    val listEuclidRand = listEuclid(dataInitK.rows, kMeanFCSInput.nbRows, kMeanFCSInput.iterations, stepK)
-    (listEuclidRand.map(x => x._1), listEuclidRand.last._2)
-  })
-}
-
-def kmeansCompensatedTestConv(kMeanFCSInput: KMeanFCSInput, stepK: Int, seedArrayK: Array[Int]):
-Array[List[IndexedSeq[Vec[Double]]]] = {
-  def listMeanKMeans(initKMeans: IndexedSeq[Vec[Double]], nbRows: Int, iterations: Int, step: Int)
-  : List[IndexedSeq[Vec[Double]]] = {
-    if (step == 0) {
-      Nil
+  def kmeansPPCompensatedEuclidConv(kMeanFCSInput: KMeanFCSInput, stepK: Int, seedArrayK: Array[Int]):
+  Array[(List[Double], KMeansResult)] = { // carefull: it correspond to iterations*stepK + (stepk -1) or something like that
+    def initClust(initClustListIndex: List[Int], dataArrayIndex: Array[Int], clusterNb: Int, rand4Init: Random):
+    List[Int] = {
+      if (clusterNb == 0) {
+        initClustListIndex
+      }
+      else {
+        val dataIndexWithMinEuclid = dataArrayIndex.zip(
+          dataArrayIndex.map(dataIndex =>
+            initClustListIndex.map(initClustIndex =>
+              kmeans.euclid(SVec(Series(dataCompensatedMatFCS.row(initClustIndex)), dataCompensatedMatFCS.numCols),
+                dataCompensatedMatFCS.row(dataIndex))).min))
+        val random4Index = rand4Init.nextDouble() * dataIndexWithMinEuclid.map(_._2).sum
+        val indexData4Clust = dataIndexWithMinEuclid.scanLeft(0, 0d)((x, y) => (y._1, x._2 + y._2)).
+          filter(x => x._2 > random4Index).head._1
+        initClust(indexData4Clust :: initClustListIndex,
+          dataArrayIndex.filter(x => x != indexData4Clust), clusterNb - 1, rand4Init)
+      }
     }
-    else {
-      val meanKMeans = kmeans.apply(dataCompensatedMatFCS.row((0 until nbRows).toArray),
-        Mat(initKMeans.length, initKMeans.head.length,
-          initKMeans.flatMap(_.toArray).toArray), iterations).means
-      meanKMeans :: listMeanKMeans(meanKMeans, nbRows, iterations, step - 1)
+    def listEuclid(initKMeans: IndexedSeq[Vec[Double]], nbRows: Int, iterations: Int, step: Int):
+    List[(Double, KMeansResult)] = {
+      if (step == 0) {
+        Nil
+      }
+      else {
+        println("Step " + step)
+        val stepKMeans = kmeans.apply(dataCompensatedMatFCS.row((0 until nbRows).toArray),
+          Mat(initKMeans.length, initKMeans.head.length,
+            initKMeans.flatMap(_.toArray).toArray), iterations)
+        (stepKMeans.clusters.toArray.zip(kmeans.matToSparse(dataCompensatedMatFCS.row((0 until nbRows).toArray))).
+          map(x => kmeans.euclid(x._2, stepKMeans.means(x._1))).sum, stepKMeans) ::
+          listEuclid(stepKMeans.means, nbRows, iterations, step - 1)
+      }
     }
+    seedArrayK.map(seedKFromArray => {
+      val rand4K = new Random(seedKFromArray)
+      //val dataInitK = dataCompensatedMatFCS.row((0 until kMeanFCSInput.nbRows).toArray).
+      //row((1 to kMeanFCSInput.clusterNb).map(x => rand4K.nextInt(kMeanFCSInput.nbRows)).toArray)
+      val initDataIndex = rand4K.nextInt(kMeanFCSInput.nbRows)
+      val clusterIndices = initClust(List(initDataIndex),
+        (0 until kMeanFCSInput.nbRows).filter(x => x != initDataIndex).toArray,
+        kMeanFCSInput.clusterNb - 1, rand4K).toArray
+      val listEuclidRand = listEuclid(dataCompensatedMatFCS.row(clusterIndices).rows,
+        kMeanFCSInput.nbRows, kMeanFCSInput.iterations, stepK)
+      (listEuclidRand.map(x => x._1), listEuclidRand.last._2)
+    })
   }
 
-  seedArrayK.map(seedKFromArray => {
-    val rand4K = new Random(seedKFromArray)
-    val dataInitK = dataCompensatedMatFCS.row((0 until kMeanFCSInput.nbRows).toArray).
-      row((1 to kMeanFCSInput.clusterNb).map(x => rand4K.nextInt(kMeanFCSInput.nbRows)).toArray)
-    listMeanKMeans(dataInitK.rows, kMeanFCSInput.nbRows, kMeanFCSInput.iterations, stepK)
-  })
-}
+
+  def kmeansCompensatedTestConv(kMeanFCSInput: KMeanFCSInput, stepK: Int, seedArrayK: Array[Int]):
+  Array[List[IndexedSeq[Vec[Double]]]] = {
+    def listMeanKMeans(initKMeans: IndexedSeq[Vec[Double]], nbRows: Int, iterations: Int, step: Int)
+    : List[IndexedSeq[Vec[Double]]] = {
+      if (step == 0) {
+        Nil
+      }
+      else {
+        val meanKMeans = kmeans.apply(dataCompensatedMatFCS.row((0 until nbRows).toArray),
+          Mat(initKMeans.length, initKMeans.head.length,
+            initKMeans.flatMap(_.toArray).toArray), iterations).means
+        meanKMeans :: listMeanKMeans(meanKMeans, nbRows, iterations, step - 1)
+      }
+    }
+
+    seedArrayK.map(seedKFromArray => {
+      val rand4K = new Random(seedKFromArray)
+      val dataInitK = dataCompensatedMatFCS.row((0 until kMeanFCSInput.nbRows).toArray).
+        row((1 to kMeanFCSInput.clusterNb).map(x => rand4K.nextInt(kMeanFCSInput.nbRows)).toArray)
+      listMeanKMeans(dataInitK.rows, kMeanFCSInput.nbRows, kMeanFCSInput.iterations, stepK)
+    })
+  }
 }
 
 case class KMeanFCSInput(clusterNb: Int = 5, nbRows: Int = 100, iterations: Int = 100, seedK: Int = 0) {}
