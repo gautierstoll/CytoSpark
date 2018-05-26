@@ -14,6 +14,7 @@ import org.saddle.io._
 import stat.kmeans._
 import stat.sparse.SMat
 import stat.sparse.SVec
+import scala.collection.parallel.mutable._
 
 
 class FCSParserCompact(fcsNameInput: String, minValCytInput: Double) {
@@ -193,8 +194,8 @@ class FCSParserCompact(fcsNameInput: String, minValCytInput: Double) {
       dataCompensatedMatFCS.row(clusterIndices), kMeanFCSInput.iterations)
   }
 
-  def kmeansCompensatedEuclidConv(kMeanFCSInput: KMeanFCSInput, stepK: Int, seedArrayK: Array[Int]):
-  Array[(List[Double], KMeansResult)] = { // carefull: it correspond to iterations*stepK + (stepk -1) or something like that
+  def kmeansCompensatedEuclidConv(kMeanFCSInput: KMeanFCSInput, stepK: Int, seedArrayK: ParArray[Int]):
+  ParArray[(List[Double], KMeansResult)] = { // carefull: it correspond to iterations*stepK + (stepk -1) or something like that
     def listEuclid(initKMeans: IndexedSeq[Vec[Double]], nbRows: Int, iterations: Int, step: Int):
     List[(Double, KMeansResult)] = {
       if (step == 0) {
@@ -220,8 +221,8 @@ class FCSParserCompact(fcsNameInput: String, minValCytInput: Double) {
     })
   }
 
-  def kmeansPPCompensatedEuclidConv(kMeanFCSInput: KMeanFCSInput, stepK: Int, seedArrayK: Array[Int]):
-  Array[(List[Double], KMeansResult)] = { // carefull: it correspond to iterations*stepK + (stepk -1) or something like that
+  def kmeansPPCompensatedEuclidConv(kMeanFCSInput: KMeanFCSInput, stepK: Int, seedArrayK: ParArray[Int]):
+  ParArray[(List[Double], KMeansResult)] = { // carefull: it correspond to iterations*stepK + (stepk -1) or something like that
     def initClust(initClustListIndex: List[Int], dataArrayIndex: Array[Int], clusterNb: Int, rand4Init: Random):
     List[Int] = {
       if (clusterNb == 0) {
@@ -240,6 +241,7 @@ class FCSParserCompact(fcsNameInput: String, minValCytInput: Double) {
           dataArrayIndex.filter(x => x != indexData4Clust), clusterNb - 1, rand4Init)
       }
     }
+
     def listEuclid(initKMeans: IndexedSeq[Vec[Double]], nbRows: Int, iterations: Int, step: Int):
     List[(Double, KMeansResult)] = {
       if (step == 0) {
@@ -255,6 +257,7 @@ class FCSParserCompact(fcsNameInput: String, minValCytInput: Double) {
           listEuclid(stepKMeans.means, nbRows, iterations, step - 1)
       }
     }
+
     seedArrayK.map(seedKFromArray => {
       val rand4K = new Random(seedKFromArray)
       //val dataInitK = dataCompensatedMatFCS.row((0 until kMeanFCSInput.nbRows).toArray).
@@ -418,6 +421,17 @@ object FCSPlotting {
     sequence(param2DPlot.toList, TableLayout(4))
   }
 
+  def kMeanFCSPlotSeqEuclid(kmeanEuclid: ParArray[(List[Double], KMeansResult)])
+  = {
+    val min4Plot = kmeanEuclid.map(_._1.toArray).toArray.flatMap(x => x).min
+    val max4Plot = kmeanEuclid.map(_._1.toArray).toArray.flatMap(x => x).max
+    val mat4Plot = Mat((kmeanEuclid.map(_._1.toArray).toList :::
+      List((0 until kmeanEuclid.map(_._1.toArray).toArray.head.length).toArray.map(_.toDouble))).toArray)
+    println(mat4Plot)
+    xyplot(mat4Plot -> (0 until mat4Plot.numCols - 2).map(x => line(yCol = x, xCol = mat4Plot.numCols - 1,
+      color = DiscreteColors(mat4Plot.numCols - 2)(x.toDouble))).toList)(
+      ylim = Option(min4Plot, max4Plot), xlim = Option(0.0, (mat4Plot.numRows - 1).toDouble))
+  }
 
   def plotKSeqToPng(plotSeq: Build[ElemList[Elems2[org.nspl.XYPlotArea, org.nspl.Legend]]],
                     fileName: String, widthPng: Int = 1000) = {
