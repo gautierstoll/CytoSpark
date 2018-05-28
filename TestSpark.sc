@@ -2,6 +2,8 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import java.nio.ByteBuffer
 import org.apache.spark.sql.types._
+import scala.collection.parallel.mutable._
+import org.saddle.io.CsvImplicits._
 
 val testSessSpark = SparkSession.builder().
   appName("Test Spark Session").config("spark.master", "local").getOrCreate();

@@ -15,6 +15,7 @@ import stat.kmeans._
 import stat.sparse.SMat
 import stat.sparse.SVec
 import scala.collection.parallel.mutable._
+import org.saddle.io.CsvImplicits._
 
 
 class FCSParserCompact(fcsNameInput: String, minValCytInput: Double) {
@@ -299,7 +300,7 @@ class FCSParserCompact(fcsNameInput: String, minValCytInput: Double) {
 
 case class KMeanFCSInput(clusterNb: Int = 5, nbRows: Int = 100, iterations: Int = 100, seedK: Int = 0) {}
 
-object FCSPlotting {
+object FCSOutput {
   def kMeanFCSPlot2D(fcsParsed: FCSParserCompact, kMeanR: KMeansResult, exludeCluster: Array[Int] = Array())
   : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
     val keepIndex = (0 until kMeanR.clusters.length).
@@ -437,5 +438,11 @@ object FCSPlotting {
                     fileName: String, widthPng: Int = 1000) = {
     val filePng = new File(fileName)
     pngToFile(filePng, plotSeq.build, widthPng)
+  }
+
+  def writeClusterSizeCsv(kMeanCluster : org.saddle.Vec[Int],fileName : String) = {
+    val clusterSize = kMeanCluster.toArray.groupBy(identity).map(x => (x._1, x._2.size))
+    val clusterFrame = Frame("Cluster" -> Vec(clusterSize.map(_._1).toArray),"Size"->Vec(clusterSize.map(_._2).toArray))
+    clusterFrame.writeCsvFile(fileName)
   }
 }
