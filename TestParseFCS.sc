@@ -13,6 +13,7 @@ import org.nspl.awtrenderer._
 import org.saddle.io._
 import stat.kmeans._
 import stat.sparse.SMat
+import scala.collection.parallel.mutable._
 
 //import java.nio.ByteBuffer
 
