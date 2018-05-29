@@ -215,12 +215,12 @@ class FCSParserCompact(fcsNameInput: String, minValCytInput: Double) {
         Nil
       }
       else {
-        println("Step " + step)
+        print("Step " + step + "\r")
         val stepKMeans = kmeans.apply(dataCompensatedMatFCS.row((0 until nbRows).toArray),
           Mat(initKMeans.length, initKMeans.head.length,
             initKMeans.flatMap(_.toArray).toArray), iterations)
         (stepKMeans.clusters.toArray.zip(kmeans.matToSparse(dataCompensatedMatFCS.row((0 until nbRows).toArray))).
-          map(x => kmeans.euclid(x._2, stepKMeans.means(x._1))).sum, stepKMeans) ::
+          map(x => kmeans.euclid(x._2, stepKMeans.means(x._1))).sum/nbRows/nbPar, stepKMeans) ::
           listEuclid(stepKMeans.means, nbRows, iterations, step - 1)
       }
     }
@@ -266,7 +266,7 @@ class FCSParserCompact(fcsNameInput: String, minValCytInput: Double) {
           Mat(initKMeans.length, initKMeans.head.length,
             initKMeans.flatMap(_.toArray).toArray), iterations)
         (stepKMeans.clusters.toArray.zip(kmeans.matToSparse(dataCompensatedMatFCS.row((0 until nbRows).toArray))).
-          map(x => kmeans.euclid(x._2, stepKMeans.means(x._1))).sum, stepKMeans) ::
+          map(x => kmeans.euclid(x._2, stepKMeans.means(x._1))).sum/nbRows/nbPar, stepKMeans) ::
           listEuclid(stepKMeans.means, nbRows, iterations, step - 1)
       }
     }
@@ -436,12 +436,12 @@ object FCSOutput {
 
   def kMeanFCSPlotSeqEuclid(kmeanEuclid: ParArray[(List[Double], KMeansResult)])
   = {
-    val min4Plot = kmeanEuclid.map(_._1.toArray).toArray.flatMap(x => x).min
-    val max4Plot = kmeanEuclid.map(_._1.toArray).toArray.flatMap(x => x).max
+    val min4Plot = kmeanEuclid.map(_._1.toArray).toArray.flatMap(x => x).min*.95
+    val max4Plot = kmeanEuclid.map(_._1.toArray).toArray.flatMap(x => x).max*1.05
     val mat4Plot = Mat((kmeanEuclid.map(_._1.toArray).toList :::
       List((0 until kmeanEuclid.map(_._1.toArray).toArray.head.length).toArray.map(_.toDouble))).toArray)
-    println(mat4Plot)
-    xyplot(mat4Plot -> (0 until mat4Plot.numCols - 2).map(x => line(yCol = x, xCol = mat4Plot.numCols - 1,
+    //println(mat4Plot)
+    xyplot(mat4Plot -> (0 until mat4Plot.numCols - 1).map(x => line(yCol = x, xCol = mat4Plot.numCols - 1,
       color = DiscreteColors(mat4Plot.numCols - 2)(x.toDouble))).toList)(
       ylim = Option(min4Plot, max4Plot), xlim = Option(0.0, (mat4Plot.numRows - 1).toDouble))
   }

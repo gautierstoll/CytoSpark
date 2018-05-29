@@ -1,49 +1,89 @@
 
 
 import java.io._
+
 import breeze.linalg._
 import breeze.numerics._
 import java.nio.ByteBuffer
+
+import org.nspl.awtrenderer._
+
+import scala.collection.parallel.mutable._
 import org.saddle._
 import stat._
+import java.nio.file.{Files, Paths}
+
 import scala.util._
 import org.nspl._
 import org.nspl.saddle._
 import org.nspl.data._
 import org.nspl.awtrenderer._
 import org.saddle.io._
+import org.spark_project.dmg.pmml.{False, True}
 import stat.kmeans._
 import stat.sparse.SMat
+
+import scala.collection.parallel.mutable.ParArray
 
 //import java.nio.ByteBuffer
 
 object Main extends App {
+  val maxSeedParralel = 10000
+
+  def takeIntFromLine(askingPromp: String, defaultVal: Int, minVal: Int): Int = {
+    (scala.io.StdIn.readLine(askingPromp) match {
+      case "" => defaultVal
+      case x: String => try {
+        x.toInt
+      } catch {
+        case _: Throwable => println("Take default " + defaultVal); defaultVal
+      }
+    })
+    match {
+      case y: Int => if (y < minVal) {
+        println("Take min " + minVal);
+        minVal
+      }
+      else y
+    }
+  }
+
+  //def main() {
   val fcsFile = scala.io.StdIn.readLine("FCS File: ")
-  val minCyt = scala.io.StdIn.readLine("Minimum compensated value: ").toDouble
+  if (!Files.exists(Paths.get(fcsFile))) sys.error("File " + fcsFile + " do not exist")
+
+  val minCyt =
+    scala.io.StdIn.readLine("Minimum compensated value[-1000]: ") match {
+      case "" => -1000.0
+      case x: String => try {
+        x.toDouble
+      } catch {
+        case _: Throwable => println("Take default -1000"); -1000.0
+      }
+    }
+
   val exp12FCS = new FCSParserCompact(fcsFile, minCyt)
-  println("Clustering paramters:")
-  val nbCluster = scala.io.StdIn.readLine("Number of clusters [6]: ").
-    map( x => if (x == "") 6 else x.toInt )
-  val nbRow = scala.io.StdIn.readLine("Number of used rows ["+exp12FCS.nbEvent+"]: ").
-    map( x => if (x == "") exp12FCS.nbEvent else x.toInt )
-  val nbIteration : Int = scala.io.StdIn.readLine("Number of K-Mean iterations [100]: ").
-    map( x => if (x == "") 100 else x.toInt )
-  val nbStep : Int = scala.io.StdIn.readLine("Number of K-Meansteps [10]: ").
-    map( x => if (x == "") 10 else x.toInt )
-  val nbAttemps : Int = scala.io.StdIn.readLine("Number of K-Mean clustering [5]: ").
-    map( x => if (x == "") 5 else x.toInt )
-  val seed : Int = scala.io.StdIn.readLine("Pseudo-random generator inital condition [10]: ").
-    map( x => if (x == "") 10 else x.toInt )
-  // generate randome seed
+  var clusterLoop: Boolean = true
+  while (clusterLoop) {
+    println("Clustering parameters:")
+    val nbCluster: Int = takeIntFromLine("Number of clusters [6]: ", 6, 1)
+    val nbRow: Int = takeIntFromLine("Number of used rows [" + exp12FCS.nbEvent + "]: ", exp12FCS.nbEvent, 1)
+    val nbIteration: Int = takeIntFromLine("Number of K-Mean iterations [100]: ", 100, 1)
+    val nbStep: Int = takeIntFromLine("Number of K-Mean steps [5]: ", 5, 2)
+    val nbAttemp: Int = takeIntFromLine("Number of K-Mean clustering [5]: ", 5, 1)
+    val seed: Int = takeIntFromLine("Pseudo-random generator initial condition [10]: ", 10, 0)
 
-
-  val kMeanEuclid = exp12FCS.kmeansCompensatedEuclidConv(KMeanFCSInput(nbCluster,nbRow,nbIteration,0),)
-
-
-
-  val kMeanExp12_0 = exp12FCS.kmeansCompensated(KMeanFCSInput(6, 1000, 100, 0))
-
-  val kMeanExp12_Big = exp12FCS.kmeansCompensated(KMeanFCSInput(6, 10000, 100, 50))
-  println("Clusters: ")
-  kMeanExp12_Big.clusters.toArray.groupBy(identity).map(x => (x._1+1, x._2.size)).foreach(println)
+    val rand4K = new Random(seed)
+    val parArrayForKEuclid = (seed :: (for (index <- (1 until nbAttemp)) yield rand4K.nextInt(maxSeedParralel)).toList).toParArray
+    val kMeanEuclid = exp12FCS.kmeansCompensatedEuclidConv(KMeanFCSInput(nbCluster, nbRow, nbIteration, 0), nbStep, parArrayForKEuclid)
+    println("Cluster seed: \t" + parArrayForKEuclid.mkString("\t"))
+    println("Cluster quality:\t" + kMeanEuclid.map(x => x._1.last).mkString("\t"))
+    show(FCSOutput.kMeanFCSPlotSeqEuclid(kMeanEuclid))
+    clusterLoop = scala.io.StdIn.readLine("Retry, Y/[N]?") match {
+      case "Y" => true
+      case _: String => false
+    }
+    println("Bye bye")
+  }
 }
+
