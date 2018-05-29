@@ -62,28 +62,55 @@ object Main extends App {
       }
     }
 
-  val exp12FCS = new FCSParserCompact(fcsFile, minCyt)
-  var clusterLoop: Boolean = true
-  while (clusterLoop) {
+  val parsedFCS = new FCSParserCompact(fcsFile, minCyt)
+  var clusterPlottingLoop: (Boolean,Boolean) = (true,true)
+  while (clusterPlottingLoop._1) {
     println("Clustering parameters:")
     val nbCluster: Int = takeIntFromLine("Number of clusters [6]: ", 6, 1)
-    val nbRow: Int = takeIntFromLine("Number of used rows [" + exp12FCS.nbEvent + "]: ", exp12FCS.nbEvent, 1)
-    val nbIteration: Int = takeIntFromLine("Number of K-Mean iterations [100]: ", 100, 1)
+    val nbRow: Int =
+      takeIntFromLine("Number of used rows [" + parsedFCS.nbEvent + "]: ", parsedFCS.nbEvent, 1)
+    val nbIteration: Int =
+      takeIntFromLine("Number of K-Mean iterations [100]: ", 100, 1)
     val nbStep: Int = takeIntFromLine("Number of K-Mean steps [5]: ", 5, 2)
     val nbAttemp: Int = takeIntFromLine("Number of K-Mean clustering [5]: ", 5, 1)
-    val seed: Int = takeIntFromLine("Pseudo-random generator initial condition [10]: ", 10, 0)
+    val seed: Int =
+      takeIntFromLine("Pseudo-random generator initial condition [10]: ", 10, 0)
 
     val rand4K = new Random(seed)
-    val parArrayForKEuclid = (seed :: (for (index <- (1 until nbAttemp)) yield rand4K.nextInt(maxSeedParralel)).toList).toParArray
-    val kMeanEuclid = exp12FCS.kmeansCompensatedEuclidConv(KMeanFCSInput(nbCluster, nbRow, nbIteration, 0), nbStep, parArrayForKEuclid)
+    val parArrayForKEuclid = (seed :: (for (index <- (1 until nbAttemp)) yield rand4K.nextInt(maxSeedParralel)).toList).
+      toParArray
+    val kMeanEuclid =
+      parsedFCS.kmeansCompensatedEuclidConv(KMeanFCSInput(nbCluster, nbRow, nbIteration, 0), nbStep, parArrayForKEuclid)
     println("Cluster seed: \t" + parArrayForKEuclid.mkString("\t"))
     println("Cluster quality:\t" + kMeanEuclid.map(x => x._1.last).mkString("\t"))
     show(FCSOutput.kMeanFCSPlotSeqEuclid(kMeanEuclid))
-    clusterLoop = scala.io.StdIn.readLine("Retry, Y/[N]?") match {
-      case "Y" => true
-      case _: String => false
+    var plottingLoop : Boolean = true
+    clusterPlottingLoop = scala.io.StdIn.readLine("(C)luster, (P)lot, Quit?") match {
+      case "C" => (true,false)
+      case "P" => (false,true)
+      case _: String => (false,false)
     }
-    println("Bye bye")
+    while(clusterPlottingLoop._2) {
+      scala.io.StdIn.readLine("2D-(S)catter or 2D-Cluster? ") match {
+        case "S" => {
+          val outPng = scala.io.StdIn.readLine("File: ")+".png"
+          FCSOutput.plotKSeqToPng(FCSOutput.kMeanFCSPlot2D(parsedFCS,
+            kMeanEuclid.filter(x => x._1.last == kMeanEuclid.map(x => x._1.last).min).head._2),outPng,2000)
+        }
+        case _:String => {
+          val outPng = scala.io.StdIn.readLine("File: ")+".png"
+          FCSOutput.plotKSeqToPng(FCSOutput.kMeanFCSPlotClusters2D(parsedFCS,
+            kMeanEuclid.filter(x => x._1.last == kMeanEuclid.map(x => x._1.last).min).head._2),outPng,2000)
+        }
+      }
+      clusterPlottingLoop = scala.io.StdIn.readLine("(C)luster, (P)lot, Quit?") match {
+        case "C" => (true,false)
+        case "P" => (false,true)
+        case _: String => (false,false)
+      }
+    }
   }
+  println("Bye bye")
+  System.exit(0)
 }
 
