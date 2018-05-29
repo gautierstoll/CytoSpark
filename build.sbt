@@ -12,13 +12,19 @@ crossScalaVersions := Seq("2.11.8","2.12.4")
   //"org.apache.spark" % "spark-sql_2.10" % "2.0.0"
   //)
 
+//assemblyMergeStrategy in assembly := {
+//  case PathList(ps @ _*) if ps.last endsWith "pom.properties" =>
+//    MergeStrategy.discard
+//  case x =>
+//    val oldStrategy = (assemblyMergeStrategy in assembly).value
+//    oldStrategy(x)
+//}
+
 assemblyMergeStrategy in assembly := {
-  case PathList(ps @ _*) if ps.last endsWith "pom.properties" =>
-    MergeStrategy.discard
-  case x =>
-    val oldStrategy = (assemblyMergeStrategy in assembly).value
-    oldStrategy(x)
+  case PathList("META-INF", xs @ _*) => MergeStrategy.discard
+  case x => MergeStrategy.first
 }
+
 
 libraryDependencies ++= Seq("org.apache.spark" %% "spark-sql" % "2.3.0",
     "org.apache.spark" %% "spark-mllib" % "2.3.0")
