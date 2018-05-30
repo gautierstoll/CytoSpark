@@ -3,6 +3,7 @@ import java.io._
 import breeze.linalg._
 import breeze.numerics._
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.nio.file.{Paths, Files}
 import org.saddle._
 import stat._
@@ -31,8 +32,9 @@ object FCSParserFull {
           case ByteSeparator :: Nil => newOffsetcharList // two separators is not a separator
           case ByteSeparator :: ByteSeparator :: yy => dropUntilSinglSep(ByteSeparator, newOffsetcharList + 2, charList)
           case ByteSeparator :: yy => newOffsetcharList
+          case Nil => (newOffsetcharList - 1)
           case yy => {
-            sys.error("Error in Parsing text segment")
+            sys.error("Error in Parsing text segment: " + yy)
             0
           }
         }
@@ -126,9 +128,9 @@ class FCSHeader(fcsNameInput: String) {
   val nbEvent: Int = fcsTextSegmentMap("$TOT").toArray.filter(_ != ' ').mkString("").toInt
   //val bitToFloat: List[Int] = (1 to nbPar).
   //  map(x => "$P".concat(x.toString).concat("B")).map(x => fcsTextSegmentMap(x).toInt).toList
-  //val compensatedParam: scala.collection.immutable.IndexedSeq[Int] =
+  //val takenParam: scala.collection.immutable.IndexedSeq[Int] =
   //  (1 to bitToFloat.length).filter(x => fcsTextSegmentMap.contains("$P" + x + "S"))
-  //compensatedParam.foreach(x => println("$P" + x + "S -> " + fcsTextSegmentMap("$P" + x + "S")))
+  //takenParam.foreach(x => println("$P" + x + "S -> " + fcsTextSegmentMap("$P" + x + "S")))
   fcsFileBuffer.close()
   println("Size of data: " + nbEvent * nbPar)
 
@@ -175,21 +177,18 @@ class FCSHeader(fcsNameInput: String) {
   }
 }
 
-case class FCSInputFull(file: String, takeParmeters: List[(Int, Boolean, Double)], takeNbEvent: Int) {}
+case class FCSInputFull(file: String, takeParameter: List[(Int, Boolean, Double)], takeNbEvent: Int) {}
 
-//paramters are index (start at 0), log ? , minLog
+//paramters are index (start at 1), log ? , minLog
 
-class FCSParserFull(fcsNameInput: String, minValCytInput: Double) {
+class FCSParserFull(fcsInput: FCSInputFull) {
 
-  val fcsFile = new String(fcsNameInput)
-  val minValCyt: Double = minValCytInput
+  val fcsFile = new String(fcsInput.file)
   if (!Files.exists(Paths.get(fcsFile))) sys.error("File " + fcsFile + " not found")
 
-  private val fcsFileBuffer =
-    new BufferedInputStream(new FileInputStream(fcsFile))
+  private val fcsFileBuffer = new BufferedInputStream(new FileInputStream(fcsFile))
 
-  private var binaryFileIndex: Int =
-    0
+  private var binaryFileIndex: Int = 0
   for (i <- 0 until FCSParserFull.offsetByteText._1) {
     fcsFileBuffer.read
     binaryFileIndex += 1
@@ -239,65 +238,84 @@ class FCSParserFull(fcsNameInput: String, minValCytInput: Double) {
   println("Mode: " + fcsTextSegmentMap("$MODE"))
   println("Data type: " + fcsTextSegmentMap("$DATATYPE"))
   println("Number of chanels: " + fcsTextSegmentMap("$PAR"))
-  println("Byte order: " + fcsTextSegmentMap("$BYTEORD"))
+  //println("Byte order: " + fcsTextSegmentMap("$BYTEORD"))
   println("Number of events: " + fcsTextSegmentMap("$TOT"))
 
-  private val firstDataSegment =
-    fcsTextSegmentMap("$BEGINDATA").toList.filter(_ != ' ').mkString("").toInt
-  private val lastDataSegment =
-    fcsTextSegmentMap("$ENDDATA").toList.filter(_ != ' ').mkString("").toInt
+  private val firstDataSegment = fcsTextSegmentMap("$BEGINDATA").toList.filter(_ != ' ').mkString("").toInt
+  private val lastDataSegment = fcsTextSegmentMap("$ENDDATA").toList.filter(_ != ' ').mkString("").toInt
   val nbPar: Int = fcsTextSegmentMap("$PAR").toInt
   val nbEvent: Int = fcsTextSegmentMap("$TOT").toArray.filter(_ != ' ').mkString("").toInt
   val bitToFloat: List[Int] = (1 to nbPar).
     map(x => "$P".concat(x.toString).concat("B")).map(x => fcsTextSegmentMap(x).toInt).toList
-  val compensatedParam: scala.collection.immutable.IndexedSeq[Int] =
-    (1 to bitToFloat.length).filter(x => fcsTextSegmentMap.contains("$P" + x + "S"))
-  compensatedParam.foreach(x => println("$P" + x + "S -> " + fcsTextSegmentMap("$P" + x + "S")))
+  val takenParam: scala.collection.immutable.IndexedSeq[Int] = fcsInput.takeParameter.map(_._1).toIndexedSeq
+
 
   for (i <- binaryFileIndex until firstDataSegment) yield {
     fcsFileBuffer.read
   }
   binaryFileIndex = firstDataSegment
-  println("Size of data: " + nbEvent * nbPar)
+  println("Size of data: " + fcsInput.takeNbEvent * nbPar)
 
 
-  private var dataCompensatedArrayFCS =
-    new Array[Double](nbEvent * compensatedParam.length)
-  for (indexFCS <- 0 until nbEvent * nbPar) {
+  private var dataTakenArrayFCS =
+    new Array[Double](fcsInput.takeNbEvent * takenParam.length)
+  for (indexFCS <- 0 until fcsInput.takeNbEvent * nbPar) {
     print(indexFCS + "\r")
     if (bitToFloat(indexFCS - (indexFCS / bitToFloat.length) * bitToFloat.length) == 32) {
       binaryFileIndex += 4
-      val tempFileArray = ByteBuffer.wrap((1 to 4).map(x => fcsFileBuffer.read.toByte).toArray)
-      if (compensatedParam.contains(1 + indexFCS - (indexFCS / nbPar) * nbPar)) {
-        val compArrayIndex: Int = compensatedParam.indices.
-          filter(x => (compensatedParam(x) == (1 + indexFCS - indexFCS / nbPar * nbPar))).head +
-          (indexFCS / nbPar) * compensatedParam.length
-        dataCompensatedArrayFCS(compArrayIndex) = log10(tempFileArray.getFloat.toDouble - minValCyt)
+      var tempFileArray = ByteBuffer.wrap((1 to 4).map(x => fcsFileBuffer.read.toByte).toArray)
+      if (fcsTextSegmentMap("$BYTEORD") == "1,2,3,4") {
+        tempFileArray.order(ByteOrder.LITTLE_ENDIAN)
+      }
+      if (takenParam.contains(1 + indexFCS - (indexFCS / nbPar) * nbPar)) {
+        val takenIndex = takenParam.indices.
+          filter(x => (takenParam(x) == (1 + indexFCS - indexFCS / nbPar * nbPar))).head
+        val readValue = tempFileArray.getFloat.toDouble
+        val takenArrayIndex: Int = takenParam.indices.
+          filter(x => (takenParam(x) == (1 + indexFCS - indexFCS / nbPar * nbPar))).head +
+          (indexFCS / nbPar) * takenParam.length
+        if (fcsInput.takeParameter(takenIndex)._2) {
+          dataTakenArrayFCS(takenArrayIndex) = log10(readValue - fcsInput.takeParameter(takenIndex)._3)
+        }
+        else {
+          dataTakenArrayFCS(takenArrayIndex) = readValue
+        }
       }
     }
     if (bitToFloat(indexFCS - (indexFCS / bitToFloat.length) * bitToFloat.length) == 64) {
       binaryFileIndex += 8
       val tempFileArray = ByteBuffer.wrap((1 to 8).map(x => fcsFileBuffer.read.toByte).toArray)
-      if (compensatedParam.contains(1 + indexFCS - (indexFCS / nbPar) * nbPar)) {
-        val compArrayIndex = compensatedParam.indices.
-          filter(x => (compensatedParam(x) == (1 + indexFCS - indexFCS / nbPar * nbPar))).head +
-          (indexFCS / nbPar) * compensatedParam.length
-        dataCompensatedArrayFCS(compArrayIndex) = log10(tempFileArray.getDouble - minValCyt)
+      if (fcsTextSegmentMap("$BYTEORD") == "1,2,3,4") {
+        tempFileArray.order(ByteOrder.LITTLE_ENDIAN)
+      }
+      if (takenParam.contains(1 + indexFCS - (indexFCS / nbPar) * nbPar)) {
+        val takenIndex = takenParam.indices.
+          filter(x => (takenParam(x) == (1 + indexFCS - indexFCS / nbPar * nbPar))).head
+        val readValue = tempFileArray.getDouble
+        val takenArrayIndex = takenParam.indices.
+          filter(x => (takenParam(x) == (1 + indexFCS - indexFCS / nbPar * nbPar))).head +
+          (indexFCS / nbPar) * takenParam.length
+        if (fcsInput.takeParameter(takenIndex)._2) {
+          dataTakenArrayFCS(takenArrayIndex) = log10(readValue - fcsInput.takeParameter(takenIndex)._3)
+        }
+        else {
+          dataTakenArrayFCS(takenArrayIndex) = readValue
+        }
       }
     }
   }
-  val dataCompensatedMatFCS: Mat[Double] = Mat(nbEvent, compensatedParam.length, dataCompensatedArrayFCS)
+  val dataTakenMatFCS: Mat[Double] = Mat(fcsInput.takeNbEvent, takenParam.length, dataTakenArrayFCS)
 
   def getCompensatedMatrixFCS: DenseMatrix[Double] = {
-    var FCSMatrix = new DenseMatrix[Double](nbEvent, compensatedParam.length)
-    for (rowFCS <- (0 until nbEvent); colFCS <- compensatedParam.indices) {
-      FCSMatrix(rowFCS, colFCS) = dataCompensatedArrayFCS(colFCS + rowFCS * compensatedParam.length)
+    var FCSMatrix = new DenseMatrix[Double](fcsInput.takeNbEvent, takenParam.length)
+    for (rowFCS <- (0 until fcsInput.takeNbEvent); colFCS <- takenParam.indices) {
+      FCSMatrix(rowFCS, colFCS) = dataTakenArrayFCS(colFCS + rowFCS * takenParam.length)
     }
     FCSMatrix
   }
 
   def kmeansFCS(kMeanFCSInput: KMeanFCSInput): KMeansResult = {
-    val dataSubFCS = dataCompensatedMatFCS.row((0 until kMeanFCSInput.nbRows).toArray)
+    val dataSubFCS = dataTakenMatFCS.row((0 until kMeanFCSInput.nbRows).toArray)
     val rand4K = new Random(kMeanFCSInput.seedK)
     val dataInitK = dataSubFCS.row((1 to kMeanFCSInput.clusterNb).
       map(x => rand4K.nextInt(kMeanFCSInput.nbRows)).toArray)
@@ -314,8 +332,8 @@ class FCSParserFull(fcsNameInput: String, minValCytInput: Double) {
         val dataIndexWithMinEuclid = dataArrayIndex.zip(
           dataArrayIndex.map(dataIndex =>
             initClustListIndex.map(initClustIndex =>
-              kmeans.euclid(SVec(Series(dataCompensatedMatFCS.row(initClustIndex)), dataCompensatedMatFCS.numCols),
-                dataCompensatedMatFCS.row(dataIndex))).min))
+              kmeans.euclid(SVec(Series(dataTakenMatFCS.row(initClustIndex)), dataTakenMatFCS.numCols),
+                dataTakenMatFCS.row(dataIndex))).min))
         val random4Index = rand4Init.nextDouble() * dataIndexWithMinEuclid.map(_._2).sum
         val indexData4Clust = dataIndexWithMinEuclid.scanLeft(0, 0d)((x, y) => (y._1, x._2 + y._2)).
           filter(x => x._2 > random4Index).head._1
@@ -330,8 +348,8 @@ class FCSParserFull(fcsNameInput: String, minValCytInput: Double) {
       (0 until kMeanFCSInput.nbRows).filter(x => x != initDataIndex).toArray,
       kMeanFCSInput.clusterNb - 1, rand4K).toArray
     //val dataIndices = (0 until kMeanFCSInput.nbRows).filter(x => !clusterIndices.contains(x)).toArray
-    kmeans.apply(dataCompensatedMatFCS.row((0 until kMeanFCSInput.nbRows).toArray),
-      dataCompensatedMatFCS.row(clusterIndices), kMeanFCSInput.iterations)
+    kmeans.apply(dataTakenMatFCS.row((0 until kMeanFCSInput.nbRows).toArray),
+      dataTakenMatFCS.row(clusterIndices), kMeanFCSInput.iterations)
   }
 
   def kmeansFCSEuclidConv(kMeanFCSInput: KMeanFCSInput, stepK: Int, seedArrayK: ParArray[Int]):
@@ -343,10 +361,10 @@ class FCSParserFull(fcsNameInput: String, minValCytInput: Double) {
       }
       else {
         print("Step " + step + "\r")
-        val stepKMeans = kmeans.apply(dataCompensatedMatFCS.row((0 until nbRows).toArray),
+        val stepKMeans = kmeans.apply(dataTakenMatFCS.row((0 until nbRows).toArray),
           Mat(initKMeans.length, initKMeans.head.length,
             initKMeans.flatMap(_.toArray).toArray), iterations)
-        (stepKMeans.clusters.toArray.zip(kmeans.matToSparse(dataCompensatedMatFCS.row((0 until nbRows).toArray))).
+        (stepKMeans.clusters.toArray.zip(kmeans.matToSparse(dataTakenMatFCS.row((0 until nbRows).toArray))).
           map(x => kmeans.euclid(x._2, stepKMeans.means(x._1))).sum / nbRows / nbPar, stepKMeans) ::
           listEuclid(stepKMeans.means, nbRows, iterations, step - 1)
       }
@@ -354,7 +372,7 @@ class FCSParserFull(fcsNameInput: String, minValCytInput: Double) {
 
     seedArrayK.map(seedKFromArray => {
       val rand4K = new Random(seedKFromArray)
-      val dataInitK = dataCompensatedMatFCS.row((0 until kMeanFCSInput.nbRows).toArray).
+      val dataInitK = dataTakenMatFCS.row((0 until kMeanFCSInput.nbRows).toArray).
         row((1 to kMeanFCSInput.clusterNb).map(x => rand4K.nextInt(kMeanFCSInput.nbRows)).toArray)
       val listEuclidRand = listEuclid(dataInitK.rows, kMeanFCSInput.nbRows, kMeanFCSInput.iterations, stepK)
       (listEuclidRand.map(x => x._1), listEuclidRand.last._2)
@@ -372,8 +390,8 @@ class FCSParserFull(fcsNameInput: String, minValCytInput: Double) {
         val dataIndexWithMinEuclid = dataArrayIndex.zip(
           dataArrayIndex.map(dataIndex =>
             initClustListIndex.map(initClustIndex =>
-              kmeans.euclid(SVec(Series(dataCompensatedMatFCS.row(initClustIndex)), dataCompensatedMatFCS.numCols),
-                dataCompensatedMatFCS.row(dataIndex))).min))
+              kmeans.euclid(SVec(Series(dataTakenMatFCS.row(initClustIndex)), dataTakenMatFCS.numCols),
+                dataTakenMatFCS.row(dataIndex))).min))
         val random4Index = rand4Init.nextDouble() * dataIndexWithMinEuclid.map(_._2).sum
         val indexData4Clust = dataIndexWithMinEuclid.scanLeft(0, 0d)((x, y) => (y._1, x._2 + y._2)).
           filter(x => x._2 > random4Index).head._1
@@ -389,10 +407,10 @@ class FCSParserFull(fcsNameInput: String, minValCytInput: Double) {
       }
       else {
         println("Step " + step)
-        val stepKMeans = kmeans.apply(dataCompensatedMatFCS.row((0 until nbRows).toArray),
+        val stepKMeans = kmeans.apply(dataTakenMatFCS.row((0 until nbRows).toArray),
           Mat(initKMeans.length, initKMeans.head.length,
             initKMeans.flatMap(_.toArray).toArray), iterations)
-        (stepKMeans.clusters.toArray.zip(kmeans.matToSparse(dataCompensatedMatFCS.row((0 until nbRows).toArray))).
+        (stepKMeans.clusters.toArray.zip(kmeans.matToSparse(dataTakenMatFCS.row((0 until nbRows).toArray))).
           map(x => kmeans.euclid(x._2, stepKMeans.means(x._1))).sum / nbRows / nbPar, stepKMeans) ::
           listEuclid(stepKMeans.means, nbRows, iterations, step - 1)
       }
@@ -400,13 +418,13 @@ class FCSParserFull(fcsNameInput: String, minValCytInput: Double) {
 
     seedArrayK.map(seedKFromArray => {
       val rand4K = new Random(seedKFromArray)
-      //val dataInitK = dataCompensatedMatFCS.row((0 until kMeanFCSInput.nbRows).toArray).
+      //val dataInitK = dataTakenMatFCS.row((0 until kMeanFCSInput.nbRows).toArray).
       //row((1 to kMeanFCSInput.clusterNb).map(x => rand4K.nextInt(kMeanFCSInput.nbRows)).toArray)
       val initDataIndex = rand4K.nextInt(kMeanFCSInput.nbRows)
       val clusterIndices = initClust(List(initDataIndex),
         (0 until kMeanFCSInput.nbRows).filter(x => x != initDataIndex).toArray,
         kMeanFCSInput.clusterNb - 1, rand4K).toArray
-      val listEuclidRand = listEuclid(dataCompensatedMatFCS.row(clusterIndices).rows,
+      val listEuclidRand = listEuclid(dataTakenMatFCS.row(clusterIndices).rows,
         kMeanFCSInput.nbRows, kMeanFCSInput.iterations, stepK)
       (listEuclidRand.map(x => x._1), listEuclidRand.last._2)
     })
@@ -421,7 +439,7 @@ class FCSParserFull(fcsNameInput: String, minValCytInput: Double) {
         Nil
       }
       else {
-        val meanKMeans = kmeans.apply(dataCompensatedMatFCS.row((0 until nbRows).toArray),
+        val meanKMeans = kmeans.apply(dataTakenMatFCS.row((0 until nbRows).toArray),
           Mat(initKMeans.length, initKMeans.head.length,
             initKMeans.flatMap(_.toArray).toArray), iterations).means
         meanKMeans :: listMeanKMeans(meanKMeans, nbRows, iterations, step - 1)
@@ -430,7 +448,7 @@ class FCSParserFull(fcsNameInput: String, minValCytInput: Double) {
 
     seedArrayK.map(seedKFromArray => {
       val rand4K = new Random(seedKFromArray)
-      val dataInitK = dataCompensatedMatFCS.row((0 until kMeanFCSInput.nbRows).toArray).
+      val dataInitK = dataTakenMatFCS.row((0 until kMeanFCSInput.nbRows).toArray).
         row((1 to kMeanFCSInput.clusterNb).map(x => rand4K.nextInt(kMeanFCSInput.nbRows)).toArray)
       listMeanKMeans(dataInitK.rows, kMeanFCSInput.nbRows, kMeanFCSInput.iterations, stepK)
     })
@@ -445,12 +463,12 @@ object FCSOutput {
   : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
     val keepIndex = (0 until kMeanR.clusters.length).
       filter(x => (!exludeCluster.contains(kMeanR.clusters(x).toArray.head))).toArray
-    val dataSubFCS = fcsParsed.dataCompensatedMatFCS.row(keepIndex)
+    val dataSubFCS = fcsParsed.dataTakenMatFCS.row(keepIndex)
     val subKMeanR = KMeansResult(
       clusters = kMeanR.clusters.filter(x => !(exludeCluster.contains(x))),
       means = kMeanR.means
     )
-    val projections = fcsParsed.compensatedParam.indices.combinations(2).map { g =>
+    val projections = fcsParsed.takenParam.indices.combinations(2).map { g =>
       val c1 = g(0)
       val c2 = g(1)
       val xMinMaxFCSComp = Option(dataSubFCS.columnMinMax(c1).min, dataSubFCS.columnMinMax(c1).max)
@@ -467,8 +485,8 @@ object FCSOutput {
             (x + 1).toString -> PointLegend(shape = Shape.rectangle(0, 0, 1, 1), //x._1 + 1 for starting cluster nb with 1
               color = DiscreteColors(kMeanR.means.length - 1)(x.toDouble))),
 
-        xlab = fcsParsed.compensatedParam.map(x => fcsParsed.fcsTextSegmentMap("$P" + x + "S")).toList(c1),
-        ylab = fcsParsed.compensatedParam.map(x => fcsParsed.fcsTextSegmentMap("$P" + x + "S")).toList(c2)
+        xlab = fcsParsed.takenParam.map(x => fcsParsed.fcsTextSegmentMap("$P" + x + "S")).toList(c1),
+        ylab = fcsParsed.takenParam.map(x => fcsParsed.fcsTextSegmentMap("$P" + x + "S")).toList(c2)
       )
     }
     sequence(projections.toList, TableLayout(4))
@@ -478,7 +496,7 @@ object FCSOutput {
   : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
     val keepIndex = (0 until kMeanR.clusters.length).
       filter(x => (!exludeCluster.contains(kMeanR.clusters(x).toArray.head))).toArray
-    val dataSubFCS = fcsParsed.dataCompensatedMatFCS.row(keepIndex)
+    val dataSubFCS = fcsParsed.dataTakenMatFCS.row(keepIndex)
     val clusterSize = kMeanR.clusters.toArray.groupBy(x => x).map(x => (x._1, x._2.length)).
       filter(x => (!exludeCluster.contains(x._2))).toList.sortBy(_._1)
     val clusterMean = kMeanR.means.zipWithIndex.filter(x => (!exludeCluster.contains(x._2)))
@@ -502,8 +520,8 @@ object FCSOutput {
           x =>
             (x._1 + 1).toString -> PointLegend(shape = Shape.rectangle(0, 0, 1, 1), //x._1 + 1 for starting cluster nb with 1
               color = DiscreteColors(kMeanR.means.length - 1)(x._1.toDouble))),
-        xlab = fcsParsed.compensatedParam.map(x => fcsParsed.fcsTextSegmentMap("$P" + x + "S")).toList(c1),
-        ylab = fcsParsed.compensatedParam.map(x => fcsParsed.fcsTextSegmentMap("$P" + x + "S")).toList(c2)
+        xlab = fcsParsed.takenParam.map(x => fcsParsed.fcsTextSegmentMap("$P" + x + "S")).toList(c1),
+        ylab = fcsParsed.takenParam.map(x => fcsParsed.fcsTextSegmentMap("$P" + x + "S")).toList(c2)
       )
     }
     sequence(projections.toList, TableLayout(4))

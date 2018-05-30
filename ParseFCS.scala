@@ -7,6 +7,7 @@ class FCSParser(FCSName: String) {
   import breeze.linalg._
   import breeze.numerics._
   import java.nio.ByteBuffer
+  import java.nio.ByteOrder
   import org.saddle._
 
   val FCSFile = new String(FCSName)
@@ -59,7 +60,8 @@ class FCSParser(FCSName: String) {
         case SepByte :: SepByte :: yy => DropUntilSinglSep(SepByte, NewOffset + 2, CharList)
         case SepByte :: yy => NewOffset
         case yy => {
-          sys.error("Error in Parsing text segment"); 0
+          sys.error("Error in Parsing text segment");
+          0
         }
       }
     }
@@ -102,8 +104,8 @@ class FCSParser(FCSName: String) {
   val NbEvent = FCSTextSegmentMap("$TOT").toArray.filter(_ != ' ').mkString("").toInt
   val BittoFloat = (1 to NbPar).
     map(x => "$P".concat(x.toString).concat("B")).map(x => FCSTextSegmentMap(x).toInt).toList
-  val compensatedParam = (1 to BittoFloat.length).filter(x => FCSTextSegmentMap.contains("$P"+x+"S"))
-  private val compensatedIndex = (1 to NbEvent).flatMap(x=> compensatedParam.map(y => (x-1)*NbPar + (y-1)))
+  val compensatedParam = (1 to BittoFloat.length).filter(x => FCSTextSegmentMap.contains("$P" + x + "S"))
+  private val compensatedIndex = (1 to NbEvent).flatMap(x => compensatedParam.map(y => (x - 1) * NbPar + (y - 1)))
   for (i <- (BinaryFileIndex to (FirstDataSegment - 1))) yield {
     FCSFileBuffer.read
   }
@@ -112,11 +114,19 @@ class FCSParser(FCSName: String) {
     for (indexFCS <- (0 to (NbEvent * BittoFloat.length - 1))) yield {
       if (BittoFloat(indexFCS - (indexFCS / BittoFloat.length) * BittoFloat.length) == 32) {
         BinaryFileIndex += 4
-        ByteBuffer.wrap((1 to 4).map(x => FCSFileBuffer.read.toByte).toArray).getFloat.toDouble
+        var tmpBuffer = ByteBuffer.wrap((1 to 4).map(x => FCSFileBuffer.read.toByte).toArray)
+        if (FCSTextSegmentMap("$BYTEORD") == "1,2,3,4") {
+          tmpBuffer.order(ByteOrder.LITTLE_ENDIAN)
+        }
+        tmpBuffer.getFloat.toDouble
       }
       else if (BittoFloat(indexFCS - (indexFCS / BittoFloat.length) * BittoFloat.length) == 64) {
         BinaryFileIndex += 8
-        ByteBuffer.wrap((1 to 8).map(x => FCSFileBuffer.read.toByte).toArray).getDouble
+        var tmpBuffer = ByteBuffer.wrap((1 to 8).map(x => FCSFileBuffer.read.toByte).toArray)
+        if (FCSTextSegmentMap("$BYTEORD") == "1,2,3,4") {
+          tmpBuffer.order(ByteOrder.LITTLE_ENDIAN)
+        }
+        tmpBuffer.getDouble
       }
       else {
         0.0
@@ -133,7 +143,8 @@ class FCSParser(FCSName: String) {
     return (FCSMatrix)
   }
 
-  def getMatFCS: Mat[Double] = Mat(NbEvent,BittoFloat.length, dataFCSList.toArray)
+  def getMatFCS: Mat[Double] = Mat(NbEvent, BittoFloat.length, dataFCSList.toArray)
+
   def getMatCompParamFCS: Mat[Double] =
-    Mat(NbEvent,compensatedParam.length,compensatedIndex.map(x => dataFCSList(x)).toArray)
+    Mat(NbEvent, compensatedParam.length, compensatedIndex.map(x => dataFCSList(x)).toArray)
 }

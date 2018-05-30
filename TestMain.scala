@@ -52,18 +52,12 @@ object Main extends App {
   val fcsFile = scala.io.StdIn.readLine("FCS File: ")
   if (!Files.exists(Paths.get(fcsFile))) sys.error("File " + fcsFile + " do not exist")
 
-  val minCyt =
-    scala.io.StdIn.readLine("Minimum compensated value[-1000]: ") match {
-      case "" => -1000.0
-      case x: String => try {
-        x.toDouble
-      } catch {
-        case _: Throwable => println("Take default -1000"); -1000.0
-      }
-    }
+  val fcsHeader = new FCSHeader(fcsFile)
+  val inputParser = fcsHeader.getOnlineFCSInput
 
-  val parsedFCS = new FCSParserCompact(fcsFile, minCyt)
-  var clusterPlottingLoop: (Boolean,Boolean) = (true,true)
+
+  val parsedFCS = new FCSParserFull(inputParser)
+  var clusterPlottingLoop: (Boolean, Boolean) = (true, true)
   while (clusterPlottingLoop._1) {
     println("Clustering parameters:")
     val nbCluster: Int = takeIntFromLine("Number of clusters [6]: ", 6, 1)
@@ -80,33 +74,33 @@ object Main extends App {
     val parArrayForKEuclid = (seed :: (for (index <- (1 until nbAttemp)) yield rand4K.nextInt(maxSeedParralel)).toList).
       toParArray
     val kMeanEuclid =
-      parsedFCS.kmeansCompensatedEuclidConv(KMeanFCSInput(nbCluster, nbRow, nbIteration, 0), nbStep, parArrayForKEuclid)
+      parsedFCS.kmeansFCSEuclidConv(KMeanFCSInput(nbCluster, nbRow, nbIteration, 0), nbStep, parArrayForKEuclid)
     println("Cluster seed: \t" + parArrayForKEuclid.mkString("\t"))
     println("Cluster quality:\t" + kMeanEuclid.map(x => x._1.last).mkString("\t"))
     show(FCSOutput.kMeanFCSPlotSeqEuclid(kMeanEuclid))
-    var plottingLoop : Boolean = true
+    var plottingLoop: Boolean = true
     clusterPlottingLoop = scala.io.StdIn.readLine("(C)luster, (P)lot, Quit?") match {
-      case "C" => (true,false)
-      case "P" => (false,true)
-      case _: String => (false,false)
+      case "C" => (true, false)
+      case "P" => (false, true)
+      case _: String => (false, false)
     }
-    while(clusterPlottingLoop._2) {
+    while (clusterPlottingLoop._2) {
       scala.io.StdIn.readLine("2D-(S)catter or 2D-Cluster? ") match {
         case "S" => {
-          val outPng = scala.io.StdIn.readLine("File: ")+".png"
+          val outPng = scala.io.StdIn.readLine("File: ") + ".png"
           FCSOutput.plotKSeqToPng(FCSOutput.kMeanFCSPlot2D(parsedFCS,
-            kMeanEuclid.filter(x => x._1.last == kMeanEuclid.map(x => x._1.last).min).head._2),outPng,2000)
+            kMeanEuclid.filter(x => x._1.last == kMeanEuclid.map(x => x._1.last).min).head._2), outPng, 2000)
         }
-        case _:String => {
-          val outPng = scala.io.StdIn.readLine("File: ")+".png"
+        case _: String => {
+          val outPng = scala.io.StdIn.readLine("File: ") + ".png"
           FCSOutput.plotKSeqToPng(FCSOutput.kMeanFCSPlotClusters2D(parsedFCS,
-            kMeanEuclid.filter(x => x._1.last == kMeanEuclid.map(x => x._1.last).min).head._2),outPng,2000)
+            kMeanEuclid.filter(x => x._1.last == kMeanEuclid.map(x => x._1.last).min).head._2), outPng, 2000)
         }
       }
       clusterPlottingLoop = scala.io.StdIn.readLine("(C)luster, (P)lot, Quit?") match {
-        case "C" => (true,false)
-        case "P" => (false,true)
-        case _: String => (false,false)
+        case "C" => (true, false)
+        case "P" => (false, true)
+        case _: String => (false, false)
       }
     }
   }

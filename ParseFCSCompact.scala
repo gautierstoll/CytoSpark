@@ -3,6 +3,7 @@ import java.io._
 import breeze.linalg._
 import breeze.numerics._
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.nio.file.{Paths, Files}
 import org.saddle._
 import stat._
@@ -140,7 +141,10 @@ class FCSParserCompact(fcsNameInput: String, minValCytInput: Double) {
     print(indexFCS + "\r")
     if (bitToFloat(indexFCS - (indexFCS / bitToFloat.length) * bitToFloat.length) == 32) {
       binaryFileIndex += 4
-      val tempFileArray = ByteBuffer.wrap((1 to 4).map(x => fcsFileBuffer.read.toByte).toArray)
+      var tempFileArray = ByteBuffer.wrap((1 to 4).map(x => fcsFileBuffer.read.toByte).toArray)
+      if (fcsTextSegmentMap("$BYTEORD") == "1,2,3,4") {
+        tempFileArray.order(ByteOrder.LITTLE_ENDIAN)
+      }
       if (compensatedParam.contains(1 + indexFCS - (indexFCS / nbPar) * nbPar)) {
         val compArrayIndex: Int = compensatedParam.indices.
           filter(x => (compensatedParam(x) == (1 + indexFCS - indexFCS / nbPar * nbPar))).head +
@@ -150,7 +154,10 @@ class FCSParserCompact(fcsNameInput: String, minValCytInput: Double) {
     }
     if (bitToFloat(indexFCS - (indexFCS / bitToFloat.length) * bitToFloat.length) == 64) {
       binaryFileIndex += 8
-      val tempFileArray = ByteBuffer.wrap((1 to 8).map(x => fcsFileBuffer.read.toByte).toArray)
+      var tempFileArray = ByteBuffer.wrap((1 to 8).map(x => fcsFileBuffer.read.toByte).toArray)
+      if (fcsTextSegmentMap("$BYTEORD") == "1,2,3,4") {
+        tempFileArray.order(ByteOrder.LITTLE_ENDIAN)
+      }
       if (compensatedParam.contains(1 + indexFCS - (indexFCS / nbPar) * nbPar)) {
         val compArrayIndex = compensatedParam.indices.
           filter(x => (compensatedParam(x) == (1 + indexFCS - indexFCS / nbPar * nbPar))).head +
@@ -220,7 +227,7 @@ class FCSParserCompact(fcsNameInput: String, minValCytInput: Double) {
           Mat(initKMeans.length, initKMeans.head.length,
             initKMeans.flatMap(_.toArray).toArray), iterations)
         (stepKMeans.clusters.toArray.zip(kmeans.matToSparse(dataCompensatedMatFCS.row((0 until nbRows).toArray))).
-          map(x => kmeans.euclid(x._2, stepKMeans.means(x._1))).sum/nbRows/nbPar, stepKMeans) ::
+          map(x => kmeans.euclid(x._2, stepKMeans.means(x._1))).sum / nbRows / nbPar, stepKMeans) ::
           listEuclid(stepKMeans.means, nbRows, iterations, step - 1)
       }
     }
@@ -266,7 +273,7 @@ class FCSParserCompact(fcsNameInput: String, minValCytInput: Double) {
           Mat(initKMeans.length, initKMeans.head.length,
             initKMeans.flatMap(_.toArray).toArray), iterations)
         (stepKMeans.clusters.toArray.zip(kmeans.matToSparse(dataCompensatedMatFCS.row((0 until nbRows).toArray))).
-          map(x => kmeans.euclid(x._2, stepKMeans.means(x._1))).sum/nbRows/nbPar, stepKMeans) ::
+          map(x => kmeans.euclid(x._2, stepKMeans.means(x._1))).sum / nbRows / nbPar, stepKMeans) ::
           listEuclid(stepKMeans.means, nbRows, iterations, step - 1)
       }
     }
@@ -310,152 +317,154 @@ class FCSParserCompact(fcsNameInput: String, minValCytInput: Double) {
   }
 }
 
-case class KMeanFCSInput(clusterNb: Int = 5, nbRows: Int = 100, iterations: Int = 100, seedK: Int = 0) {}
+// already defined in ParseFCSFull
+//case class KMeanFCSInput(clusterNb: Int = 5, nbRows: Int = 100, iterations: Int = 100, seedK: Int = 0) {}
 
-object FCSOutput {
-  def kMeanFCSPlot2D(fcsParsed: FCSParserCompact, kMeanR: KMeansResult, exludeCluster: Array[Int] = Array())
-  : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
-    val keepIndex = (0 until kMeanR.clusters.length).
-      filter(x => (!exludeCluster.contains(kMeanR.clusters(x).toArray.head))).toArray
-    val dataSubFCS = fcsParsed.dataCompensatedMatFCS.row(keepIndex)
-    val subKMeanR = KMeansResult(
-      clusters = kMeanR.clusters.filter(x => !(exludeCluster.contains(x))),
-      means = kMeanR.means
-    )
-    val projections = fcsParsed.compensatedParam.indices.combinations(2).map { g =>
-      val c1 = g(0)
-      val c2 = g(1)
-      val xMinMaxFCSComp = Option(dataSubFCS.columnMinMax(c1).min, dataSubFCS.columnMinMax(c1).max)
-      val yMinMaxFCSComp = Option(dataSubFCS.columnMinMax(c2).min, dataSubFCS.columnMinMax(c2).max)
-      val col1 = dataSubFCS.col(c1)
-      val col2 = dataSubFCS.col(c2)
-      xyplot(
-        Mat(col1, col2, subKMeanR.clusters.map(_.toDouble)) -> point(
-          labelText = false, size = 4.0 / log10(kMeanR.clusters.length),
-          color = DiscreteColors(kMeanR.means.length - 1)))(
-        xlim = xMinMaxFCSComp, ylim = yMinMaxFCSComp,
-        extraLegend = subKMeanR.clusters.toArray.distinct.map(
-          x =>
-            (x + 1).toString -> PointLegend(shape = Shape.rectangle(0, 0, 1, 1), //x._1 + 1 for starting cluster nb with 1
-              color = DiscreteColors(kMeanR.means.length - 1)(x.toDouble))),
-
-        xlab = fcsParsed.compensatedParam.map(x => fcsParsed.fcsTextSegmentMap("$P" + x + "S")).toList(c1),
-        ylab = fcsParsed.compensatedParam.map(x => fcsParsed.fcsTextSegmentMap("$P" + x + "S")).toList(c2)
-      )
-    }
-    sequence(projections.toList, TableLayout(4))
-  }
-
-  def kMeanFCSPlotClusters2D(fcsParsed: FCSParserCompact, kMeanR: KMeansResult, exludeCluster: Array[Int] = Array())
-  : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
-    val keepIndex = (0 until kMeanR.clusters.length).
-      filter(x => (!exludeCluster.contains(kMeanR.clusters(x).toArray.head))).toArray
-    val dataSubFCS = fcsParsed.dataCompensatedMatFCS.row(keepIndex)
-    val clusterSize = kMeanR.clusters.toArray.groupBy(x => x).map(x => (x._1, x._2.length)).
-      filter(x => (!exludeCluster.contains(x._2))).toList.sortBy(_._1)
-    val clusterMean = kMeanR.means.zipWithIndex.filter(x => (!exludeCluster.contains(x._2)))
-    val projections = kMeanR.means.head.toArray.indices.combinations(2).map { g =>
-      val c1 = g(0)
-      val c2 = g(1)
-      val xMinMaxFCSComp = Option(dataSubFCS.columnMinMax(c1).min, dataSubFCS.columnMinMax(c1).max)
-      val yMinMaxFCSComp = Option(dataSubFCS.columnMinMax(c2).min, dataSubFCS.columnMinMax(c2).max)
-      val col1 = clusterMean.map(x => x._1.at(c1).toDouble).toArray
-      val col2 = clusterMean.map(x => x._1.at(c2).toDouble).toArray
-      val totalSize = clusterSize.map(_._2.toDouble).sum
-      xyplot(
-        Mat(Vec(col1), Vec(col2),
-          Vec(clusterSize.map(x => x._1.toDouble).toArray),
-          Vec(clusterSize.map(x => 10 * log10(x._2.toDouble) / log10(totalSize.toDouble)).toArray)) ->
-          point(
-            labelText = false,
-            color = DiscreteColors(kMeanR.means.length - 1)))(
-        xlim = xMinMaxFCSComp, ylim = yMinMaxFCSComp,
-        extraLegend = clusterSize.toArray.map(
-          x =>
-            (x._1 + 1).toString -> PointLegend(shape = Shape.rectangle(0, 0, 1, 1), //x._1 + 1 for starting cluster nb with 1
-              color = DiscreteColors(kMeanR.means.length - 1)(x._1.toDouble))),
-        xlab = fcsParsed.compensatedParam.map(x => fcsParsed.fcsTextSegmentMap("$P" + x + "S")).toList(c1),
-        ylab = fcsParsed.compensatedParam.map(x => fcsParsed.fcsTextSegmentMap("$P" + x + "S")).toList(c2)
-      )
-    }
-    sequence(projections.toList, TableLayout(4))
-
-  }
-
-  def kMeanFCSPlotClustersConv(clusterConv: Array[List[IndexedSeq[Vec[Double]]]])
-  : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
-
-    val paramLinesPlot = (0 until clusterConv.head.head.head.length).map(paramComp => {
-      val dataConvMat = Mat(((for (runIndex <- clusterConv.indices;
-                                   clusterIndex <- clusterConv.head.head.indices) yield {
-        (for (convIndex <- clusterConv.head.indices) yield {
-          clusterConv(runIndex).toArray.
-            zipWithIndex.filter(_._2 == convIndex).map(_._1).head.
-            zipWithIndex.filter(_._2 == clusterIndex).map(_._1).head.toArray.
-            zipWithIndex.filter(_._2 == paramComp).map(_._1).head
-        }).toArray
-      }).toList :::
-        List(clusterConv.head.indices.map(_.toDouble).toArray)).toArray)
-      val yLimDataConv = Option(dataConvMat.col((0 to dataConvMat.numCols - 2).toArray).toArray.min,
-        dataConvMat.col((0 to dataConvMat.numCols - 2).toArray).toArray.max)
-      val xLimDataConv = Option(0.0, (clusterConv.head.length - 1).toDouble)
-      xyplot(dataConvMat -> (0 to (dataConvMat.numCols - 2)).map(dataColIndex =>
-        line(xCol = (dataConvMat.numCols - 1), yCol = dataColIndex,
-          color = DiscreteColors(clusterConv.length - 1)((dataColIndex / clusterConv.head.head.length).toDouble),
-          //color = Color.black,
-          stroke = Stroke(2d))).toList)(xlim = xLimDataConv, ylim = yLimDataConv)
-    })
-    sequence(paramLinesPlot.toList, TableLayout(4))
-  }
-
-  def kMeanFCSPlotClustersConv2D(clusterConv: Array[List[IndexedSeq[Vec[Double]]]])
-  : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
-    val param2DPlot = 0 until (clusterConv.head.head.head.length) combinations (2) map { comb2D =>
-      val dataConvMat = Mat((for (runIndex <- (0 to (clusterConv.length - 1));
-                                  clusterIndex <- (0 to (clusterConv.head.head.length - 1));
-                                  combIndex <- List(0, 1)) yield {
-        (for (convIndex <- (0 to (clusterConv.head.length - 1))) yield {
-          clusterConv(runIndex).toArray.
-            zipWithIndex.filter(_._2 == convIndex).map(_._1).head.
-            zipWithIndex.filter(_._2 == clusterIndex).map(_._1).head.toArray.
-            zipWithIndex.filter(_._2 == comb2D(combIndex)).map(_._1).head
-        }).toArray
-      }).toArray)
-      val xLimDataConv = Option(dataConvMat.col((0 to dataConvMat.numCols / 2 - 1).map(_ * 2).toArray).toArray.min,
-        dataConvMat.col((0 to dataConvMat.numCols / 2 - 1).map(_ * 2).toArray).toArray.max)
-      val yLimDataConv = Option(dataConvMat.col((0 to dataConvMat.numCols / 2 - 1).map(_ * 2 + 1).toArray).toArray.min,
-        dataConvMat.col((0 to dataConvMat.numCols / 2 - 1).map(_ * 2 + 1).toArray).toArray.max)
-      xyplot(dataConvMat -> (0 to (dataConvMat.numCols / 2 - 1)).map(dataColIndex =>
-        line(xCol = (dataColIndex * 2), yCol = dataColIndex * 2 + 1,
-          color = DiscreteColors(clusterConv.length - 1)((dataColIndex / clusterConv.head.head.length).toDouble),
-          //color = Color.black,
-          stroke = Stroke(2d))).toList)(xlim = xLimDataConv, ylim = yLimDataConv)
-    }
-    sequence(param2DPlot.toList, TableLayout(4))
-  }
-
-  def kMeanFCSPlotSeqEuclid(kmeanEuclid: ParArray[(List[Double], KMeansResult)])
-  = {
-    val min4Plot = kmeanEuclid.map(_._1.toArray).toArray.flatMap(x => x).min*.95
-    val max4Plot = kmeanEuclid.map(_._1.toArray).toArray.flatMap(x => x).max*1.05
-    val mat4Plot = Mat((kmeanEuclid.map(_._1.toArray).toList :::
-      List((0 until kmeanEuclid.map(_._1.toArray).toArray.head.length).toArray.map(_.toDouble))).toArray)
-    //println(mat4Plot)
-    xyplot(mat4Plot -> (0 until mat4Plot.numCols - 1).map(x => line(yCol = x, xCol = mat4Plot.numCols - 1,
-      color = DiscreteColors(mat4Plot.numCols - 2)(x.toDouble))).toList)(
-      ylim = Option(min4Plot, max4Plot), xlim = Option(0.0, (mat4Plot.numRows - 1).toDouble))
-  }
-
-  def plotKSeqToPng(plotSeq: Build[ElemList[Elems2[org.nspl.XYPlotArea, org.nspl.Legend]]],
-                    fileName: String, widthPng: Int = 1000) = {
-    val filePng = new File(fileName)
-    pngToFile(filePng, plotSeq.build, widthPng)
-  }
-
-  def writeClusterSizeCsv(kMeanCluster: org.saddle.Vec[Int], fileName: String) = {
-    val clusterSize = kMeanCluster.toArray.groupBy(identity).map(x => (x._1, x._2.size))
-    val clusterFrame = Frame("Cluster" -> Vec(clusterSize.map(_._1 + 1).toArray), "Size" -> Vec(clusterSize.map(_._2).toArray))
-    // _._1 + 1 for starting cluster nb with 1
-    clusterFrame.writeCsvFile(fileName)
-  }
-}
+//already defined in ParseFCSFull
+//object FCSOutput {
+//  def kMeanFCSPlot2D(fcsParsed: FCSParserCompact, kMeanR: KMeansResult, exludeCluster: Array[Int] = Array())
+//  : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
+//    val keepIndex = (0 until kMeanR.clusters.length).
+//      filter(x => (!exludeCluster.contains(kMeanR.clusters(x).toArray.head))).toArray
+//    val dataSubFCS = fcsParsed.dataCompensatedMatFCS.row(keepIndex)
+//    val subKMeanR = KMeansResult(
+//      clusters = kMeanR.clusters.filter(x => !(exludeCluster.contains(x))),
+//      means = kMeanR.means
+//    )
+//    val projections = fcsParsed.compensatedParam.indices.combinations(2).map { g =>
+//      val c1 = g(0)
+//      val c2 = g(1)
+//      val xMinMaxFCSComp = Option(dataSubFCS.columnMinMax(c1).min, dataSubFCS.columnMinMax(c1).max)
+//      val yMinMaxFCSComp = Option(dataSubFCS.columnMinMax(c2).min, dataSubFCS.columnMinMax(c2).max)
+//      val col1 = dataSubFCS.col(c1)
+//      val col2 = dataSubFCS.col(c2)
+//      xyplot(
+//        Mat(col1, col2, subKMeanR.clusters.map(_.toDouble)) -> point(
+//          labelText = false, size = 4.0 / log10(kMeanR.clusters.length),
+//          color = DiscreteColors(kMeanR.means.length - 1)))(
+//        xlim = xMinMaxFCSComp, ylim = yMinMaxFCSComp,
+//        extraLegend = subKMeanR.clusters.toArray.distinct.map(
+//          x =>
+//            (x + 1).toString -> PointLegend(shape = Shape.rectangle(0, 0, 1, 1), //x._1 + 1 for starting cluster nb with 1
+//              color = DiscreteColors(kMeanR.means.length - 1)(x.toDouble))),
+//
+//        xlab = fcsParsed.compensatedParam.map(x => fcsParsed.fcsTextSegmentMap("$P" + x + "S")).toList(c1),
+//        ylab = fcsParsed.compensatedParam.map(x => fcsParsed.fcsTextSegmentMap("$P" + x + "S")).toList(c2)
+//      )
+//    }
+//    sequence(projections.toList, TableLayout(4))
+//  }
+//
+//  def kMeanFCSPlotClusters2D(fcsParsed: FCSParserCompact, kMeanR: KMeansResult, exludeCluster: Array[Int] = Array())
+//  : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
+//    val keepIndex = (0 until kMeanR.clusters.length).
+//      filter(x => (!exludeCluster.contains(kMeanR.clusters(x).toArray.head))).toArray
+//    val dataSubFCS = fcsParsed.dataCompensatedMatFCS.row(keepIndex)
+//    val clusterSize = kMeanR.clusters.toArray.groupBy(x => x).map(x => (x._1, x._2.length)).
+//      filter(x => (!exludeCluster.contains(x._2))).toList.sortBy(_._1)
+//    val clusterMean = kMeanR.means.zipWithIndex.filter(x => (!exludeCluster.contains(x._2)))
+//    val projections = kMeanR.means.head.toArray.indices.combinations(2).map { g =>
+//      val c1 = g(0)
+//      val c2 = g(1)
+//      val xMinMaxFCSComp = Option(dataSubFCS.columnMinMax(c1).min, dataSubFCS.columnMinMax(c1).max)
+//      val yMinMaxFCSComp = Option(dataSubFCS.columnMinMax(c2).min, dataSubFCS.columnMinMax(c2).max)
+//      val col1 = clusterMean.map(x => x._1.at(c1).toDouble).toArray
+//      val col2 = clusterMean.map(x => x._1.at(c2).toDouble).toArray
+//      val totalSize = clusterSize.map(_._2.toDouble).sum
+//      xyplot(
+//        Mat(Vec(col1), Vec(col2),
+//          Vec(clusterSize.map(x => x._1.toDouble).toArray),
+//          Vec(clusterSize.map(x => 10 * log10(x._2.toDouble) / log10(totalSize.toDouble)).toArray)) ->
+//          point(
+//            labelText = false,
+//            color = DiscreteColors(kMeanR.means.length - 1)))(
+//        xlim = xMinMaxFCSComp, ylim = yMinMaxFCSComp,
+//        extraLegend = clusterSize.toArray.map(
+//          x =>
+//            (x._1 + 1).toString -> PointLegend(shape = Shape.rectangle(0, 0, 1, 1), //x._1 + 1 for starting cluster nb with 1
+//              color = DiscreteColors(kMeanR.means.length - 1)(x._1.toDouble))),
+//        xlab = fcsParsed.compensatedParam.map(x => fcsParsed.fcsTextSegmentMap("$P" + x + "S")).toList(c1),
+//        ylab = fcsParsed.compensatedParam.map(x => fcsParsed.fcsTextSegmentMap("$P" + x + "S")).toList(c2)
+//      )
+//    }
+//    sequence(projections.toList, TableLayout(4))
+//
+//  }
+//
+//  def kMeanFCSPlotClustersConv(clusterConv: Array[List[IndexedSeq[Vec[Double]]]])
+//  : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
+//
+//    val paramLinesPlot = (0 until clusterConv.head.head.head.length).map(paramComp => {
+//      val dataConvMat = Mat(((for (runIndex <- clusterConv.indices;
+//                                   clusterIndex <- clusterConv.head.head.indices) yield {
+//        (for (convIndex <- clusterConv.head.indices) yield {
+//          clusterConv(runIndex).toArray.
+//            zipWithIndex.filter(_._2 == convIndex).map(_._1).head.
+//            zipWithIndex.filter(_._2 == clusterIndex).map(_._1).head.toArray.
+//            zipWithIndex.filter(_._2 == paramComp).map(_._1).head
+//        }).toArray
+//      }).toList :::
+//        List(clusterConv.head.indices.map(_.toDouble).toArray)).toArray)
+//      val yLimDataConv = Option(dataConvMat.col((0 to dataConvMat.numCols - 2).toArray).toArray.min,
+//        dataConvMat.col((0 to dataConvMat.numCols - 2).toArray).toArray.max)
+//      val xLimDataConv = Option(0.0, (clusterConv.head.length - 1).toDouble)
+//      xyplot(dataConvMat -> (0 to (dataConvMat.numCols - 2)).map(dataColIndex =>
+//        line(xCol = (dataConvMat.numCols - 1), yCol = dataColIndex,
+//          color = DiscreteColors(clusterConv.length - 1)((dataColIndex / clusterConv.head.head.length).toDouble),
+//          //color = Color.black,
+//          stroke = Stroke(2d))).toList)(xlim = xLimDataConv, ylim = yLimDataConv)
+//    })
+//    sequence(paramLinesPlot.toList, TableLayout(4))
+//  }
+//
+//  def kMeanFCSPlotClustersConv2D(clusterConv: Array[List[IndexedSeq[Vec[Double]]]])
+//  : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
+//    val param2DPlot = 0 until (clusterConv.head.head.head.length) combinations (2) map { comb2D =>
+//      val dataConvMat = Mat((for (runIndex <- (0 to (clusterConv.length - 1));
+//                                  clusterIndex <- (0 to (clusterConv.head.head.length - 1));
+//                                  combIndex <- List(0, 1)) yield {
+//        (for (convIndex <- (0 to (clusterConv.head.length - 1))) yield {
+//          clusterConv(runIndex).toArray.
+//            zipWithIndex.filter(_._2 == convIndex).map(_._1).head.
+//            zipWithIndex.filter(_._2 == clusterIndex).map(_._1).head.toArray.
+//            zipWithIndex.filter(_._2 == comb2D(combIndex)).map(_._1).head
+//        }).toArray
+//      }).toArray)
+//      val xLimDataConv = Option(dataConvMat.col((0 to dataConvMat.numCols / 2 - 1).map(_ * 2).toArray).toArray.min,
+//        dataConvMat.col((0 to dataConvMat.numCols / 2 - 1).map(_ * 2).toArray).toArray.max)
+//      val yLimDataConv = Option(dataConvMat.col((0 to dataConvMat.numCols / 2 - 1).map(_ * 2 + 1).toArray).toArray.min,
+//        dataConvMat.col((0 to dataConvMat.numCols / 2 - 1).map(_ * 2 + 1).toArray).toArray.max)
+//      xyplot(dataConvMat -> (0 to (dataConvMat.numCols / 2 - 1)).map(dataColIndex =>
+//        line(xCol = (dataColIndex * 2), yCol = dataColIndex * 2 + 1,
+//          color = DiscreteColors(clusterConv.length - 1)((dataColIndex / clusterConv.head.head.length).toDouble),
+//          //color = Color.black,
+//          stroke = Stroke(2d))).toList)(xlim = xLimDataConv, ylim = yLimDataConv)
+//    }
+//    sequence(param2DPlot.toList, TableLayout(4))
+//  }
+//
+//  def kMeanFCSPlotSeqEuclid(kmeanEuclid: ParArray[(List[Double], KMeansResult)])
+//  = {
+//    val min4Plot = kmeanEuclid.map(_._1.toArray).toArray.flatMap(x => x).min*.95
+//    val max4Plot = kmeanEuclid.map(_._1.toArray).toArray.flatMap(x => x).max*1.05
+//    val mat4Plot = Mat((kmeanEuclid.map(_._1.toArray).toList :::
+//      List((0 until kmeanEuclid.map(_._1.toArray).toArray.head.length).toArray.map(_.toDouble))).toArray)
+//    //println(mat4Plot)
+//    xyplot(mat4Plot -> (0 until mat4Plot.numCols - 1).map(x => line(yCol = x, xCol = mat4Plot.numCols - 1,
+//      color = DiscreteColors(mat4Plot.numCols - 2)(x.toDouble))).toList)(
+//      ylim = Option(min4Plot, max4Plot), xlim = Option(0.0, (mat4Plot.numRows - 1).toDouble))
+//  }
+//
+//  def plotKSeqToPng(plotSeq: Build[ElemList[Elems2[org.nspl.XYPlotArea, org.nspl.Legend]]],
+//                    fileName: String, widthPng: Int = 1000) = {
+//    val filePng = new File(fileName)
+//    pngToFile(filePng, plotSeq.build, widthPng)
+//  }
+//
+//  def writeClusterSizeCsv(kMeanCluster: org.saddle.Vec[Int], fileName: String) = {
+//    val clusterSize = kMeanCluster.toArray.groupBy(identity).map(x => (x._1, x._2.size))
+//    val clusterFrame = Frame("Cluster" -> Vec(clusterSize.map(_._1 + 1).toArray), "Size" -> Vec(clusterSize.map(_._2).toArray))
+//    // _._1 + 1 for starting cluster nb with 1
+//    clusterFrame.writeCsvFile(fileName)
+//  }
+//}
