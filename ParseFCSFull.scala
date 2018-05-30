@@ -45,70 +45,53 @@ object FCSParserFull {
 
     val keyLength = lengthSecondCharSep(inList) - 1
     val valLength = lengthSecondCharSep(inList.drop(keyLength + 1)) - 1
-    if (inList.length <= (keyLength + valLength + 3)) {
+    if (inList.length <= (keyLength + valLength + 3))
       Map(inList.slice(1, 1 + keyLength).map(_.toChar).mkString("") ->
-        inList.slice(1 + keyLength + 1, 1 + keyLength + 1 + valLength).map(_.toChar).mkString(""))
-    }
-    else {
+        inList.slice(1 + keyLength + 1, 1 + keyLength + 1 + valLength).map(_.toChar).mkString("")) else
       Map(inList.slice(1, 1 + keyLength).map(_.toChar).mkString("") ->
         inList.slice(1 + keyLength + 1, 1 + keyLength + 1 + valLength).map(_.toChar).mkString("")) ++
         textSegmentMap(inList.drop(1 + keyLength + 1 + valLength))
-    }
   }
 }
 
 class FCSHeader(fcsNameInput: String) {
   val fcsFile = new String(fcsNameInput)
   if (!Files.exists(Paths.get(fcsFile))) sys.error("File " + fcsFile + " not found")
-
   private val fcsFileBuffer =
     new BufferedInputStream(new FileInputStream(fcsFile))
-
   private var binaryFileIndex: Int = 0
   for (i <- 0 until FCSParserFull.offsetByteText._1) {
     fcsFileBuffer.read
     binaryFileIndex += 1
   }
   private val firstTextSegment =
-    (for (i <- FCSParserFull.offsetByteText._1 to FCSParserFull.offsetByteText._2) yield {
-      fcsFileBuffer.read
-    }).
+    (for (i <- FCSParserFull.offsetByteText._1 to FCSParserFull.offsetByteText._2) yield fcsFileBuffer.read).
       map(_.toChar).filter(_ != ' ').mkString("").toInt
   binaryFileIndex = FCSParserFull.offsetByteText._2 + 1
 
   private val lastTextSegment =
-    (for (i <- binaryFileIndex to FCSParserFull.offsetByteText._3) yield {
-      fcsFileBuffer.read
-    }).
+    (for (i <- binaryFileIndex to FCSParserFull.offsetByteText._3) yield fcsFileBuffer.read).
       map(_.toChar).filter(_ != ' ').mkString("").toInt
   binaryFileIndex = FCSParserFull.offsetByteText._3 + 1
-  for (i <- binaryFileIndex until FCSParserFull.offsetByteAnalysis._1) yield {
+  for (i <- binaryFileIndex until FCSParserFull.offsetByteAnalysis._1) {
     fcsFileBuffer.read
     binaryFileIndex += 1
   }
   private val firstAnalysisSegment =
-    (for (i <- binaryFileIndex to FCSParserFull.offsetByteAnalysis._2) yield {
-      fcsFileBuffer.read
-    }).
+    (for (i <- binaryFileIndex to FCSParserFull.offsetByteAnalysis._2) yield fcsFileBuffer.read).
       map(_.toChar).filter(_ != ' ').mkString("").toInt
   binaryFileIndex = FCSParserFull.offsetByteAnalysis._2 + 1
 
   private val lastAnalysisSegment =
-    (for (i <- binaryFileIndex to FCSParserFull.offsetByteAnalysis._3) yield {
-      fcsFileBuffer.read
-    }).
+    (for (i <- binaryFileIndex to FCSParserFull.offsetByteAnalysis._3) yield fcsFileBuffer.read).
       map(_.toChar).filter(_ != ' ').mkString("").toInt
   binaryFileIndex = FCSParserFull.offsetByteAnalysis._3 + 1
 
-  for (i <- binaryFileIndex until firstTextSegment) yield {
-    fcsFileBuffer.read
-  }
+  for (i <- binaryFileIndex until firstTextSegment) fcsFileBuffer.read
   binaryFileIndex = firstTextSegment
 
   private val fcsTextSegment =
-    (for (i <- binaryFileIndex to lastTextSegment) yield {
-      fcsFileBuffer.read
-    }).map(_.toByte)
+    (for (i <- binaryFileIndex to lastTextSegment) yield fcsFileBuffer.read).map(_.toByte)
   binaryFileIndex = lastTextSegment + 1
   val fcsTextSegmentMap: Map[String, String] = FCSParserFull.textSegmentMap(fcsTextSegment.toList)
   println("Mode: " + fcsTextSegmentMap("$MODE") +
@@ -119,30 +102,18 @@ class FCSHeader(fcsNameInput: String) {
   println("Number of chanels: " + fcsTextSegmentMap("$PAR"))
   println("Byte order: " + fcsTextSegmentMap("$BYTEORD"))
   println("Number of events: " + fcsTextSegmentMap("$TOT"))
-
-  //private val firstDataSegment =
-  //  fcsTextSegmentMap("$BEGINDATA").toList.filter(_ != ' ').mkString("").toInt
-  //private val lastDataSegment =
-  //  fcsTextSegmentMap("$ENDDATA").toList.filter(_ != ' ').mkString("").toInt
   val nbPar: Int = fcsTextSegmentMap("$PAR").toInt
   val nbEvent: Int = fcsTextSegmentMap("$TOT").toArray.filter(_ != ' ').mkString("").toInt
-  //val bitToFloat: List[Int] = (1 to nbPar).
-  //  map(x => "$P".concat(x.toString).concat("B")).map(x => fcsTextSegmentMap(x).toInt).toList
-  //val takenParam: scala.collection.immutable.IndexedSeq[Int] =
-  //  (1 to bitToFloat.length).filter(x => fcsTextSegmentMap.contains("$P" + x + "S"))
-  //takenParam.foreach(x => println("$P" + x + "S -> " + fcsTextSegmentMap("$P" + x + "S")))
   fcsFileBuffer.close()
   println("Size of data: " + nbEvent * nbPar)
 
   def getOnlineFCSInput: FCSInputFull = {
     val tParam = (1 to nbPar).map(param => {
       val paramName = fcsTextSegmentMap("$P" + param + "N") +
-        (if (fcsTextSegmentMap.contains("$P" + param + "S")) {
-          " -> " + fcsTextSegmentMap("$P" + param + "S")
-        } else "")
+        (if (fcsTextSegmentMap.contains("$P" + param + "S")) " -> " + fcsTextSegmentMap("$P" + param + "S") else "")
       println()
       print(paramName)
-      val boolTake = !(scala.io.StdIn.readLine("Take [y]/n? ") == "n")
+      val boolTake = !(scala.io.StdIn.readLine(", Take [y]/n? ") == "n")
       val boolLog = if (boolTake) !(scala.io.StdIn.readLine("Log [y]/n? ") == "n") else false
       val minVal = if (boolTake) {
         scala.io.StdIn.readLine("Minimum value [-1000.0]: ") match {
@@ -179,31 +150,24 @@ class FCSHeader(fcsNameInput: String) {
 
 case class FCSInputFull(file: String, takeParameter: List[(Int, Boolean, Double)], takeNbEvent: Int) {}
 
-//paramters are index (start at 1), log ? , minLog
+//parameters are indices (start at 1), log ? , min for Log
 
 class FCSParserFull(fcsInput: FCSInputFull) {
 
   val fcsFile = new String(fcsInput.file)
   if (!Files.exists(Paths.get(fcsFile))) sys.error("File " + fcsFile + " not found")
-
   private val fcsFileBuffer = new BufferedInputStream(new FileInputStream(fcsFile))
-
   private var binaryFileIndex: Int = 0
   for (i <- 0 until FCSParserFull.offsetByteText._1) {
     fcsFileBuffer.read
     binaryFileIndex += 1
   }
   private val firstTextSegment =
-    (for (i <- FCSParserFull.offsetByteText._1 to FCSParserFull.offsetByteText._2) yield {
-      fcsFileBuffer.read
-    }).
+    (for (i <- FCSParserFull.offsetByteText._1 to FCSParserFull.offsetByteText._2) yield fcsFileBuffer.read).
       map(_.toChar).filter(_ != ' ').mkString("").toInt
   binaryFileIndex = FCSParserFull.offsetByteText._2 + 1
-
   private val lastTextSegment =
-    (for (i <- binaryFileIndex to FCSParserFull.offsetByteText._3) yield {
-      fcsFileBuffer.read
-    }).
+    (for (i <- binaryFileIndex to FCSParserFull.offsetByteText._3) yield fcsFileBuffer.read).
       map(_.toChar).filter(_ != ' ').mkString("").toInt
   binaryFileIndex = FCSParserFull.offsetByteText._3 + 1
   for (i <- binaryFileIndex until FCSParserFull.offsetByteAnalysis._1) yield {
@@ -211,36 +175,23 @@ class FCSParserFull(fcsInput: FCSInputFull) {
     binaryFileIndex += 1
   }
   private val firstAnalysisSegment =
-    (for (i <- binaryFileIndex to FCSParserFull.offsetByteAnalysis._2) yield {
-      fcsFileBuffer.read
-    }).
+    (for (i <- binaryFileIndex to FCSParserFull.offsetByteAnalysis._2) yield fcsFileBuffer.read).
       map(_.toChar).filter(_ != ' ').mkString("").toInt
   binaryFileIndex = FCSParserFull.offsetByteAnalysis._2 + 1
-
   private val lastAnalysisSegment =
-    (for (i <- binaryFileIndex to FCSParserFull.offsetByteAnalysis._3) yield {
-      fcsFileBuffer.read
-    }).
+    (for (i <- binaryFileIndex to FCSParserFull.offsetByteAnalysis._3) yield fcsFileBuffer.read).
       map(_.toChar).filter(_ != ' ').mkString("").toInt
   binaryFileIndex = FCSParserFull.offsetByteAnalysis._3 + 1
-
-  for (i <- binaryFileIndex until firstTextSegment) yield {
-    fcsFileBuffer.read
-  }
+  for (i <- binaryFileIndex until firstTextSegment) fcsFileBuffer.read
   binaryFileIndex = firstTextSegment
-
   private val fcsTextSegment =
-    (for (i <- binaryFileIndex to lastTextSegment) yield {
-      fcsFileBuffer.read
-    }).map(_.toByte)
+    (for (i <- binaryFileIndex to lastTextSegment) yield fcsFileBuffer.read).map(_.toByte)
   binaryFileIndex = lastTextSegment + 1
   val fcsTextSegmentMap: Map[String, String] = FCSParserFull.textSegmentMap(fcsTextSegment.toList)
   println("Mode: " + fcsTextSegmentMap("$MODE"))
   println("Data type: " + fcsTextSegmentMap("$DATATYPE"))
   println("Number of chanels: " + fcsTextSegmentMap("$PAR"))
-  //println("Byte order: " + fcsTextSegmentMap("$BYTEORD"))
   println("Number of events: " + fcsTextSegmentMap("$TOT"))
-
   private val firstDataSegment = fcsTextSegmentMap("$BEGINDATA").toList.filter(_ != ' ').mkString("").toInt
   private val lastDataSegment = fcsTextSegmentMap("$ENDDATA").toList.filter(_ != ' ').mkString("").toInt
   val nbPar: Int = fcsTextSegmentMap("$PAR").toInt
@@ -249,15 +200,11 @@ class FCSParserFull(fcsInput: FCSInputFull) {
     map(x => "$P".concat(x.toString).concat("B")).map(x => fcsTextSegmentMap(x).toInt).toList
   val takenParam: scala.collection.immutable.IndexedSeq[Int] = fcsInput.takeParameter.map(_._1).toIndexedSeq
 
-
-  for (i <- binaryFileIndex until firstDataSegment) yield {
-    fcsFileBuffer.read
-  }
+  for (i <- binaryFileIndex until firstDataSegment) yield fcsFileBuffer.read
   binaryFileIndex = firstDataSegment
   println("Size of data: " + fcsInput.takeNbEvent * nbPar)
 
-
-  private var dataTakenArrayFCS =
+  private val dataTakenArrayFCS =
     new Array[Double](fcsInput.takeNbEvent * takenParam.length)
   for (indexFCS <- 0 until fcsInput.takeNbEvent * nbPar) {
     print(indexFCS + "\r")
@@ -307,7 +254,7 @@ class FCSParserFull(fcsInput: FCSInputFull) {
   val dataTakenMatFCS: Mat[Double] = Mat(fcsInput.takeNbEvent, takenParam.length, dataTakenArrayFCS)
 
   def getCompensatedMatrixFCS: DenseMatrix[Double] = {
-    var FCSMatrix = new DenseMatrix[Double](fcsInput.takeNbEvent, takenParam.length)
+    val FCSMatrix = new DenseMatrix[Double](fcsInput.takeNbEvent, takenParam.length)
     for (rowFCS <- (0 until fcsInput.takeNbEvent); colFCS <- takenParam.indices) {
       FCSMatrix(rowFCS, colFCS) = dataTakenArrayFCS(colFCS + rowFCS * takenParam.length)
     }
@@ -325,10 +272,7 @@ class FCSParserFull(fcsInput: FCSInputFull) {
   def kmeansPPFCS(kMeanFCSInput: KMeanFCSInput): KMeansResult = {
     def initClust(initClustListIndex: List[Int], dataArrayIndex: Array[Int], clusterNb: Int, rand4Init: Random):
     List[Int] = {
-      if (clusterNb == 0) {
-        initClustListIndex
-      }
-      else {
+      if (clusterNb == 0) initClustListIndex else {
         val dataIndexWithMinEuclid = dataArrayIndex.zip(
           dataArrayIndex.map(dataIndex =>
             initClustListIndex.map(initClustIndex =>
@@ -347,7 +291,6 @@ class FCSParserFull(fcsInput: FCSInputFull) {
     val clusterIndices = initClust(List(initDataIndex),
       (0 until kMeanFCSInput.nbRows).filter(x => x != initDataIndex).toArray,
       kMeanFCSInput.clusterNb - 1, rand4K).toArray
-    //val dataIndices = (0 until kMeanFCSInput.nbRows).filter(x => !clusterIndices.contains(x)).toArray
     kmeans.apply(dataTakenMatFCS.row((0 until kMeanFCSInput.nbRows).toArray),
       dataTakenMatFCS.row(clusterIndices), kMeanFCSInput.iterations)
   }
@@ -356,10 +299,7 @@ class FCSParserFull(fcsInput: FCSInputFull) {
   ParArray[(List[Double], KMeansResult)] = { // carefull: it correspond to iterations*stepK + (stepk -1) or something like that
     def listEuclid(initKMeans: IndexedSeq[Vec[Double]], nbRows: Int, iterations: Int, step: Int):
     List[(Double, KMeansResult)] = {
-      if (step == 0) {
-        Nil
-      }
-      else {
+      if (step == 0) Nil else {
         print("Step " + step + "\r")
         val stepKMeans = kmeans.apply(dataTakenMatFCS.row((0 until nbRows).toArray),
           Mat(initKMeans.length, initKMeans.head.length,
@@ -383,10 +323,7 @@ class FCSParserFull(fcsInput: FCSInputFull) {
   ParArray[(List[Double], KMeansResult)] = { // carefull: it correspond to iterations*stepK + (stepk -1) or something like that
     def initClust(initClustListIndex: List[Int], dataArrayIndex: Array[Int], clusterNb: Int, rand4Init: Random):
     List[Int] = {
-      if (clusterNb == 0) {
-        initClustListIndex
-      }
-      else {
+      if (clusterNb == 0) initClustListIndex else {
         val dataIndexWithMinEuclid = dataArrayIndex.zip(
           dataArrayIndex.map(dataIndex =>
             initClustListIndex.map(initClustIndex =>
@@ -402,10 +339,7 @@ class FCSParserFull(fcsInput: FCSInputFull) {
 
     def listEuclid(initKMeans: IndexedSeq[Vec[Double]], nbRows: Int, iterations: Int, step: Int):
     List[(Double, KMeansResult)] = {
-      if (step == 0) {
-        Nil
-      }
-      else {
+      if (step == 0) Nil else {
         println("Step " + step)
         val stepKMeans = kmeans.apply(dataTakenMatFCS.row((0 until nbRows).toArray),
           Mat(initKMeans.length, initKMeans.head.length,
@@ -418,8 +352,6 @@ class FCSParserFull(fcsInput: FCSInputFull) {
 
     seedArrayK.map(seedKFromArray => {
       val rand4K = new Random(seedKFromArray)
-      //val dataInitK = dataTakenMatFCS.row((0 until kMeanFCSInput.nbRows).toArray).
-      //row((1 to kMeanFCSInput.clusterNb).map(x => rand4K.nextInt(kMeanFCSInput.nbRows)).toArray)
       val initDataIndex = rand4K.nextInt(kMeanFCSInput.nbRows)
       val clusterIndices = initClust(List(initDataIndex),
         (0 until kMeanFCSInput.nbRows).filter(x => x != initDataIndex).toArray,
@@ -435,10 +367,7 @@ class FCSParserFull(fcsInput: FCSInputFull) {
   Array[List[IndexedSeq[Vec[Double]]]] = {
     def listMeanKMeans(initKMeans: IndexedSeq[Vec[Double]], nbRows: Int, iterations: Int, step: Int)
     : List[IndexedSeq[Vec[Double]]] = {
-      if (step == 0) {
-        Nil
-      }
-      else {
+      if (step == 0) Nil else {
         val meanKMeans = kmeans.apply(dataTakenMatFCS.row((0 until nbRows).toArray),
           Mat(initKMeans.length, initKMeans.head.length,
             initKMeans.flatMap(_.toArray).toArray), iterations).means
@@ -484,7 +413,6 @@ object FCSOutput {
           x =>
             (x + 1).toString -> PointLegend(shape = Shape.rectangle(0, 0, 1, 1), //x._1 + 1 for starting cluster nb with 1
               color = DiscreteColors(kMeanR.means.length - 1)(x.toDouble))),
-
         xlab = fcsParsed.takenParam.map(x => fcsParsed.fcsTextSegmentMap("$P" + x + "S")).toList(c1),
         ylab = fcsParsed.takenParam.map(x => fcsParsed.fcsTextSegmentMap("$P" + x + "S")).toList(c2)
       )
@@ -530,7 +458,6 @@ object FCSOutput {
 
   def kMeanFCSPlotClustersConv(clusterConv: Array[List[IndexedSeq[Vec[Double]]]])
   : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
-
     val paramLinesPlot = (0 until clusterConv.head.head.head.length).map(paramComp => {
       val dataConvMat = Mat(((for (runIndex <- clusterConv.indices;
                                    clusterIndex <- clusterConv.head.head.indices) yield {
@@ -574,7 +501,6 @@ object FCSOutput {
       xyplot(dataConvMat -> (0 to (dataConvMat.numCols / 2 - 1)).map(dataColIndex =>
         line(xCol = (dataColIndex * 2), yCol = dataColIndex * 2 + 1,
           color = DiscreteColors(clusterConv.length - 1)((dataColIndex / clusterConv.head.head.length).toDouble),
-          //color = Color.black,
           stroke = Stroke(2d))).toList)(xlim = xLimDataConv, ylim = yLimDataConv)
     }
     sequence(param2DPlot.toList, TableLayout(4))
@@ -586,7 +512,6 @@ object FCSOutput {
     val max4Plot = kmeanEuclid.map(_._1.toArray).toArray.flatMap(x => x).max * 1.05
     val mat4Plot = Mat((kmeanEuclid.map(_._1.toArray).toList :::
       List((0 until kmeanEuclid.map(_._1.toArray).toArray.head.length).toArray.map(_.toDouble))).toArray)
-    //println(mat4Plot)
     xyplot(mat4Plot -> (0 until mat4Plot.numCols - 1).map(x => line(yCol = x, xCol = mat4Plot.numCols - 1,
       color = DiscreteColors(mat4Plot.numCols - 2)(x.toDouble))).toList)(
       ylim = Option(min4Plot, max4Plot), xlim = Option(0.0, (mat4Plot.numRows - 1).toDouble))
@@ -601,7 +526,6 @@ object FCSOutput {
   def writeClusterSizeCsv(kMeanCluster: org.saddle.Vec[Int], fileName: String) = {
     val clusterSize = kMeanCluster.toArray.groupBy(identity).map(x => (x._1, x._2.size))
     val clusterFrame = Frame("Cluster" -> Vec(clusterSize.map(_._1 + 1).toArray), "Size" -> Vec(clusterSize.map(_._2).toArray))
-    // _._1 + 1 for starting cluster nb with 1
     clusterFrame.writeCsvFile(fileName)
   }
 }
