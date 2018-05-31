@@ -76,6 +76,7 @@ object Main extends App {
     println("Cluster seed: \t" + parArrayForKEuclid.mkString("\t"))
     println("Cluster quality:\t" + kMeanEuclid.map(x => x._1.last).mkString("\t"))
     show(FCSOutput.kMeanFCSPlotSeqEuclid(kMeanEuclid))
+    clusterExportLoop = (true, true)
     while (clusterExportLoop._2) {
       clusterExportLoop = scala.io.StdIn.readLine("(C)luster, (P)lot, (W)rite to file, Quit?") match {
         case "C" => (true, false)
