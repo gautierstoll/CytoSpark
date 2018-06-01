@@ -244,6 +244,7 @@ class FCSParserFull(fcsInput: FCSInputFull) {
     groupBy(x => (x._2 - x._2 / takenParam.length * takenParam.length)).map(x => (x._1, x._2.map(_._1).min))
   println("Apply logs") // take log, according to input
   for (indexFCS <- 0 until fcsInput.takeNbEvent * nbPar) { // could make a faster loop...
+    print(indexFCS + "\r")
     if (takenParam.contains(1 + indexFCS - (indexFCS / nbPar) * nbPar)) {
       val takenIndex = takenParam.indices.
         filter(x => (takenParam(x) == (1 + indexFCS - indexFCS / nbPar * nbPar))).head
@@ -268,6 +269,7 @@ class FCSParserFull(fcsInput: FCSInputFull) {
     map(x => (x._1, (x._2.map(x => (x._1) * (x._1)).sum / (fcsInput.takeNbEvent))))
   println("Normalize") //Normalize data for clustering
   for (indexFCS <- 0 until fcsInput.takeNbEvent * nbPar) { // could make a faster loop...
+    print(indexFCS + "\r")
     if (takenParam.contains(1 + indexFCS - (indexFCS / nbPar) * nbPar)) {
       val takenIndex = takenParam.indices.
         filter(x => (takenParam(x) == (1 + indexFCS - indexFCS / nbPar * nbPar))).head
@@ -344,6 +346,7 @@ class FCSParserFull(fcsInput: FCSInputFull) {
       val dataInitK = dataNormalizedTakenMatFCS.row((0 until kMeanFCSInput.nbRows).toArray).
         row((1 to kMeanFCSInput.clusterNb).map(x => rand4K.nextInt(kMeanFCSInput.nbRows)).toArray)
       val listEuclidRand = listEuclid(dataInitK.rows, kMeanFCSInput.nbRows, kMeanFCSInput.iterations, stepK)
+      print("Finish seed " +seedKFromArray + "\r")
       (listEuclidRand.map(x => x._1), listEuclidRand.last._2)
     })
   }
@@ -430,6 +433,7 @@ object FCSOutput {
     val projections = fcsParsed.takenParam.indices.combinations(2).map { g =>
       val c1 = g(0)
       val c2 = g(1)
+      println(c1+" x "+c2)
       val xMinMaxFCSComp = Option(dataSubFCS.columnMinMax(c1).min, dataSubFCS.columnMinMax(c1).max)
       val yMinMaxFCSComp = Option(dataSubFCS.columnMinMax(c2).min, dataSubFCS.columnMinMax(c2).max)
       val col1 = dataSubFCS.col(c1)
@@ -465,6 +469,7 @@ object FCSOutput {
     val projections = kMeanR.means.head.toArray.indices.combinations(2).map { g =>
       val c1 = (g(0))
       val c2 = (g(1))
+      println(c1+" x "+c2)
       val xMinMaxFCSComp = Option(dataSubFCS.columnMinMax(c1).min, dataSubFCS.columnMinMax(c1).max)
       val yMinMaxFCSComp = Option(dataSubFCS.columnMinMax(c2).min, dataSubFCS.columnMinMax(c2).max)
  // unormalized cluster centers
