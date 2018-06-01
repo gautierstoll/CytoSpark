@@ -445,7 +445,7 @@ object FCSOutput {
     val projections = fcsParsed.takenParam.indices.combinations(2).map { g =>
       val c1 = g(0)
       val c2 = g(1)
-      println(c1 + " x " + c2 + "        \r")
+      print(c1 + " x " + c2 + "        \r")
       val xMinMaxFCSComp = Option(dataSubFCS.columnMinMax(c1).min, dataSubFCS.columnMinMax(c1).max)
       val yMinMaxFCSComp = Option(dataSubFCS.columnMinMax(c2).min, dataSubFCS.columnMinMax(c2).max)
       val col1 = dataSubFCS.col(c1)
@@ -507,8 +507,8 @@ object FCSOutput {
       // full matrix, with x and y points for ellipse, with color
       val clusterEllipseMatForPlot = Mat(subKMeanR.clusters.toSeq.distinct.flatMap(clusterIndex =>
         (ellipsePoints2DVar(col1.toSeq.zip(subKMeanR.clusters.toSeq).filter(x => (x._2 == clusterIndex)).map(x => x._1).toArray,
-          col1.toSeq.zip(subKMeanR.clusters.toSeq).filter(x => (x._2 == clusterIndex)).map(x => x._1).toArray,100).cols.toList :::
-          List(Vec(Array.fill(100)(clusterIndex.toDouble))))).toArray)
+          col2.toSeq.zip(subKMeanR.clusters.toSeq).filter(x => (x._2 == clusterIndex)).map(x => x._1).toArray,100).cols.toList :::
+          List(Vec(Array.fill(100+1)(clusterIndex.toDouble))))).toArray)
       xyplot(clusterEllipseMatForPlot ->
         (0 until (clusterEllipseMatForPlot.numCols / 3)).map(x => line(xCol = x * 3, yCol = x * 3 + 1, colorCol = x * 3 + 2,
           color = DiscreteColors(kMeanR.means.length - 1))).toList)(
