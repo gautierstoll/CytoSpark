@@ -1,10 +1,15 @@
 
 import java.io._
+
 import breeze.linalg._
 import breeze.numerics._
+import breeze.stats._
 import java.nio.ByteBuffer
+
+import ClusterEllipse.EllipseCluster
 import org.saddle._
 import stat._
+
 import scala.util._
 import org.nspl._
 import org.nspl.saddle._
@@ -13,6 +18,7 @@ import org.nspl.awtrenderer._
 import org.saddle.io._
 import stat.kmeans._
 import stat.sparse.SMat
+
 import scala.collection.parallel.mutable._
 
 //import java.nio.ByteBuffer
@@ -30,3 +36,22 @@ import scala.collection.parallel.mutable._
 //val dataExp12 = new FCSParserFull(inputExp12)
 //val kmeanExp12 = dataExp12.kmeansFCS(KMeanFCSInput(7,10000,100,0))
 ////
+val dataA1 = Array(1d,3d,5d,10d)
+val dataA2 = Array(10d,33d,4d,11d)
+val meanA=Array(mean(dataA1),mean(dataA2))
+val covMatA=covmat(DenseMatrix(dataA1,dataA2).t)
+val clusterA = ClusterEllipse.EllipseClusterId(EllipseCluster(4,meanA,covMatA),0)
+
+val dataB1 = Array(2d,4d,10d)
+val dataB2 = Array(11d,23d,5d)
+val meanB=Array(mean(dataB1),mean(dataB2))
+val covMatB=covmat(DenseMatrix(dataB1,dataB2).t)
+val clusterB = ClusterEllipse.EllipseClusterId(EllipseCluster(3,meanA,covMatB),1)
+
+val dataC1 = Array(-1d,-3d,1d,-10d,22d)
+val dataC2 = Array(80d,43d,40d,55d,66d)
+val meanC=Array(mean(dataC1),mean(dataC2))
+val covMatC=covmat(DenseMatrix(dataC1,dataC2).t)
+val clusterC = ClusterEllipse.EllipseClusterId(EllipseCluster(5,meanC,covMatC),2)
+
+val treeEllipse = ClusterEllipse.treeEllipseCluster(List(clusterA,clusterB,clusterC),2)
