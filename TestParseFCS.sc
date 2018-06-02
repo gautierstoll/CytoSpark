@@ -30,25 +30,3 @@ import scala.collection.parallel.mutable._
 //val dataExp12 = new FCSParserFull(inputExp12)
 //val kmeanExp12 = dataExp12.kmeansFCS(KMeanFCSInput(7,10000,100,0))
 ////
-case class ellipseCluster(size: Int, mean: Array[Double], varMat: DenseMatrix[Double]) {}
-
-def fusionEllipseCluster(clusterA: ellipseCluster, clusterB: ellipseCluster): ellipseCluster = {
-  val sizeFus = clusterA.size + clusterB.size
-  val meanFus = (clusterA.mean).zip(clusterB.mean).
-    map(x => (x._1 * clusterA.size + x._2 * clusterB.size) / sizeFus)
-  val sumX2A = (clusterA.varMat.map(x=>x*(clusterA.size)/(clusterA.size-1)) +
-    (DenseMatrix(clusterA.mean).t)*DenseMatrix(clusterA.mean)).map(x=> x*(clusterA.size))
-  val sumX2B = (clusterB.varMat.map(x=>x*(clusterB.size)/(clusterB.size-1)) +
-    (DenseMatrix(clusterB.mean).t)*DenseMatrix(clusterB.mean)).map(x=> x*(clusterB.size))
-  val varFus = ((sumX2A + sumX2B).map(x=>x/(sizeFus)) - (DenseMatrix(meanFus).t)*DenseMatrix(meanFus)).map(x=>x*sizeFus/(sizeFus-1))
-  ellipseCluster(sizeFus,meanFus,varFus)
-}
-
-def minDist(clusterA: ellipseCluster,clusterB : ellipseCluster) : Double = {
-  val matEllipseA = inv(clusterA.varMat)
-  val matEllipseB = inv(clusterB.varMat)
-  val minVect = inv(matEllipseA+matEllipseB)*
-    (matEllipseA*DenseMatrix(clusterA.mean)+matEllipseB*DenseMatrix(clusterB.mean))
-  ((minVect - DenseMatrix(clusterA.mean)).t)*matEllipseA*(minVect - DenseMatrix(clusterA.mean)) +
-    ((minVect - DenseMatrix(clusterB.mean)).t)*matEllipseB*(minVect - DenseMatrix(clusterB.mean)) +
-}
