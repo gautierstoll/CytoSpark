@@ -54,4 +54,4 @@ val meanC=Array(mean(dataC1),mean(dataC2))
 val covMatC=covmat(DenseMatrix(dataC1,dataC2).t)
 val clusterC = ClusterEllipse.EllipseClusterId(EllipseCluster(5,meanC,covMatC),2)
 
-val treeEllipse = ClusterEllipse.treeEllipseCluster(List(clusterA,clusterB,clusterC),2)
+val treeEllipse = ClusterEllipse.treeEllipseCluster(List(clusterA,clusterB,clusterC))
