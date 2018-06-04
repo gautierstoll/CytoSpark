@@ -204,13 +204,28 @@ object FCSOutput {
       treeArrow.
         flatMap(x => Array(x.source.cluster.mean, x.target.cluster.mean, Array(x.source.clusterId.toDouble + 1))).flatMap(x => x).
         toArray)
-    val projections = fcsParsed.takenParam.indices.combinations(2).map{g =>
-      val c1 = (g(0))
-      val c2 = (g(1))
-      print(c1 + " x " + c2 + "       " + "\r")
-      val xMinMaxFCSComp = Option(fcsParsed.columnMinMax(c1).min, fcsParsed.columnMinMax(c1).max)
-      val yMinMaxFCSComp = Option(fcsParsed.columnMinMax(c2).min, fcsParsed.columnMinMax(c2).max)
-      xyplot()()
+    val projections = fcsParsed.takenParam.indices.combinations(2).map { g =>
+      val cx = (g(0))
+      val cy = (g(1))
+      val c2x = g(0) + fcsParsed.takenParam.length
+      val c2y = g(1) + fcsParsed.takenParam.length
+      val overCol = (fcsParsed.takenParam.length) * 2 + 1
+      print(cx + " x " + cy + "       " + "\r")
+      val xMinMaxFCSComp = Option(mat4Plot.col(Array(cx,c2x)).toArray.min*.95, mat4Plot.col(Array(cx,c2x)).toArray.max*1.05)
+      val yMinMaxFCSComp = Option(mat4Plot.col(Array(cy,c2y)).toArray.min*.95, mat4Plot.col(Array(cy,c2y)).toArray.max*1.05)
+      xyplot(mat4Plot ->
+        List(lineSegment(xCol = cx, yCol = cy, x2Col = c2x, y2Col = c2y, colorCol = overCol,stroke=Stroke(.5)),
+        point(xCol = cx, yCol = cy,colorCol = (fcsParsed.takenParam.length) * 2,
+          sizeCol= overCol, shapeCol= overCol, errorTopCol = overCol, errorBottomCol = overCol,
+          valueText = true,color=Color.BLACK,labelFontSize = .6 fts)
+      ))(xlim = xMinMaxFCSComp, ylim = yMinMaxFCSComp,
+        xlab = try fcsParsed.fcsTextSegmentMap("$P" + fcsParsed.takenParam(cx) + "S") catch {
+          case _: Throwable => fcsParsed.fcsTextSegmentMap("$P" + fcsParsed.takenParam(cx) + "N")
+        },
+        ylab = try fcsParsed.fcsTextSegmentMap("$P" + fcsParsed.takenParam(cy) + "S") catch {
+          case _: Throwable => fcsParsed.fcsTextSegmentMap("$P" + fcsParsed.takenParam(cy) + "N")
+        }
+      )
     }
     sequence(projections.toList, TableLayout(4))
   }
