@@ -1,13 +1,17 @@
 //
 import java.io._
+
 import breeze.linalg._
 import breeze.numerics._
 import breeze.stats._
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.nio.file.{Paths, Files}
+import java.nio.file.{Files, Paths}
+
+import ClusterEllipse.EllipseClusterId
 import org.saddle._
 import stat._
+
 import scala.util._
 import breeze.numerics.constants._
 import org.nspl._
@@ -18,9 +22,9 @@ import org.saddle.io._
 import stat.kmeans._
 import stat.sparse.SMat
 import stat.sparse.SVec
+
 import scala.collection.parallel.mutable._
 import org.saddle.io.CsvImplicits._
-
 
 
 // methods for output
@@ -100,8 +104,8 @@ object FCSOutput {
       // full matrix, with x and y points for ellipse, with color
       val clusterEllipseMatForPlot = Mat(subKMeanR.clusters.toSeq.distinct.flatMap(clusterIndex =>
         (ellipsePoints2DVar(col1.toSeq.zip(subKMeanR.clusters.toSeq).filter(x => (x._2 == clusterIndex)).map(x => x._1).toArray,
-          col2.toSeq.zip(subKMeanR.clusters.toSeq).filter(x => (x._2 == clusterIndex)).map(x => x._1).toArray,100).cols.toList :::
-          List(Vec(Array.fill(100+1)(clusterIndex.toDouble))))).toArray)
+          col2.toSeq.zip(subKMeanR.clusters.toSeq).filter(x => (x._2 == clusterIndex)).map(x => x._1).toArray, 100).cols.toList :::
+          List(Vec(Array.fill(100 + 1)(clusterIndex.toDouble))))).toArray)
       xyplot(clusterEllipseMatForPlot ->
         (0 until (clusterEllipseMatForPlot.numCols / 3)).map(x => line(xCol = x * 3, yCol = x * 3 + 1, colorCol = x * 3 + 2,
           color = DiscreteColors(kMeanR.means.length - 1))).toList)(
@@ -182,12 +186,28 @@ object FCSOutput {
       ylim = Option(min4Plot, max4Plot), xlim = Option(0.0, (mat4Plot.numRows - 1).toDouble))
   }
 
+  def treeKmeanClust(fcsParsed: FCSParserFull, kMeanR: KMeansResult): List[EllipseClusterId] = {
+    kMeanR.clusters.toSeq.distinct.map(clusterId => {
+      val indexId = kMeanR.clusters.toSeq.zipWithIndex.filter(x => x._1 == clusterId).map(_._2)
+      val dataMat = fcsParsed.dataTakenMatFCS.row(indexId.toArray)
+      ClusterEllipse.EllipseClusterId(ClusterEllipse.EllipseCluster(indexId.length,
+        dataMat.cols.map(x => mean(x.toArray)).toArray,
+        covmat(new DenseMatrix(dataMat.numCols, dataMat.numRows, dataMat.toArray).t)
+      ), clusterId)
+    }).toList
+  }
+
   def plotKSeqToPng(plotSeq: Build[ElemList[Elems2[org.nspl.XYPlotArea, org.nspl.Legend]]],
                     fileName: String, widthPng: Int = 1000) = {
     val filePng = new File(fileName)
     pngToFile(filePng, plotSeq.build, widthPng)
   }
 
+  def plotKSeqToPdf(plotSeq: Build[ElemList[Elems2[org.nspl.XYPlotArea, org.nspl.Legend]]],
+                    fileName: String) = {
+    val filePdf = new File(fileName)
+    pdfToFile(filePdf, plotSeq.build)
+  }
 
 
   def writeClusterSizeCsv(kMeanCluster: org.saddle.Vec[Int], fileName: String) = {
