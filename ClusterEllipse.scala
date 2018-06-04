@@ -54,13 +54,13 @@ object ClusterEllipse {
           , clusterCutList(g(0)).clusterId, clusterCutList(g(1)).clusterId)
       }).toList
       val minDist = minDistList.map(x => x._1).min
-      val removeClusterId = minDistList.filter(x => (x._1 == minDist)).head
+      val removeClusterId = minDistList.filter(x => (x._1 == minDist)).map(x=> (x._2,x._3)).head
       val clusterA = clusterCutList.filter(x => (x.clusterId == removeClusterId._1)).head
       val clusterB = clusterCutList.filter(x => (x.clusterId == removeClusterId._2)).head
       val newCluster = EllipseClusterId(fusionEllipseCluster(clusterA.cluster, clusterB.cluster), maxId + 1)
       val newClusterList = newCluster ::
         (clusterCutList.filter(x => ((x.clusterId != removeClusterId._1) && (x.clusterId != removeClusterId._2))))
-      ArrowEllipseCluster(clusterA, clusterB) :: treeEllipseCluster(newClusterList, maxId + 1)
+      ArrowEllipseCluster(clusterA, newCluster) :: ArrowEllipseCluster(clusterB, newCluster) :: treeEllipseCluster(newClusterList, maxId + 1)
     }
   }
 }
