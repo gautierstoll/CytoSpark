@@ -186,15 +186,33 @@ object FCSOutput {
       ylim = Option(min4Plot, max4Plot), xlim = Option(0.0, (mat4Plot.numRows - 1).toDouble))
   }
 
-  def treeKmeanClust(fcsParsed: FCSParserFull, kMeanR: KMeansResult): List[EllipseClusterId] = {
-    kMeanR.clusters.toSeq.distinct.map(clusterId => {
+  def treeKmeanClust(fcsParsed: FCSParserFull, kMeanR: KMeansResult): List[ClusterEllipse.ArrowEllipseCluster] = {
+    val clusterList = kMeanR.clusters.toSeq.distinct.map(clusterId => {
       val indexId = kMeanR.clusters.toSeq.zipWithIndex.filter(x => x._1 == clusterId).map(_._2)
       val dataMat = fcsParsed.dataTakenMatFCS.row(indexId.toArray)
       ClusterEllipse.EllipseClusterId(ClusterEllipse.EllipseCluster(indexId.length,
-        dataMat.cols.map(x => mean(x.toArray)).toArray,
+        dataMat.cols.map(x => breeze.stats.mean(x.toArray)).toArray,
         covmat(new DenseMatrix(dataMat.numCols, dataMat.numRows, dataMat.toArray).t)
       ), clusterId)
     }).toList
+    ClusterEllipse.treeEllipseCluster(clusterList)
+  }
+
+  def treeKmeanClustPlot2D(fcsParsed: FCSParserFull, treeArrow: List[ClusterEllipse.ArrowEllipseCluster])
+  : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
+    val mat4Plot = Mat(treeArrow.length, (fcsParsed.takenParam.length) * 2 + 1,
+      treeArrow.
+        flatMap(x => Array(x.source.cluster.mean, x.target.cluster.mean, Array(x.source.clusterId.toDouble + 1))).flatMap(x => x).
+        toArray)
+    val projections = fcsParsed.takenParam.indices.combinations(2).map{g =>
+      val c1 = (g(0))
+      val c2 = (g(1))
+      print(c1 + " x " + c2 + "       " + "\r")
+      val xMinMaxFCSComp = Option(fcsParsed.columnMinMax(c1).min, fcsParsed.columnMinMax(c1).max)
+      val yMinMaxFCSComp = Option(fcsParsed.columnMinMax(c2).min, fcsParsed.columnMinMax(c2).max)
+      xyplot()()
+    }
+    sequence(projections.toList, TableLayout(4))
   }
 
   def plotKSeqToPng(plotSeq: Build[ElemList[Elems2[org.nspl.XYPlotArea, org.nspl.Legend]]],
