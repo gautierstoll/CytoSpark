@@ -35,7 +35,6 @@ object ClusterEllipse {
     val varFus = ((sumX2A + sumX2B).map(x => x / (sizeFus)) - (DenseMatrix(meanFus).t) * DenseMatrix(meanFus)).map(x => x * sizeFus / (sizeFus - 1))
     EllipseCluster(sizeFus, meanFus, varFus)
   }
-
   def distEllipseCluster(clusterA: EllipseCluster, clusterB: EllipseCluster): Double = {
     val minVect = inv(clusterA.ellipseMat + clusterB.ellipseMat) *
       (clusterA.ellipseMat * DenseMatrix(clusterA.mean).t + clusterB.ellipseMat * DenseMatrix(clusterB.mean).t)
@@ -43,7 +42,6 @@ object ClusterEllipse {
     (((minVect - DenseMatrix(clusterA.mean).t).t) * clusterA.ellipseMat * (minVect - DenseMatrix(clusterA.mean).t) +
       ((minVect - DenseMatrix(clusterB.mean).t).t) * clusterB.ellipseMat * (minVect - DenseMatrix(clusterB.mean).t)).apply(0, 0)
   }
-
   case class ArrowEllipseCluster(source: EllipseClusterId, target: EllipseClusterId) {}
 
   def treeEllipseCluster(clusterCutList: List[EllipseClusterId], maxId: Int): List[ArrowEllipseCluster] = {
