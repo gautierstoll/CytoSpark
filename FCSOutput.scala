@@ -43,8 +43,8 @@ object FCSOutput {
       val c1 = g(0)
       val c2 = g(1)
       print(c1 + " x " + c2 + "        \r")
-      val xMinMaxFCSComp = Option(dataSubFCS.columnMinMax(c1).min, dataSubFCS.columnMinMax(c1).max)
-      val yMinMaxFCSComp = Option(dataSubFCS.columnMinMax(c2).min, dataSubFCS.columnMinMax(c2).max)
+      val xMinMaxFCSComp = Option(dataSubFCS.col(c1).toArray.min, dataSubFCS.col(c1).toArray.max)
+      val yMinMaxFCSComp = Option(dataSubFCS.col(c2).toArray.min, dataSubFCS.col(c2).toArray.max)
       val col1 = dataSubFCS.col(c1)
       val col2 = dataSubFCS.col(c2)
       xyplot(
@@ -97,8 +97,8 @@ object FCSOutput {
       val c1 = g(0)
       val c2 = g(1)
       print(c1 + " x " + c2 + "     \r")
-      val xMinMaxFCSComp = Option(dataSubFCS.columnMinMax(c1).min, dataSubFCS.columnMinMax(c1).max)
-      val yMinMaxFCSComp = Option(dataSubFCS.columnMinMax(c2).min, dataSubFCS.columnMinMax(c2).max)
+      val xMinMaxFCSComp = Option(dataSubFCS.col(c1).toArray.min, dataSubFCS.col(c1).toArray.max)
+      val yMinMaxFCSComp = Option(dataSubFCS.col(c2).toArray.min, dataSubFCS.col(c2).toArray.max)
       val col1 = dataSubFCS.col(c1)
       val col2 = dataSubFCS.col(c2)
       // full matrix, with x and y points for ellipse, with color
@@ -139,8 +139,8 @@ object FCSOutput {
       val c1 = (g(0))
       val c2 = (g(1))
       print(c1 + " x " + c2 + "       " + "\r")
-      val xMinMaxFCSComp = Option(dataSubFCS.columnMinMax(c1).min, dataSubFCS.columnMinMax(c1).max)
-      val yMinMaxFCSComp = Option(dataSubFCS.columnMinMax(c2).min, dataSubFCS.columnMinMax(c2).max)
+      val xMinMaxFCSComp = Option(dataSubFCS.col(c1).toArray.min, dataSubFCS.col(c1).toArray.max)
+      val yMinMaxFCSComp = Option(dataSubFCS.col(c2).toArray.min, dataSubFCS.col(c2).toArray.max)
       // unormalized cluster centers
       val col1 = clusterMean.map(x => x._1.raw(c1)).toArray.
         map(x => x *
