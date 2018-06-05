@@ -39,7 +39,7 @@ object ClusterEllipse {
 
   def distEllipseCluster(clusterA: EllipseCluster, clusterB: EllipseCluster): Double = {
     val minVect = inv(clusterA.ellipseMat + clusterB.ellipseMat) *
-      (clusterA.ellipseMat * DenseMatrix(clusterA.mean).t + clusterB.ellipseMat * DenseMatrix(clusterB.mean).t)
+      (clusterA.ellipseMat * (DenseMatrix(clusterA.mean).t) + clusterB.ellipseMat * (DenseMatrix(clusterB.mean).t))
 
     (((minVect - DenseMatrix(clusterA.mean).t).t) * clusterA.ellipseMat * (minVect - DenseMatrix(clusterA.mean).t) +
       ((minVect - DenseMatrix(clusterB.mean).t).t) * clusterB.ellipseMat * (minVect - DenseMatrix(clusterB.mean).t)).apply(0, 0)
@@ -53,7 +53,7 @@ object ClusterEllipse {
     if (clusterCutList.length == 1) Nil
     else {
       val minDistList = (for (g <- clusterCutList.indices.combinations(2)) yield {
-        (distEllipseCluster(clusterCutList(g(0)).cluster, clusterCutList(g(0)).cluster)
+        (distEllipseCluster(clusterCutList(g(0)).cluster, clusterCutList(g(1)).cluster)
           , clusterCutList(g(0)).clusterId, clusterCutList(g(1)).clusterId)
       }).toList
       val minDist = minDistList.map(x => x._1).min
@@ -61,6 +61,7 @@ object ClusterEllipse {
       val clusterA = clusterCutList.filter(x => (x.clusterId == removeClusterId._1)).head
       val clusterB = clusterCutList.filter(x => (x.clusterId == removeClusterId._2)).head
       val newCluster = EllipseClusterId(fusionEllipseCluster(clusterA.cluster, clusterB.cluster), maxId + 1)
+      println("Construct fusion cluster "+(maxId+1+1)+" from "+(removeClusterId._1+1)+" and "+(removeClusterId._2+1)+", distance:"+minDist)
       val newClusterList = newCluster ::
         (clusterCutList.filter(x => ((x.clusterId != removeClusterId._1) && (x.clusterId != removeClusterId._2))))
       ArrowEllipseCluster(clusterA, newCluster) :: ArrowEllipseCluster(clusterB, newCluster) ::

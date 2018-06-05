@@ -177,8 +177,8 @@ object FCSOutput {
 
   def kMeanFCSPlotSeqEuclid(kmeanEuclid: ParArray[(List[Double], KMeansResult)])
   = {
-    val min4Plot = kmeanEuclid.map(_._1.toArray).toArray.flatMap(x => x).min * .95
-    val max4Plot = kmeanEuclid.map(_._1.toArray).toArray.flatMap(x => x).max * 1.05
+    val min4Plot = kmeanEuclid.map(_._1.toArray).toArray.flatMap(x => x).min * .98
+    val max4Plot = kmeanEuclid.map(_._1.toArray).toArray.flatMap(x => x).max * 1.02
     val mat4Plot = Mat((kmeanEuclid.map(_._1.toArray).toList :::
       List((0 until kmeanEuclid.map(_._1.toArray).toArray.head.length).toArray.map(_.toDouble))).toArray)
     xyplot(mat4Plot -> (0 until mat4Plot.numCols - 1).map(x => line(yCol = x, xCol = mat4Plot.numCols - 1,
@@ -247,5 +247,12 @@ object FCSOutput {
     val clusterSize = kMeanCluster.toArray.groupBy(identity).map(x => (x._1, x._2.size))
     val clusterFrame = Frame("Cluster" -> Vec(clusterSize.map(_._1 + 1).toArray), "Size" -> Vec(clusterSize.map(_._2).toArray))
     clusterFrame.writeCsvFile(fileName)
+  }
+  def writeClusterTreeSizeCsv(treeClust : List[ClusterEllipse.ArrowEllipseCluster],fileName : String) ={
+    val clusterSize = treeClust.map(arrow => arrow.source.cluster.size).toArray
+    val clusterId = treeClust.map(arrow => arrow.source.clusterId+1).toArray // +1 because cluster nb start at 1
+    val clusterTarget = treeClust.map(arrow => arrow.target.clusterId+1).toArray // +1 because cluster nb start at 1
+    val treeFrame = Frame("Cluster" -> Vec(clusterId),"Size" -> Vec(clusterSize),"Target" -> Vec(clusterTarget))
+    treeFrame.writeCsvFile(fileName)
   }
 }
