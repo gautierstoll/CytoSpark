@@ -6,7 +6,7 @@ import breeze.numerics._
 import breeze.stats._
 import java.nio.ByteBuffer
 
-import ClusterEllipse.EllipseCluster
+import ClusterEllipse._
 import org.saddle._
 import stat._
 
