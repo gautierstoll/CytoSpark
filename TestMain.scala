@@ -61,7 +61,12 @@ object Main extends App {
     println("Clustering parameters:")
     val nbCluster: Int = takeIntFromLine("Number of clusters [6]: ", 6, 1)
     val nbRow: Int =
-      takeIntFromLine("Number of used rows [" + parsedFCS.nbEvent + "]: ", parsedFCS.nbEvent, 1)
+      takeIntFromLine("Number of used rows [" + inputParser.takeNbEvent + "]: ", inputParser.takeNbEvent, 1) match {
+        case y: Int => if (y > inputParser.takeNbEvent) {
+          prinln("Take " + inputParser.takeNbEvent)
+          inputParser.takeNbEvent
+        } else y
+      }
     val nbIteration: Int =
       takeIntFromLine("Number of K-Mean iterations [100]: ", 100, 1)
     val nbStep: Int = takeIntFromLine("Number of K-Mean steps [5]: ", 5, 2)
@@ -77,7 +82,7 @@ object Main extends App {
     println("Cluster seed: \t" + parArrayForKEuclid.mkString("\t"))
     println("Cluster quality:\t" + kMeanEuclid.map(x => x._1.last).mkString("\t"))
     show(FCSOutput.kMeanFCSPlotSeqEuclid(kMeanEuclid))
-    var ellipseTree : List[ClusterEllipse.ArrowEllipseCluster] = null
+    var ellipseTree: List[ClusterEllipse.ArrowEllipseCluster] = null
     clusterExportLoop = (true, true)
     while (clusterExportLoop._2) {
       val bestClusterEuclid = kMeanEuclid.filter(x => x._1.last == kMeanEuclid.map(x => x._1.last).min).head._2
