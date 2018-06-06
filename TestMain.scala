@@ -13,6 +13,8 @@ import org.saddle._
 import stat._
 import java.nio.file.{Files, Paths}
 
+import ClusterEllipse.EllipseClusterId
+
 import scala.util._
 import org.nspl._
 import org.nspl.saddle._
@@ -29,6 +31,7 @@ import scala.collection.parallel.mutable.ParArray
 
 object Main extends App {
   val maxSeedParralel = 10000
+
   def takeIntFromLine(askingPromp: String, defaultVal: Int, minVal: Int): Int = {
     (scala.io.StdIn.readLine(askingPromp) match {
       case "" => defaultVal
@@ -46,6 +49,7 @@ object Main extends App {
       else y
     }
   }
+
   var loopFile = true
   while (loopFile) {
     val fcsFile = scala.io.StdIn.readLine("FCS File: ")
@@ -82,13 +86,30 @@ object Main extends App {
       clusterLoop = scala.io.StdIn.readLine("Retry or (P)lot ?") match {
         case "P" => {
           val bestClusterEuclid = kMeanEuclid.filter(x => x._1.last == kMeanEuclid.map(x => x._1.last).min).head._2
-          var bestClusterList = null
+          var bestClusterList: (List[EllipseClusterId], Array[String]) = null
           var loopPlot = true
           while (loopPlot) {
-
-
-
-
+            scala.io.StdIn.readLine("Scatter, (C)luster, (E)llipse or (T)ree plot? ") match {
+              case "C" => {
+                val outPdf = scala.io.StdIn.readLine("Cluster file: ") + ".pdf"
+                FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlotClusters2D(parsedFCS, bestClusterEuclid), outPdf)
+              }
+              case "E" => {
+                if (bestClusterList == null) bestClusterList = FCSOutput.clusterForPlot(parsedFCS,bestClusterEuclid)
+                val outPdf = scala.io.StdIn.readLine("Ellipse file: ") + ".pdf"
+                FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlotEllipse2D(bestClusterList), outPdf)
+              }
+              case "T" => {
+                val ellipseTree = FCSOutput.treeKmeanClust(bestClusterList)
+                val outPdf = scala.io.StdIn.readLine("File: ") + ".pdf"
+                FCSOutput.plotKSeqToPdf(FCSOutput.treeKmeanClustPlot2D(bestClusterList, ellipseTree), outPdf)
+              }
+              case _: String => {
+                val outPng = scala.io.StdIn.readLine("File: ") + ".png"
+                val pngWidth = takeIntFromLine("Png width: ", 1000, 1000)
+                FCSOutput.plotKSeqToPng(FCSOutput.kMeanFCSPlot2D(parsedFCS, bestClusterEuclid), outPng, pngWidth)
+              }
+            }
             loopPlot = scala.io.StdIn.readLine("New plot? (Y)/N; ") match {
               case "Y" => true
               case _: String => false
@@ -110,60 +131,3 @@ object Main extends App {
   println("Bye bye")
   System.exit(0)
 }
-
-while (loopMain.plot) {
-  val bestClusterEuclid = kMeanEuclid.filter(x => x._1.last == kMeanEuclid.map(x => x._1.last).min).head._2
-
-  loopMain.analyzePlot = scala.io.StdIn.readLine("Plot or (A)nalyze plot ?") match {
-    case
-  }
-  case "C"
-  => (true, false)
-  case "P"
-  =>
-  {
-    scala.io.StdIn.readLine("2D-Scatter, 2D-(C)luster, 2D-(E)llispe, 2D-(T)ree? ") match {
-      case "C" => {
-        val outPdf = scala.io.StdIn.readLine("File: ") + ".pdf"
-        FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlotClusters2D(parsedFCS, bestClusterEuclid), outPdf)
-      }
-      case "E" => {
-        val outPdf = scala.io.StdIn.readLine("File: ") + ".pdf"
-        FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlotEllipse2D(parsedFCS, bestClusterEuclid), outPdf)
-      }
-      case "T" => {
-        if (ellipseTree == null) {
-          ellipseTree = FCSOutput.treeKmeanClust(parsedFCS, bestClusterEuclid)
-        }
-        val outPdf = scala.io.StdIn.readLine("File: ") + ".pdf"
-        FCSOutput.plotKSeqToPdf(FCSOutput.treeKmeanClustPlot2D(parsedFCS, ellipseTree), outPdf)
-      }
-      case _: String => {
-        val outPng = scala.io.StdIn.readLine("File: ") + ".png"
-        val pngWidth = takeIntFromLine("Png width: ", 1000, 1000)
-        FCSOutput.plotKSeqToPng(FCSOutput.kMeanFCSPlot2D(parsedFCS, bestClusterEuclid), outPng, pngWidth)
-      }
-    }
-    (true, true)
-  }
-  case "W"
-  =>
-  {
-    val outCsv = scala.io.StdIn.readLine("File: ") + ".csv"
-    if (ellipseTree == null) {
-      FCSOutput.writeClusterSizeCsv(bestClusterEuclid.clusters, outCsv)
-    } else {
-      println("write tree cluster")
-      FCSOutput.writeClusterTreeSizeCsv(ellipseTree, outCsv)
-    }
-    (true, true)
-  }
-  case _: String => (false, false)
-}
-}
-}
-}
-println("Bye bye")
-System.exit(0)
-}
-
