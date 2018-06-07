@@ -50,7 +50,7 @@ object Main extends App {
       else y
     }
   }
-  def takeListInt(askingPromp: String, minVal: Int, maxVal: Int): List[Int] ={
+  def takeListInt(askingPromp : String, minVal : Int, maxVal : Int): List[Int] = {
     scala.io.StdIn.readLine(askingPromp).
       toCharArray.filter(_!=' ').mkString("").split(",").
       map(x => try (x.toInt) catch {case _:Throwable => (minVal-1)} ).toList.filter(x => (x <= maxVal) && (x >= minVal))
@@ -88,40 +88,50 @@ object Main extends App {
       println("Cluster seed: \t" + parArrayForKEuclid.mkString("\t"))
       println("Cluster quality:\t" + kMeanEuclid.map(x => x._1.last).mkString("\t"))
       show(FCSOutput.kMeanFCSPlotSeqEuclid(kMeanEuclid))
-      //var ellipseTree: List[ClusterEllipse.ArrowEllipseCluster] = null
       clusterLoop = scala.io.StdIn.readLine("Retry or (P)lot ?") match {
         case "P" => {
           val bestClusterEuclid = kMeanEuclid.filter(x => x._1.last == kMeanEuclid.map(x => x._1.last).min).head._2
           var bestClusterList: (List[EllipseClusterId], Array[String]) = null
           var loopPlot = true
           while (loopPlot) {
+            val removeCluster =
+              this.takeListInt("Remove clusters (separated by ','): ",1,nbCluster).map(_-1).toArray
             scala.io.StdIn.readLine("Scatter, (C)luster, (E)llipse or (T)ree plot? ") match {
               case "C" => {
                 val outPdf = scala.io.StdIn.readLine("Cluster file: ") + ".pdf"
-                FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlotClusters2D(parsedFCS, bestClusterEuclid), outPdf)
+                FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlotClusters2D(parsedFCS, bestClusterEuclid,removeCluster), outPdf)
               }
               case "E" => {
                 if (bestClusterList == null) bestClusterList = FCSOutput.clusterForPlot(parsedFCS,bestClusterEuclid)
                 val outPdf = scala.io.StdIn.readLine("Ellipse file: ") + ".pdf"
-                FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlotEllipse2D(bestClusterList), outPdf)
+                FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlotEllipse2D(bestClusterList,removeCluster), outPdf)
               }
               case "T" => {
-                val ellipseTree = FCSOutput.treeKmeanClust(bestClusterList)
+                if (bestClusterList == null) bestClusterList = FCSOutput.clusterForPlot(parsedFCS,bestClusterEuclid)
+                val ellipseTree = FCSOutput.treeKmeanClust(bestClusterList,removeCluster)
                 val outPdf = scala.io.StdIn.readLine("File: ") + ".pdf"
                 FCSOutput.plotKSeqToPdf(FCSOutput.treeKmeanClustPlot2D(bestClusterList, ellipseTree), outPdf)
+                if (scala.io.StdIn.readLine("Write tree to file? Y/(N): ") == "Y") {
+                  val outCsv = scala.io.StdIn.readLine("Csv file: ") + ".csv"
+                  FCSOutput.writeClusterTreeSizeCsv(ellipseTree,outCsv)
+                }
               }
               case _: String => {
                 val outPng = scala.io.StdIn.readLine("File: ") + ".png"
                 val pngWidth = takeIntFromLine("Png width: ", 1000, 1000)
-                FCSOutput.plotKSeqToPng(FCSOutput.kMeanFCSPlot2D(parsedFCS, bestClusterEuclid), outPng, pngWidth)
+                FCSOutput.plotKSeqToPng(FCSOutput.kMeanFCSPlot2D(parsedFCS, bestClusterEuclid,removeCluster), outPng, pngWidth)
               }
             }
-            loopPlot = scala.io.StdIn.readLine("New plot? (Y)/N; ") match {
+            if (scala.io.StdIn.readLine("Write cluster sizes to file? Y/(N): ") == "Y") {
+              val outCsv = scala.io.StdIn.readLine("Csv file: ") + ".csv"
+              FCSOutput.writeClusterSizeCsv(bestClusterEuclid.clusters,outCsv)
+            }
+            loopPlot = scala.io.StdIn.readLine("New plot? (Y)/N: ") match {
               case "Y" => true
               case _: String => false
             }
           }
-          scala.io.StdIn.readLine("New cluster? (Y)/N; ") match {
+          scala.io.StdIn.readLine("New cluster? (Y)/N: ") match {
             case "Y" => true
             case _: String => false
           }
@@ -129,7 +139,7 @@ object Main extends App {
         case _: String => true
       }
     }
-    loopFile = scala.io.StdIn.readLine("New file? (Y)/N; ") match {
+    loopFile = scala.io.StdIn.readLine("New file? (Y)/N: ") match {
       case "Y" => true
       case _: String => false
     }
