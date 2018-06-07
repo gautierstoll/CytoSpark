@@ -31,7 +31,7 @@ import org.saddle.io.CsvImplicits._
 object FCSOutput {
   // cluster and parameters names for 2d plot
   def clusterForPlot(fcsParsed: FCSParserFull, kMeanR: KMeansResult) : (List[EllipseClusterId],Array[String]) = {
-    val clusterList = kMeanR.clusters.toSeq.distinct.map(clusterId => {
+    val clusterList = kMeanR.clusters.toSeq.distinct.toParArray.map(clusterId => {
       val indexId = kMeanR.clusters.toSeq.zipWithIndex.filter(x => x._1 == clusterId).map(_._2)
       val dataMat = fcsParsed.dataTakenMatFCS.row(indexId.toArray)
       ClusterEllipse.EllipseClusterId(ClusterEllipse.EllipseCluster(indexId.length,
@@ -129,61 +129,61 @@ object FCSOutput {
 
   //2d ellipse plots, based on KMeanResults, minmax from data
 
-//  def kMeanFCSPlotEllipse2D(fcsParsed: FCSParserFull, kMeanR: KMeansResult, excludeCluster: Array[Int] = Array())
-//  : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
-//    def ellipsePoints2DVar(xData: Array[Double], yData: Array[Double], segmentNb: Int): org.saddle.Mat[Double] = {
-//      def ellipse2DVarCurve(data1: Array[Double], data2: Array[Double]): (Double => (Double, Double)) = {
-//        val svdCov = svd(covmat(DenseMatrix(data1, data2).t))
-//        val Vt = svdCov.Vt
-//        val S = svdCov.S
-//        (angle => {
-//          val vectEllipse = Vt * DenseVector(pow(S(0), .5) * cos(angle), pow(S(1), .5) * sin(angle))
-//          (vectEllipse(0) + breeze.stats.mean(data1), vectEllipse(1) + breeze.stats.mean(data2))
-//        })
-//      }
-//
-//      val ellipseD1D2 = ellipse2DVarCurve(xData, yData)
-//      Mat(segmentNb + 1, 2, (0 to (segmentNb)).map(x => x.toDouble / segmentNb * 2 * Pi).map(x => ellipseD1D2(x)).flatMap(x => Array(x._1, x._2)).toArray)
-//    }
-//
-//    val keepIndex = (0 until kMeanR.clusters.length).
-//      filter(x => (!excludeCluster.contains(kMeanR.clusters(x).toArray.head))).toArray
-//    val dataSubFCS = fcsParsed.dataTakenMatFCS.row(keepIndex)
-//    val subKMeanR = KMeansResult(
-//      clusters = kMeanR.clusters.filter(x => !(excludeCluster.contains(x))),
-//      means = kMeanR.means
-//    )
-//    val projections = fcsParsed.takenParam.indices.combinations(2).map { g =>
-//      val c1 = g(0)
-//      val c2 = g(1)
-//      print(c1 + " x " + c2 + "     \r")
-//      val xMinMaxFCSComp = Option(dataSubFCS.col(c1).toArray.min, dataSubFCS.col(c1).toArray.max)
-//      val yMinMaxFCSComp = Option(dataSubFCS.col(c2).toArray.min, dataSubFCS.col(c2).toArray.max)
-//      val col1 = dataSubFCS.col(c1)
-//      val col2 = dataSubFCS.col(c2)
-//      // full matrix, with x and y points for ellipse, with color
-//      val clusterEllipseMatForPlot = Mat(subKMeanR.clusters.toSeq.distinct.flatMap(clusterIndex =>
-//        (ellipsePoints2DVar(col1.toSeq.zip(subKMeanR.clusters.toSeq).filter(x => (x._2 == clusterIndex)).map(x => x._1).toArray,
-//          col2.toSeq.zip(subKMeanR.clusters.toSeq).filter(x => (x._2 == clusterIndex)).map(x => x._1).toArray, 100).cols.toList :::
-//          List(Vec(Array.fill(100 + 1)(clusterIndex.toDouble))))).toArray)
-//      xyplot(clusterEllipseMatForPlot ->
-//        (0 until (clusterEllipseMatForPlot.numCols / 3)).map(x => line(xCol = x * 3, yCol = x * 3 + 1, colorCol = x * 3 + 2,
-//          color = DiscreteColors(kMeanR.means.length - 1))).toList)(
-//        xlim = xMinMaxFCSComp, ylim = yMinMaxFCSComp,
-//        extraLegend = subKMeanR.clusters.toArray.distinct.sorted.map(
-//          x =>
-//            (x + 1).toString -> PointLegend(shape = Shape.rectangle(0, 0, 1, 1), //x._1 + 1 for starting cluster nb with 1
-//              color = DiscreteColors(kMeanR.means.length - 1)(x.toDouble))),
-//        xlab = try fcsParsed.fcsTextSegmentMap("$P" + fcsParsed.takenParam(c1) + "S") catch {
-//          case _: Throwable => fcsParsed.fcsTextSegmentMap("$P" + fcsParsed.takenParam(c1) + "N")
-//        },
-//        ylab = try fcsParsed.fcsTextSegmentMap("$P" + fcsParsed.takenParam(c2) + "S") catch {
-//          case _: Throwable => fcsParsed.fcsTextSegmentMap("$P" + fcsParsed.takenParam(c2) + "N")
-//        }
-//      )
-//    }
-//    sequence(projections.toList, TableLayout(4))
-//  }
+  def kMeanFCSPlotEllipseFromData2D(fcsParsed: FCSParserFull, kMeanR: KMeansResult, excludeCluster: Array[Int] = Array())
+  : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
+    def ellipsePoints2DVar(xData: Array[Double], yData: Array[Double], segmentNb: Int): org.saddle.Mat[Double] = {
+      def ellipse2DVarCurve(data1: Array[Double], data2: Array[Double]): (Double => (Double, Double)) = {
+        val svdCov = svd(covmat(DenseMatrix(data1, data2).t))
+        val Vt = svdCov.Vt
+        val S = svdCov.S
+        (angle => {
+          val vectEllipse = Vt * DenseVector(pow(S(0), .5) * cos(angle), pow(S(1), .5) * sin(angle))
+          (vectEllipse(0) + breeze.stats.mean(data1), vectEllipse(1) + breeze.stats.mean(data2))
+        })
+      }
+
+      val ellipseD1D2 = ellipse2DVarCurve(xData, yData)
+      Mat(segmentNb + 1, 2, (0 to (segmentNb)).map(x => x.toDouble / segmentNb * 2 * Pi).map(x => ellipseD1D2(x)).flatMap(x => Array(x._1, x._2)).toArray)
+    }
+
+    val keepIndex = (0 until kMeanR.clusters.length).
+      filter(x => (!excludeCluster.contains(kMeanR.clusters(x).toArray.head))).toArray
+    val dataSubFCS = fcsParsed.dataTakenMatFCS.row(keepIndex)
+    val subKMeanR = KMeansResult(
+      clusters = kMeanR.clusters.filter(x => !(excludeCluster.contains(x))),
+      means = kMeanR.means
+    )
+    val projections = fcsParsed.takenParam.indices.combinations(2).map { g =>
+      val c1 = g(0)
+      val c2 = g(1)
+      print(c1 + " x " + c2 + "     \r")
+      val xMinMaxFCSComp = Option(dataSubFCS.col(c1).toArray.min, dataSubFCS.col(c1).toArray.max)
+      val yMinMaxFCSComp = Option(dataSubFCS.col(c2).toArray.min, dataSubFCS.col(c2).toArray.max)
+      val col1 = dataSubFCS.col(c1)
+      val col2 = dataSubFCS.col(c2)
+      // full matrix, with x and y points for ellipse, with color
+      val clusterEllipseMatForPlot = Mat(subKMeanR.clusters.toSeq.distinct.flatMap(clusterIndex =>
+        (ellipsePoints2DVar(col1.toSeq.zip(subKMeanR.clusters.toSeq).filter(x => (x._2 == clusterIndex)).map(x => x._1).toArray,
+          col2.toSeq.zip(subKMeanR.clusters.toSeq).filter(x => (x._2 == clusterIndex)).map(x => x._1).toArray, 100).cols.toList :::
+          List(Vec(Array.fill(100 + 1)(clusterIndex.toDouble))))).toArray)
+      xyplot(clusterEllipseMatForPlot ->
+        (0 until (clusterEllipseMatForPlot.numCols / 3)).map(x => line(xCol = x * 3, yCol = x * 3 + 1, colorCol = x * 3 + 2,
+          color = DiscreteColors(kMeanR.means.length - 1))).toList)(
+        xlim = xMinMaxFCSComp, ylim = yMinMaxFCSComp,
+        extraLegend = subKMeanR.clusters.toArray.distinct.sorted.map(
+          x =>
+            (x + 1).toString -> PointLegend(shape = Shape.rectangle(0, 0, 1, 1), //x._1 + 1 for starting cluster nb with 1
+              color = DiscreteColors(kMeanR.means.length - 1)(x.toDouble))),
+        xlab = try fcsParsed.fcsTextSegmentMap("$P" + fcsParsed.takenParam(c1) + "S") catch {
+          case _: Throwable => fcsParsed.fcsTextSegmentMap("$P" + fcsParsed.takenParam(c1) + "N")
+        },
+        ylab = try fcsParsed.fcsTextSegmentMap("$P" + fcsParsed.takenParam(c2) + "S") catch {
+          case _: Throwable => fcsParsed.fcsTextSegmentMap("$P" + fcsParsed.takenParam(c2) + "N")
+        }
+      )
+    }
+    sequence(projections.toList, TableLayout(4))
+  }
 
 
   // 2d plots of kmean cluster centers
@@ -246,9 +246,10 @@ object FCSOutput {
       ylim = Option(min4Plot, max4Plot), xlim = Option(0.0, (mat4Plot.numRows - 1).toDouble))
   }
 
-  def treeKmeanClust(clusterListParam: (List[EllipseClusterId],Array[String])):
+  def treeKmeanClust(clusterListParam: (List[EllipseClusterId],Array[String]), excludeCluster: Array[Int] = Array()):
   List[ClusterEllipse.ArrowEllipseCluster] = {
-    ClusterEllipse.treeEllipseCluster(clusterListParam._1)
+    val clusterList4Tree=clusterListParam._1.filter(cluster => !excludeCluster.contains(cluster.clusterId))
+    ClusterEllipse.treeEllipseCluster(clusterList4Tree)
   }
 //
 //

@@ -26,6 +26,7 @@ import stat.kmeans._
 import stat.sparse.SMat
 
 import scala.collection.parallel.mutable.ParArray
+import scala.tools.nsc.transform.patmat.Lit
 
 //import java.nio.ByteBuffer
 
@@ -48,6 +49,11 @@ object Main extends App {
       }
       else y
     }
+  }
+  def takeListInt(askingPromp: String, minVal: Int, maxVal: Int): List[Int] ={
+    scala.io.StdIn.readLine(askingPromp).
+      toCharArray.filter(_!=' ').mkString("").split(",").
+      map(x => try (x.toInt) catch {case _:Throwable => (minVal-1)} ).toList.filter(x => (x <= maxVal) && (x >= minVal))
   }
 
   var loopFile = true
