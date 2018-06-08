@@ -252,6 +252,9 @@ class FCSParserFull(fcsInput: FCSInputFull) {
       }
     }
   }
+  // parrelized with ParArray, eg
+// Mat(tmpArray.zipWithIndex.groupBy(x=> x._2%3).map(x=> (x._1,x._2.map(_._1))).toParArray.map(x=>(x._1,x._2.map(y=>y-x._2.min))).toArray.sortBy(_._1).map(_._2))
+
   private val minColTakenMap = dataTakenArrayFCS.zipWithIndex.
     groupBy(x => (x._2 - x._2 / takenParam.length * takenParam.length)).map(x => (x._1, x._2.map(_._1).min))
   println("Apply logs") // take log, according to input
