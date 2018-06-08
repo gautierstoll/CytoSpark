@@ -50,16 +50,28 @@ object Main extends App {
       else y
     }
   }
-  def takeListInt(askingPromp : String, minVal : Int, maxVal : Int): List[Int] = {
+
+  def takeListInt(askingPromp: String, minVal: Int, maxVal: Int): List[Int] = {
     scala.io.StdIn.readLine(askingPromp).
-      toCharArray.filter(_!=' ').mkString("").split(",").
-      map(x => try (x.toInt) catch {case _:Throwable => (minVal-1)} ).toList.filter(x => (x <= maxVal) && (x >= minVal))
+      toCharArray.filter(_ != ' ').mkString("").split(",").
+      map(x => try (x.toInt) catch {
+        case _: Throwable => (minVal - 1)
+      }).toList.filter(x => (x <= maxVal) && (x >= minVal))
   }
 
   var loopFile = true
+  var fcsFile: String = ""
   while (loopFile) {
-    val fcsFile = scala.io.StdIn.readLine("FCS File: ")
-    if (!Files.exists(Paths.get(fcsFile))) sys.error("File " + fcsFile + " do not exist")
+    var filePromp = true
+    while (filePromp) {
+      fcsFile = scala.io.StdIn.readLine("FCS File: ")
+      if (!Files.exists(Paths.get(fcsFile))) {
+        println("File " + fcsFile + " do not exist")
+        val retry = scala.io.StdIn.readLine("Retry? (Y)/N ")
+        if (retry == "Y") filePromp = true else System.exit(0)
+      }
+      else filePromp = false
+    }
     val fcsHeader = new FCSHeader(fcsFile)
     val inputParser = fcsHeader.getOnlineFCSInput
     val parsedFCS = new FCSParserFull(inputParser)
@@ -95,36 +107,36 @@ object Main extends App {
           var loopPlot = true
           while (loopPlot) {
             val removeCluster =
-              this.takeListInt("Remove clusters (separated by ','): ",1,nbCluster).map(_-1).toArray
+              this.takeListInt("Remove clusters (separated by ','): ", 1, nbCluster).map(_ - 1).toArray
             scala.io.StdIn.readLine("Scatter, (C)luster, (E)llipse or (T)ree plot? ") match {
               case "C" => {
                 val outPdf = scala.io.StdIn.readLine("Cluster file: ") + ".pdf"
-                FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlotClusters2D(parsedFCS, bestClusterEuclid,removeCluster), outPdf)
+                FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlotClusters2D(parsedFCS, bestClusterEuclid, removeCluster), outPdf)
               }
               case "E" => {
-                if (bestClusterList == null) bestClusterList = FCSOutput.clusterForPlot(parsedFCS,bestClusterEuclid)
+                if (bestClusterList == null) bestClusterList = FCSOutput.clusterForPlot(parsedFCS, bestClusterEuclid)
                 val outPdf = scala.io.StdIn.readLine("Ellipse file: ") + ".pdf"
-                FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlotEllipse2D(bestClusterList,removeCluster), outPdf)
+                FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlotEllipse2D(bestClusterList, removeCluster), outPdf)
               }
               case "T" => {
-                if (bestClusterList == null) bestClusterList = FCSOutput.clusterForPlot(parsedFCS,bestClusterEuclid)
-                val ellipseTree = FCSOutput.treeKmeanClust(bestClusterList,removeCluster)
+                if (bestClusterList == null) bestClusterList = FCSOutput.clusterForPlot(parsedFCS, bestClusterEuclid)
+                val ellipseTree = FCSOutput.treeKmeanClust(bestClusterList, removeCluster)
                 val outPdf = scala.io.StdIn.readLine("File: ") + ".pdf"
                 FCSOutput.plotKSeqToPdf(FCSOutput.treeKmeanClustPlot2D(bestClusterList, ellipseTree), outPdf)
                 if (scala.io.StdIn.readLine("Write tree to file? Y/(N): ") == "Y") {
                   val outCsv = scala.io.StdIn.readLine("Csv file: ") + ".csv"
-                  FCSOutput.writeClusterTreeSizeCsv(ellipseTree,outCsv)
+                  FCSOutput.writeClusterTreeSizeCsv(ellipseTree, outCsv)
                 }
               }
               case _: String => {
                 val outPng = scala.io.StdIn.readLine("File: ") + ".png"
                 val pngWidth = takeIntFromLine("Png width: ", 1000, 1000)
-                FCSOutput.plotKSeqToPng(FCSOutput.kMeanFCSPlot2D(parsedFCS, bestClusterEuclid,removeCluster), outPng, pngWidth)
+                FCSOutput.plotKSeqToPng(FCSOutput.kMeanFCSPlot2D(parsedFCS, bestClusterEuclid, removeCluster), outPng, pngWidth)
               }
             }
             if (scala.io.StdIn.readLine("Write cluster sizes to file? Y/(N): ") == "Y") {
               val outCsv = scala.io.StdIn.readLine("Csv file: ") + ".csv"
-              FCSOutput.writeClusterSizeCsv(bestClusterEuclid.clusters,outCsv)
+              FCSOutput.writeClusterSizeCsv(bestClusterEuclid.clusters, outCsv)
             }
             loopPlot = scala.io.StdIn.readLine("New plot? (Y)/N: ") match {
               case "Y" => true
@@ -144,6 +156,7 @@ object Main extends App {
       case _: String => false
     }
   }
+
   println("Bye bye")
   System.exit(0)
 }
