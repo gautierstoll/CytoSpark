@@ -76,31 +76,40 @@ object Main extends App {
     val inputParser = fcsHeader.getOnlineFCSInput
     val parsedFCS = new FCSParserFull(inputParser)
     var clusterLoop = true
+    var kMeanEuclid: ParArray[(List[Double], KMeansResult)] = null
+    var nbCluster = 6
+    var nbRow: Int = inputParser.takeNbEvent
+    var nbIteration: Int = 100
+    var nbStep: Int = 5
     while (clusterLoop) {
-      println("Clustering parameters:")
-      val nbCluster: Int = takeIntFromLine("Number of clusters [6]: ", 6, 1)
-      val nbRow: Int =
-        takeIntFromLine("Number of used rows [" + inputParser.takeNbEvent + "]: ", inputParser.takeNbEvent, 1) match {
-          case y: Int => if (y > inputParser.takeNbEvent) {
-            println("Take " + inputParser.takeNbEvent)
-            inputParser.takeNbEvent
-          } else y
-        }
-      val nbIteration: Int =
-        takeIntFromLine("Number of K-Mean iterations [100]: ", 100, 1)
-      val nbStep: Int = takeIntFromLine("Number of K-Mean steps [5]: ", 5, 2)
-      val nbAttemp: Int = takeIntFromLine("Number of K-Mean clustering [5]: ", 5, 1)
-      val seed: Int =
-        takeIntFromLine("Pseudo-random generator initial condition [10]: ", 10, 0)
-      val rand4K = new Random(seed)
-      val parArrayForKEuclid = (seed :: (for (index <- (1 until nbAttemp)) yield rand4K.nextInt(maxSeedParralel)).toList).
-        toParArray
-      val kMeanEuclid =
-        parsedFCS.kmeansFCSEuclidConv(KMeanFCSInput(nbCluster, nbRow, nbIteration, 0), nbStep, parArrayForKEuclid)
-      println("Cluster seed: \t" + parArrayForKEuclid.mkString("\t"))
+      if (kMeanEuclid == null) {
+        println("Clustering parameters:")
+        nbCluster = takeIntFromLine("Number of clusters [6]: ", 6, 1)
+        nbRow =
+          takeIntFromLine("Number of used rows [" + inputParser.takeNbEvent + "]: ", inputParser.takeNbEvent, 1) match {
+            case y: Int => if (y > inputParser.takeNbEvent) {
+              println("Take " + inputParser.takeNbEvent)
+              inputParser.takeNbEvent
+            } else y
+          }
+        nbIteration =
+          takeIntFromLine("Number of K-Mean iterations [100]: ", 100, 1)
+        nbStep= takeIntFromLine("Number of K-Mean steps [5]: ", 5, 2)
+        val nbAttemp: Int = takeIntFromLine("Number of K-Mean clustering [5]: ", 5, 1)
+        val seed: Int =
+          takeIntFromLine("Pseudo-random generator initial condition [10]: ", 10, 0)
+        val rand4K = new Random(seed)
+        val parArrayForKEuclid = (seed :: (for (index <- (1 until nbAttemp)) yield rand4K.nextInt(maxSeedParralel)).toList).
+          toParArray
+        kMeanEuclid =
+          parsedFCS.kmeansFCSEuclidConv(KMeanFCSInput(nbCluster, nbRow, nbIteration, 0), nbStep, parArrayForKEuclid)
+        println("Cluster seed: \t" + parArrayForKEuclid.mkString("\t"))
+      }
+      else
+        kMeanEuclid = parsedFCS.kmeanFCSEuclidConvContinue(KMeanFCSInput(nbCluster, nbRow, nbIteration, 0), nbStep, kMeanEuclid)
       println("Cluster quality:\t" + kMeanEuclid.map(x => x._1.last).mkString("\t"))
       show(FCSOutput.kMeanFCSPlotSeqEuclid(kMeanEuclid))
-      clusterLoop = scala.io.StdIn.readLine("Retry or (P)lot ?") match {
+      clusterLoop = scala.io.StdIn.readLine("Retry, (C)ontinue or (P)lot ?") match {
         case "P" => {
           val bestClusterEuclid = kMeanEuclid.filter(x => x._1.last == kMeanEuclid.map(x => x._1.last).min).head._2
           var bestClusterList: (List[EllipseClusterId], Array[String]) = null
@@ -144,11 +153,17 @@ object Main extends App {
             }
           }
           scala.io.StdIn.readLine("New cluster? (Y)/N: ") match {
-            case "Y" => true
+            case "Y" => {
+              kMeanEuclid = null
+              true}
             case _: String => false
           }
         }
-        case _: String => true
+        case "C" => true
+        case _: String => {
+          kMeanEuclid = null
+          true
+        }
       }
     }
     loopFile = scala.io.StdIn.readLine("New file? (Y)/N: ") match {
