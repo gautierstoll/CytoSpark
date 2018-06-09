@@ -375,6 +375,30 @@ class FCSParserFull(fcsInput: FCSInputFull) {
       (listEuclidRand.map(x => x._1), listEuclidRand.last._2)
     })
   }
+  def kmeanFCSEuclidConvContinue(kMeanFCSInput: KMeanFCSInput, stepK: Int,previousEuclid: ParArray[(List[Double], KMeansResult)]) :
+  ParArray[(List[Double], KMeansResult)] = {
+    //same inner function as above (not very clean...)
+    def listEuclid(initKMeans: IndexedSeq[Vec[Double]], nbRows: Int, iterations: Int, step: Int):
+    List[(Double, KMeansResult)] = {
+      if (step == 0) Nil else {
+        print("Step " + step + "\r")
+        val stepKMeans = kmeans.apply(dataNormalizedTakenMatFCS.row((0 until nbRows).toArray),
+          Mat(initKMeans.length, initKMeans.head.length,
+            initKMeans.flatMap(_.toArray).toArray), iterations)
+        (stepKMeans.clusters.toArray.zip(kmeans.matToSparse(dataNormalizedTakenMatFCS.row((0 until nbRows).toArray))).
+          map(x => kmeans.euclid(x._2, stepKMeans.means(x._1))).sum / nbRows / nbPar, stepKMeans) ::
+          listEuclid(stepKMeans.means, nbRows, iterations, step - 1)
+      }
+    }
+    previousEuclid.map(euclid => {
+      val listEuclidNew = listEuclid(euclid._2.means, kMeanFCSInput.nbRows, kMeanFCSInput.iterations, stepK)
+      (euclid._1 ::: listEuclidNew.map(_._1),listEuclidNew.last._2)
+    })
+  }
+
+
+
+
 
   // kmean++ clustering, several steps and several attempts (paralleled), with euclid norm quality
   def kmeansPPFCSEuclidConv(kMeanFCSInput: KMeanFCSInput, stepK: Int, seedArrayK: ParArray[Int]):
