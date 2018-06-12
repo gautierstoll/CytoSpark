@@ -517,9 +517,9 @@ class FCSParserFullFast(fcsInput: FCSInputFull) {
   binaryFileIndex = firstDataSegment
   println("Size of data: " + fcsInput.takeNbEvent * nbPar)
 
-  private val dataByteArray = new Array[Byte](bitToFloat.sum / 8 * fcsInput.takeNbEvent)
+  private val dataByteArrayFCS = new Array[Byte](bitToFloat.sum / 8 * fcsInput.takeNbEvent)
   for (indexByte <- (0 until bitToFloat.sum / 8 * fcsInput.takeNbEvent)) {
-    dataByteArray(indexByte) = fcsFileBuffer.read.toByte
+    dataByteArrayFCS(indexByte) = fcsFileBuffer.read.toByte
     binaryFileIndex += 1
   }
 
@@ -527,21 +527,27 @@ class FCSParserFullFast(fcsInput: FCSInputFull) {
     foldLeft(List[Int](0))((x, y) => (x.head + y / 8) :: x).tail.reverse.zip(bitToFloat).map(x => (x._1 until (x._1 + x._2 / 8))).
     toArray
   val takenByteTakeList = takenParam.map(x => byteTakeList(x))
-  val parralelParamByteListLogMin = takenParam.
-    zip(takenByteTakeList).
-    zip(fcsInput.takeParameter.map(_._2)).
-    zip(fcsInput.takeParameter.map(_._3)).toParArray
+  val parralelParamByteListLogMin = takenParam. //._1: Parameter index (order the will be used after parralel action)
+    zip(takenByteTakeList). // ._2 Byte that are taken in Byte Arra
+    zip(fcsInput.takeParameter.map(_._2)).map(x => (x._1._1, x._1._2, x._2)). //._3 log?
+    zip(fcsInput.takeParameter.map(_._3)).map(x => (x._1._1, x._1._2, x._1._3, x._2)).toParArray //._4 minimum if log is taken
 
-  val ArrayTreatedParam = parralelParamByteListLogMin.map(paramBListLogMin => {
-    val indicesByte = (0 until fcsInput.takeNbEvent).map(event => paramBListLogMin._2.map(byteIndex =>byteIndex + event*bitToFloat.sum/8))
+
+  private val dataTakenArrayFCS =
+    new Array[Double](fcsInput.takeNbEvent * takenParam.length)
+
+  parralelParamByteListLogMin.foreach(paramByteListLogMin => {
+    val eventNbByte = bitToFloat.sum / 8
+    if (paramByteListLogMin._3) {
+      var min = Double.MaxValue
+      for (event <- (0 until fcsInput.takeNbEvent)) {
+        val tmpByteArray = paramByteListLogMin._2.map(x => dataByteArray(event*eventNbByte+x))
+      }
+    } else {
+
+    }
   })
 
-
-  // construct data matrix
-  private val dataTakenByteArray = new Array[Array[Byte]](bitToFloat.sum / 8)
-  (0 until bitToFloat.sum / 8).map(col => {
-    dataTakenByteArray(col) = new Array[Byte](fcsInput.takeNbEvent)
-  })
   for (index <- bitToFloat.sum / 8 * fcsInput.takeNbEvent) {}
 
   private val dataTakenArrayFCS =
