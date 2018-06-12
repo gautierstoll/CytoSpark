@@ -538,55 +538,76 @@ class FCSParserFullFast(fcsInput: FCSInputFull) {
 
   parralelParamByteListLogMin.foreach(paramByteListLogMin => {
     val eventNbByte = bitToFloat.sum / 8
+    val nbParam = takenParam.length
+    val byteLength = paramByteListLogMin._2.length
     if (paramByteListLogMin._3) {
-      var min = Double.MaxValue
+      var tmpMin = Double.MaxValue
       for (event <- (0 until fcsInput.takeNbEvent)) {
-        val tmpByteArray = paramByteListLogMin._2.map(x => dataByteArray(event*eventNbByte+x))
+        if (byteLength == 4) {
+          var tempByteBuffer = ByteBuffer.wrap(paramByteListLogMin._2.map(x => dataByteArrayFCS(event * eventNbByte + x)).toArray)
+          if (fcsTextSegmentMap("$BYTEORD") == "1,2,3,4") tempByteBuffer.order(ByteOrder.LITTLE_ENDIAN)
+          val doubleFromBytes = tempByteBuffer.getFloat.toDouble
+          dataTakenArrayFCS(event*nbParam + paramByteListLogMin._1) = doubleFromBytes
+          tmpMin = doubleFromBytes.min(tmpMin)
+        }
+        else {
+          var tempByteBuffer = ByteBuffer.wrap(paramByteListLogMin._2.map(x => dataByteArrayFCS(event * eventNbByte + x)).toArray)
+          if (fcsTextSegmentMap("$BYTEORD") == "1,2,3,4") tempByteBuffer.order(ByteOrder.LITTLE_ENDIAN)
+          val doubleFromBytes = tempByteBuffer.getDouble
+          dataTakenArrayFCS(event*nbParam + paramByteListLogMin._1) = doubleFromBytes
+          tmpMin = doubleFromBytes.min(tmpMin)
+        }
       }
-    } else {
+  var tmpSum = 0
+      var tmpSumSq = 0
+      for (event <- (0 until fcsInput.takeNbEvent)) {
+        
+      }
+    }
+    else {
 
     }
   })
 
-  for (index <- bitToFloat.sum / 8 * fcsInput.takeNbEvent) {}
-
-  private val dataTakenArrayFCS =
-    new Array[Double](fcsInput.takeNbEvent * takenParam.length)
-  for (indexFCS <- 0 until fcsInput.takeNbEvent * nbPar) {
-    print(indexFCS + "\r")
-    if (bitToFloat(indexFCS - (indexFCS / bitToFloat.length) * bitToFloat.length) == 32) {
-      binaryFileIndex += 4
-      var tempFileArray = ByteBuffer.wrap((1 to 4).map(x => fcsFileBuffer.read.toByte).toArray)
-      if (fcsTextSegmentMap("$BYTEORD") == "1,2,3,4") {
-        tempFileArray.order(ByteOrder.LITTLE_ENDIAN)
-      }
-      if (takenParam.contains(1 + indexFCS - (indexFCS / nbPar) * nbPar)) {
-        val takenIndex = takenParam.indices.
-          filter(x => (takenParam(x) == (1 + indexFCS - indexFCS / nbPar * nbPar))).head
-        val readValue = tempFileArray.getFloat.toDouble
-        val takenArrayIndex: Int = takenParam.indices.
-          filter(x => (takenParam(x) == (1 + indexFCS - indexFCS / nbPar * nbPar))).head +
-          (indexFCS / nbPar) * takenParam.length
-        dataTakenArrayFCS(takenArrayIndex) = readValue
-      }
-    }
-    if (bitToFloat(indexFCS - (indexFCS / bitToFloat.length) * bitToFloat.length) == 64) {
-      binaryFileIndex += 8
-      val tempFileArray = ByteBuffer.wrap((1 to 8).map(x => fcsFileBuffer.read.toByte).toArray)
-      if (fcsTextSegmentMap("$BYTEORD") == "1,2,3,4") {
-        tempFileArray.order(ByteOrder.LITTLE_ENDIAN)
-      }
-      if (takenParam.contains(1 + indexFCS - (indexFCS / nbPar) * nbPar)) {
-        val takenIndex = takenParam.indices.
-          filter(x => (takenParam(x) == (1 + indexFCS - indexFCS / nbPar * nbPar))).head
-        val readValue = tempFileArray.getDouble
-        val takenArrayIndex = takenParam.indices.
-          filter(x => (takenParam(x) == (1 + indexFCS - indexFCS / nbPar * nbPar))).head +
-          (indexFCS / nbPar) * takenParam.length
-        dataTakenArrayFCS(takenArrayIndex) = readValue
-      }
-    }
-  }
+//  for (index <- bitToFloat.sum / 8 * fcsInput.takeNbEvent) {}
+//
+//  private val dataTakenArrayFCS =
+//    new Array[Double](fcsInput.takeNbEvent * takenParam.length)
+//  for (indexFCS <- 0 until fcsInput.takeNbEvent * nbPar) {
+//    print(indexFCS + "\r")
+//    if (bitToFloat(indexFCS - (indexFCS / bitToFloat.length) * bitToFloat.length) == 32) {
+//      binaryFileIndex += 4
+//      var tempFileArray = ByteBuffer.wrap((1 to 4).map(x => fcsFileBuffer.read.toByte).toArray)
+//      if (fcsTextSegmentMap("$BYTEORD") == "1,2,3,4") {
+//        tempFileArray.order(ByteOrder.LITTLE_ENDIAN)
+//      }
+//      if (takenParam.contains(1 + indexFCS - (indexFCS / nbPar) * nbPar)) {
+//        val takenIndex = takenParam.indices.
+//          filter(x => (takenParam(x) == (1 + indexFCS - indexFCS / nbPar * nbPar))).head
+//        val readValue = tempFileArray.getFloat.toDouble
+//        val takenArrayIndex: Int = takenParam.indices.
+//          filter(x => (takenParam(x) == (1 + indexFCS - indexFCS / nbPar * nbPar))).head +
+//          (indexFCS / nbPar) * takenParam.length
+//        dataTakenArrayFCS(takenArrayIndex) = readValue
+//      }
+//    }
+//    if (bitToFloat(indexFCS - (indexFCS / bitToFloat.length) * bitToFloat.length) == 64) {
+//      binaryFileIndex += 8
+//      val tempFileArray = ByteBuffer.wrap((1 to 8).map(x => fcsFileBuffer.read.toByte).toArray)
+//      if (fcsTextSegmentMap("$BYTEORD") == "1,2,3,4") {
+//        tempFileArray.order(ByteOrder.LITTLE_ENDIAN)
+//      }
+//      if (takenParam.contains(1 + indexFCS - (indexFCS / nbPar) * nbPar)) {
+//        val takenIndex = takenParam.indices.
+//          filter(x => (takenParam(x) == (1 + indexFCS - indexFCS / nbPar * nbPar))).head
+//        val readValue = tempFileArray.getDouble
+//        val takenArrayIndex = takenParam.indices.
+//          filter(x => (takenParam(x) == (1 + indexFCS - indexFCS / nbPar * nbPar))).head +
+//          (indexFCS / nbPar) * takenParam.length
+//        dataTakenArrayFCS(takenArrayIndex) = readValue
+//      }
+//    }
+//  }
   // parrelized with ParArray, eg
   // Mat(tmpArray.zipWithIndex.groupBy(x=> x._2%3).map(x=> (x._1,x._2.map(_._1))).toParArray.map(x=>(x._1,x._2.map(y=>y-x._2.min))).toArray.sortBy(_._1).map(_._2))
 
