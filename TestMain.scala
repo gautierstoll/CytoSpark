@@ -32,7 +32,6 @@ import scala.tools.nsc.transform.patmat.Lit
 
 object Main extends App {
   val maxSeedParralel = 10000
-
   def takeIntFromLine(askingPromp: String, defaultVal: Int, minVal: Int): Int = {
     (scala.io.StdIn.readLine(askingPromp) match {
       case "" => defaultVal
