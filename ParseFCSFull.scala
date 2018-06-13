@@ -613,6 +613,21 @@ class FCSParserFull(fcsInput: FCSInputFull) {
     FCSMatrix
   }
 
+  def kmeanFCSFast(kMeanFCSInput: KMeanFCSInput) : KMeansResult = {
+    var clusterIndices : Array[Int] = new Array(kMeanFCSInput.nbRows)
+    var clusterMeans : Array[Double] = new Array(kMeanFCSInput.clusterNb*takenParam.length)
+    val rand4K = new Random(kMeanFCSInput.seedK)
+    for (cluster <- (0 until kMeanFCSInput.clusterNb)) {
+      val initIndex = rand4K.nextInt(kMeanFCSInput.nbRows)
+      for(param <- (0 until takenParam.length)) {
+        clusterMeans(cluster*takenParam.length + param)=dataNormalizedTakenArrayFCS(initIndex*takenParam+param)
+      }
+      for(step <-(0 until kMeanFCSInput.iterations)) {
+        
+      }
+    }
+  }
+
   // kmean clustering
   def kmeansFCS(kMeanFCSInput: KMeanFCSInput): KMeansResult = {
     val dataSubFCS = dataNormalizedTakenMatFCS.row((0 until kMeanFCSInput.nbRows).toArray)
