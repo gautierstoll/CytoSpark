@@ -526,7 +526,7 @@ class FCSParserFull(fcsInput: FCSInputFull) {
   val byteTakeList = bitToFloat.
     foldLeft(List[Int](0))((x, y) => (x.head + y / 8) :: x).tail.reverse.zip(bitToFloat).map(x => (x._1 until (x._1 + x._2 / 8))).
     toArray
-  val takenByteTakeList = takenParam.map(x => byteTakeList(x-1)) //carefull, takenParam start at 1
+  val takenByteTakeList = takenParam.map(x => byteTakeList(x - 1)) //carefull, takenParam start at 1
   val parralelParamByteListLogMin = takenParam.indices. //._1: Parameter index (order the will be used after parralel action)
     zip(takenByteTakeList). // ._2 Byte that are taken in Byte Array
     zip(fcsInput.takeParameter.map(_._2)).map(x => (x._1._1, x._1._2, x._2)). //._3 log?
@@ -538,7 +538,7 @@ class FCSParserFull(fcsInput: FCSInputFull) {
   private val dataNormalizedTakenArrayFCS =
     new Array[Double](fcsInput.takeNbEvent * takenParam.length)
   println("Get Data")
-  private val mean_meanSqCol : Array[(Int,Double,Double)] = parralelParamByteListLogMin.map(paramByteListLogMin => {
+  private val mean_meanSqCol: Array[(Int, Double, Double)] = parralelParamByteListLogMin.map(paramByteListLogMin => {
     val eventNbByte = bitToFloat.sum / 8
     val nbParam = takenParam.length
     val byteLength = paramByteListLogMin._2.length
@@ -550,14 +550,14 @@ class FCSParserFull(fcsInput: FCSInputFull) {
         if (byteLength == 4) {
           var tempByteBuffer = ByteBuffer.wrap(paramByteListLogMin._2.map(x => dataByteArrayFCS(event * eventNbByte + x)).toArray)
           if (fcsTextSegmentMap("$BYTEORD") == "1,2,3,4") tempByteBuffer.order(ByteOrder.LITTLE_ENDIAN)
-          val doubleFromBytes : Double = tempByteBuffer.getFloat.toDouble
+          val doubleFromBytes: Double = tempByteBuffer.getFloat.toDouble
           dataTakenArrayFCS(event * nbParam + paramByteListLogMin._1) = doubleFromBytes
           tmpMin = doubleFromBytes.min(tmpMin)
         }
         else {
           var tempByteBuffer = ByteBuffer.wrap(paramByteListLogMin._2.map(x => dataByteArrayFCS(event * eventNbByte + x)).toArray)
           if (fcsTextSegmentMap("$BYTEORD") == "1,2,3,4") tempByteBuffer.order(ByteOrder.LITTLE_ENDIAN)
-          val doubleFromBytes : Double = tempByteBuffer.getDouble
+          val doubleFromBytes: Double = tempByteBuffer.getDouble
           dataTakenArrayFCS(event * nbParam + paramByteListLogMin._1) = doubleFromBytes
           tmpMin = doubleFromBytes.min(tmpMin)
         }
@@ -566,7 +566,7 @@ class FCSParserFull(fcsInput: FCSInputFull) {
         val logValue = log10(dataTakenArrayFCS(event * nbParam + paramByteListLogMin._1) - tmpMin +
           pow(10, paramByteListLogMin._4))
         tmpSum += logValue
-        tmpSumSq += logValue*logValue
+        tmpSumSq += logValue * logValue
         dataTakenArrayFCS(event * nbParam + paramByteListLogMin._1) = logValue
       }
     }
@@ -575,32 +575,32 @@ class FCSParserFull(fcsInput: FCSInputFull) {
         if (byteLength == 4) {
           var tempByteBuffer = ByteBuffer.wrap(paramByteListLogMin._2.map(x => dataByteArrayFCS(event * eventNbByte + x)).toArray)
           if (fcsTextSegmentMap("$BYTEORD") == "1,2,3,4") tempByteBuffer.order(ByteOrder.LITTLE_ENDIAN)
-          val doubleFromBytes : Double = tempByteBuffer.getFloat.toDouble
+          val doubleFromBytes: Double = tempByteBuffer.getFloat.toDouble
           dataTakenArrayFCS(event * nbParam + paramByteListLogMin._1) = doubleFromBytes
           tmpSum += doubleFromBytes
-          tmpSumSq += doubleFromBytes*doubleFromBytes
+          tmpSumSq += doubleFromBytes * doubleFromBytes
         }
         else {
           var tempByteBuffer = ByteBuffer.wrap(paramByteListLogMin._2.map(x => dataByteArrayFCS(event * eventNbByte + x)).toArray)
           if (fcsTextSegmentMap("$BYTEORD") == "1,2,3,4") tempByteBuffer.order(ByteOrder.LITTLE_ENDIAN)
-          val doubleFromBytes : Double = tempByteBuffer.getDouble
+          val doubleFromBytes: Double = tempByteBuffer.getDouble
           dataTakenArrayFCS(event * nbParam + paramByteListLogMin._1) = doubleFromBytes
           tmpSum += doubleFromBytes
-          tmpSumSq += doubleFromBytes*doubleFromBytes
+          tmpSumSq += doubleFromBytes * doubleFromBytes
         }
       }
     }
-    val eventMean = tmpSum/fcsInput.takeNbEvent
-    val eventSD = pow((tmpSumSq/fcsInput.takeNbEvent - eventMean*eventMean),.5) //bias variance
+    val eventMean = tmpSum / fcsInput.takeNbEvent
+    val eventSD = pow((tmpSumSq / fcsInput.takeNbEvent - eventMean * eventMean), .5) //bias variance
     for (event <- (0 until fcsInput.takeNbEvent)) {
       dataNormalizedTakenArrayFCS(event * nbParam + paramByteListLogMin._1) =
-        (dataTakenArrayFCS(event * nbParam + paramByteListLogMin._1) - eventMean)/eventSD
+        (dataTakenArrayFCS(event * nbParam + paramByteListLogMin._1) - eventMean) / eventSD
     }
-    (paramByteListLogMin._1,eventMean,eventSD*eventSD)
+    (paramByteListLogMin._1, eventMean, eventSD * eventSD)
   }).toArray.sortBy(x => x._1)
 
-  val meanColTakenMap = mean_meanSqCol.map(x=> x._2)
-  val meanSquareColTakenMap = mean_meanSqCol.map( x=> x._3)
+  val meanColTakenMap = mean_meanSqCol.map(x => x._2)
+  val meanSquareColTakenMap = mean_meanSqCol.map(x => x._3)
 
   val dataTakenMatFCS: Mat[Double] = Mat(fcsInput.takeNbEvent, takenParam.length, dataTakenArrayFCS)
   val dataNormalizedTakenMatFCS: Mat[Double] = Mat(fcsInput.takeNbEvent, takenParam.length, dataNormalizedTakenArrayFCS)
@@ -613,20 +613,47 @@ class FCSParserFull(fcsInput: FCSInputFull) {
     FCSMatrix
   }
 
-  def kmeanFCSFast(kMeanFCSInput: KMeanFCSInput) : KMeansResult = {
-    var clusterIndices : Array[Int] = new Array(kMeanFCSInput.nbRows)
-    var clusterMeans : Array[Double] = new Array(kMeanFCSInput.clusterNb*takenParam.length)
+  def kmeanFCSFast(kMeanFCSInput: KMeanFCSInput): KMeansResult = {
+    val clusterIndices: Array[Int] = new Array(kMeanFCSInput.nbRows)
+    val clusterMeans: Array[Double] = new Array(kMeanFCSInput.clusterNb * takenParam.length)
     val rand4K = new Random(kMeanFCSInput.seedK)
     for (cluster <- (0 until kMeanFCSInput.clusterNb)) {
       val initIndex = rand4K.nextInt(kMeanFCSInput.nbRows)
-      for(param <- (0 until takenParam.length)) {
-        clusterMeans(cluster*takenParam.length + param)=dataNormalizedTakenArrayFCS(initIndex*takenParam+param)
-      }
-      for(step <-(0 until kMeanFCSInput.iterations)) {
-        
+      for (param <- (0 until takenParam.length)) {
+        clusterMeans(cluster * takenParam.length + param) = dataNormalizedTakenArrayFCS(initIndex * takenParam.length + param)
       }
     }
+    for (step <- (0 until kMeanFCSInput.iterations)) {
+      val clusterNewMeans : Array[Double]= new Array(kMeanFCSInput.clusterNb * takenParam.length)
+      val clusterSizes : Array[Int] = new Array(kMeanFCSInput.clusterNb)
+      for (event <- (0 until kMeanFCSInput.nbRows)) {
+        var minDist = Double.MaxValue
+        var assignCluster: Int = -1
+        for (cluster <- (0 until kMeanFCSInput.clusterNb)) {
+          var distEuclid: Double = 0
+          for (param <- (0 until takenParam.length)) {
+            distEuclid +=
+              (dataNormalizedTakenArrayFCS(event * takenParam.length + param) - clusterMeans(cluster * takenParam.length  + param)) *
+                (dataNormalizedTakenArrayFCS(event * takenParam.length + param) - clusterMeans(cluster * takenParam.length  + param))
+          }
+          if (distEuclid <= minDist) {
+            minDist = distEuclid
+            assignCluster = cluster
+          }
+        }
+        clusterSizes(assignCluster) += 1
+        clusterIndices(event) = assignCluster
+        for (param <- (0 until takenParam.length)) {
+          clusterNewMeans(assignCluster*takenParam.length + param) += dataNormalizedTakenArrayFCS(event * takenParam.length + param)
+        }
+      }
+      for (cluster <- (0 until kMeanFCSInput.clusterNb); param <- (0 until takenParam.length))
+      clusterMeans(cluster*takenParam.length+param) = clusterNewMeans(cluster*takenParam.length+param)/clusterSizes(cluster)
+    }
+    new KMeansResult(Vec(clusterIndices),(0 until kMeanFCSInput.clusterNb).
+      map(cluster => Vec((0 until takenParam.length).map(param => clusterMeans(cluster*takenParam.length + param)).toArray)))
   }
+
 
   // kmean clustering
   def kmeansFCS(kMeanFCSInput: KMeanFCSInput): KMeansResult = {

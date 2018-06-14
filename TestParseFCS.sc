@@ -31,7 +31,7 @@ import java.nio.ByteBuffer
 ///
 val inputExp12 =
   FCSInputFull("Exp 12 T cells_Tube_001.fcs",
-    List((5,true,0.0), (6,true,0.0), (7,true,0.0), (8,true,0.0), (9,true,0.0), (10,true,0.0), (11,true,0.0)),1000)
+    List((5,true,0.0), (6,true,0.0), (7,true,0.0), (8,true,0.0), (9,true,0.0), (10,true,0.0), (11,true,0.0)),10000)
 //    List((5,false,0.0), (6,false,0.0), (7,false,0.0), (8,false,0.0), (9,false,0.0), (10,false,0.0), (11,false,0.0)),10000)
 
 
