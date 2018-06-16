@@ -150,20 +150,17 @@ object FCSOutput {
       val xMax = dataSubFCS.col(c1).toArray.max
       val yMin = dataSubFCS.col(c2).toArray.min
       val yMax = dataSubFCS.col(c2).toArray.max
+      val gridX = grid2D.toDouble/(xMax - xMin)
+      val gridY = grid2D.toDouble/(yMax - yMin)
       val xMinMaxFCSComp = Option(xMin, xMax)
       val yMinMaxFCSComp = Option(yMin, yMax)
-      val col1 = dataSubFCS.col(c1)
-      val col2 = dataSubFCS.col(c2)
-      val gridIndex = (for (gridX <- (0 until grid2D); gridY <- (0 until grid2D)) yield {
-        col1.toArray.zip(col2.toArray).zipWithIndex.filter(
-          x => ((x._1._1 >= (xMin + gridX * (xMax - xMin) / grid2D)) && (x._1._1 <= (xMin + (gridX + 1) * (xMax - xMin) / grid2D)) &&
-            (x._1._2 >= (yMin + gridX * (yMax - yMin) / grid2D)) && (x._1._2 <= (yMin + (gridX + 1) * (yMax - yMin) / grid2D)))
-        ).head._2
-      }).toArray
-      val mat4Plot = Mat(col1, col2, subKMeanR.clusters.map(_.toDouble)).row(gridIndex)
+      val array2DCluster = dataSubFCS.col(c1).toArray.zip(dataSubFCS.col(c2).toArray).zip(subKMeanR.clusters.map(_.toDouble).toArray).
+        map(x => (x._1._1,x._1._2,x._2))
+      val gridGroupArray = array2DCluster.groupBy(x => floor((x._1-xMin)*gridX)*grid2D+floor((x._2-yMin)*gridY)).map(_._2.head)
+      val mat4Plot = Mat(gridGroupArray.map(_._1).toArray,gridGroupArray.map(_._2).toArray,gridGroupArray.map(_._3).toArray)
       xyplot(
         mat4Plot -> point(
-          labelText = false, size = 4.0 / log10(kMeanR.clusters.length),
+          labelText = false, size = 4.0 / log10(grid2D*grid2D),
           color = DiscreteColors(kMeanR.means.length - 1)))(
         xlim = xMinMaxFCSComp, ylim = yMinMaxFCSComp,
         extraLegend = subKMeanR.clusters.toArray.distinct.sorted.map(
