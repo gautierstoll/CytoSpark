@@ -32,6 +32,7 @@ import scala.tools.nsc.transform.patmat.Lit
 
 object Main extends App {
   val maxSeedParralel = 10000
+
   def takeIntFromLine(askingPromp: String, defaultVal: Int, minVal: Int): Int = {
     (scala.io.StdIn.readLine(askingPromp) match {
       case "" => defaultVal
@@ -93,7 +94,7 @@ object Main extends App {
           }
         nbIteration =
           takeIntFromLine("Number of K-Mean iterations [100]: ", 100, 1)
-        nbStep= takeIntFromLine("Number of K-Mean steps [5]: ", 5, 2)
+        nbStep = takeIntFromLine("Number of K-Mean steps [5]: ", 5, 2)
         val nbAttemp: Int = takeIntFromLine("Number of K-Mean clustering [5]: ", 5, 1)
         val seed: Int =
           takeIntFromLine("Pseudo-random generator initial condition [10]: ", 10, 0)
@@ -116,7 +117,7 @@ object Main extends App {
           while (loopPlot) {
             val removeCluster =
               this.takeListInt("Remove clusters (separated by ','): ", 1, nbCluster).map(_ - 1).toArray
-            scala.io.StdIn.readLine("Scatter, (C)luster, (E)llipse or (T)ree plot? ") match {
+            scala.io.StdIn.readLine("Scatter, (G)rid, (C)luster, (E)llipse or (T)ree plot? ") match {
               case "C" => {
                 val outPdf = scala.io.StdIn.readLine("Cluster file: ") + ".pdf"
                 FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlotClusters2D(parsedFCS, bestClusterEuclid, removeCluster), outPdf)
@@ -136,6 +137,11 @@ object Main extends App {
                   FCSOutput.writeClusterTreeSizeCsv(ellipseTree, outCsv)
                 }
               }
+              case "G" => {
+                val outPdf = scala.io.StdIn.readLine("File: ") + ".pdf"
+                val gridWidth = takeIntFromLine("Grid width: ", 50, 50)
+                FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlot2DGrid(parsedFCS, bestClusterEuclid, gridWidth,removeCluster), outPdf)
+              }
               case _: String => {
                 val outPng = scala.io.StdIn.readLine("File: ") + ".png"
                 val pngWidth = takeIntFromLine("Png width: ", 1000, 1000)
@@ -154,7 +160,8 @@ object Main extends App {
           scala.io.StdIn.readLine("New cluster? (Y)/N: ") match {
             case "Y" => {
               kMeanEuclid = null
-              true}
+              true
+            }
             case _: String => false
           }
         }
