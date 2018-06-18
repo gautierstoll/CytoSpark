@@ -163,7 +163,7 @@ class FCSHeader(fcsNameInput: String) {
 case class FCSInputFull(file: String, takeParameter: List[(Int, Boolean, Double)], takeNbEvent: Int) {}
 
 class FCSParserFull(fcsInput: FCSInputFull) {
-  val fcsFile = new String(fcsInput.file)
+  private val fcsFile = new String(fcsInput.file)
   if (!Files.exists(Paths.get(fcsFile))) sys.error("File " + fcsFile + " not found")
   private val fcsFileBuffer = new BufferedInputStream(new FileInputStream(fcsFile))
   private var binaryFileIndex: Int = 0
@@ -204,9 +204,9 @@ class FCSParserFull(fcsInput: FCSInputFull) {
   println("Number of events: " + fcsTextSegmentMap("$TOT"))
   private val firstDataSegment = fcsTextSegmentMap("$BEGINDATA").toList.filter(_ != ' ').mkString("").toInt
   private val lastDataSegment = fcsTextSegmentMap("$ENDDATA").toList.filter(_ != ' ').mkString("").toInt
-  val nbPar: Int = fcsTextSegmentMap("$PAR").toInt
+  private val nbPar: Int = fcsTextSegmentMap("$PAR").toInt
   val nbEvent: Int = fcsTextSegmentMap("$TOT").toArray.filter(_ != ' ').mkString("").toInt
-  val bitToFloat: List[Int] = (1 to nbPar).
+  private val bitToFloat: List[Int] = (1 to nbPar).
     map(x => "$P".concat(x.toString).concat("B")).map(x => fcsTextSegmentMap(x).toInt).toList
   val takenParam: scala.collection.immutable.IndexedSeq[Int] = fcsInput.takeParameter.map(_._1).toIndexedSeq
 
@@ -287,8 +287,8 @@ class FCSParserFull(fcsInput: FCSInputFull) {
         }
       }
     }
-    val eventMean = tmpSum / fcsInput.takeNbEvent
-    val eventSD = pow((tmpSumSq / fcsInput.takeNbEvent - eventMean * eventMean), .5) //bias variance
+    val eventMean : Double = tmpSum / fcsInput.takeNbEvent
+    val eventSD : Double = pow((tmpSumSq / fcsInput.takeNbEvent - eventMean * eventMean), .5) //bias variance
     for (event <- (0 until fcsInput.takeNbEvent)) {
       dataNormalizedTakenArrayFCS(event * nbParam + paramByteListLogMin._1) =
         (dataTakenArrayFCS(event * nbParam + paramByteListLogMin._1) - eventMean) / eventSD
@@ -296,8 +296,8 @@ class FCSParserFull(fcsInput: FCSInputFull) {
     (paramByteListLogMin._1, eventMean, eventSD)
   }).toArray.sortBy(x => x._1)
 
-  val meanColTakenMap = mean_sdCol.map(x => x._2)
-  val sdColTakenMap = mean_sdCol.map(x => x._3)
+  val meanColTakenMap : Double = mean_sdCol.map(x => x._2)
+  val sdColTakenMap  : Double = mean_sdCol.map(x => x._3)
 
   val dataTakenMatFCS: Mat[Double] = Mat(fcsInput.takeNbEvent, takenParam.length, dataTakenArrayFCS)
   val dataNormalizedTakenMatFCS: Mat[Double] = Mat(fcsInput.takeNbEvent, takenParam.length, dataNormalizedTakenArrayFCS)
@@ -458,4 +458,9 @@ class FCSParserFull(fcsInput: FCSInputFull) {
       listMeanKMeans(dataInitK.rows, kMeanFCSInput.nbRows, kMeanFCSInput.iterations, stepK)
     })
   }
+  
 }
+
+case class FCSDataKMean(textSegmentMap: Map[String, String], nbEvent: Int,
+                        takenParam: scala.collection.immutable.IndexedSeq[Int], meanCol : Double,
+                        sdCol : Double, dataMat: Mat[Double], kResult: KMeansResult)
