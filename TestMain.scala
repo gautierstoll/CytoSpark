@@ -31,8 +31,8 @@ import scala.tools.nsc.transform.patmat.Lit
 //import java.nio.ByteBuffer
 
 object Main extends App {
+  println("FCS analyzer, https://github.com/gautierstoll/CytoSpark, version 0.9")
   val maxSeedParralel = 10000
-
   def takeIntFromLine(askingPromp: String, defaultVal: Int, minVal: Int): Int = {
     (scala.io.StdIn.readLine(askingPromp) match {
       case "" => defaultVal
@@ -50,7 +50,6 @@ object Main extends App {
       else y
     }
   }
-
   def takeListInt(askingPromp: String, minVal: Int, maxVal: Int): List[Int] = {
     scala.io.StdIn.readLine(askingPromp).
       toCharArray.filter(_ != ' ').mkString("").split(",").
@@ -58,7 +57,6 @@ object Main extends App {
         case _: Throwable => (minVal - 1)
       }).toList.filter(x => (x <= maxVal) && (x >= minVal))
   }
-
   var loopFile = true
   var fcsFile: String = ""
   while (loopFile) {
@@ -68,7 +66,7 @@ object Main extends App {
       if (!Files.exists(Paths.get(fcsFile))) {
         println("File " + fcsFile + " do not exist")
         val retry = scala.io.StdIn.readLine("Retry? (Y)/N ")
-        if (retry == "Y") filePromp = true else System.exit(0)
+        if (retry == "Y") filePromp = true else {println("Bye Bye");System.exit(0)}
       }
       else filePromp = false
     }
@@ -79,7 +77,7 @@ object Main extends App {
     var kMeanEuclid: ParArray[(List[Double], KMeansResult)] = null
     var nbCluster = 6
     var nbRow: Int = inputParser.takeNbEvent
-    var nbIteration: Int = 100
+    var nbIteration: Int = 10
     var nbStep: Int = 5
     while (clusterLoop) {
       if (kMeanEuclid == null) {
@@ -93,16 +91,16 @@ object Main extends App {
             } else y
           }
         nbIteration =
-          takeIntFromLine("Number of K-Mean iterations [100]: ", 100, 1)
+          takeIntFromLine("Number of K-Mean iterations [10]: ", 10, 1)
         nbStep = takeIntFromLine("Number of K-Mean steps [5]: ", 5, 2)
-        val nbAttemp: Int = takeIntFromLine("Number of K-Mean clustering [5]: ", 5, 1)
+        val nbAttemp: Int = takeIntFromLine("Number of K-Mean clustering [4]: ", 4, 1)
         val seed: Int =
           takeIntFromLine("Pseudo-random generator initial condition [10]: ", 10, 0)
         val rand4K = new Random(seed)
         val parArrayForKEuclid = (seed :: (for (index <- (1 until nbAttemp)) yield rand4K.nextInt(maxSeedParralel)).toList).
           toParArray
         kMeanEuclid =
-          parsedFCS.kmeansFCSEuclidConv(KMeanFCSInput(nbCluster, nbRow, nbIteration, 0), nbStep, parArrayForKEuclid)
+          parsedFCS.kmeanFCSEuclidConv(KMeanFCSInput(nbCluster, nbRow, nbIteration, 0), nbStep, parArrayForKEuclid)
         println("Cluster seed: \t" + parArrayForKEuclid.mkString("\t"))
       }
       else
@@ -117,7 +115,7 @@ object Main extends App {
           while (loopPlot) {
             val removeCluster =
               this.takeListInt("Remove clusters (separated by ','): ", 1, nbCluster).map(_ - 1).toArray
-            scala.io.StdIn.readLine("Scatter, (G)rid, (C)luster, (E)llipse or (T)ree plot? ") match {
+            scala.io.StdIn.readLine("Scatter, Scatter with (G)rid, (C)luster center, (E)llipse or (T)ree plot? ") match {
               case "C" => {
                 val outPdf = scala.io.StdIn.readLine("Cluster file: ") + ".pdf"
                 FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlotClusters2D(parsedFCS, bestClusterEuclid, removeCluster), outPdf)
@@ -139,12 +137,12 @@ object Main extends App {
               }
               case "G" => {
                 val outPdf = scala.io.StdIn.readLine("File: ") + ".pdf"
-                val gridWidth = takeIntFromLine("Grid width: ", 50, 50)
+                val gridWidth = takeIntFromLine("Grid size[50]: ", 50, 2)
                 FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlot2DGrid(parsedFCS, bestClusterEuclid, gridWidth,removeCluster), outPdf)
               }
               case _: String => {
                 val outPng = scala.io.StdIn.readLine("File: ") + ".png"
-                val pngWidth = takeIntFromLine("Png width: ", 1000, 1000)
+                val pngWidth = takeIntFromLine("Png width[2000]: ", 2000, 1000)
                 FCSOutput.plotKSeqToPng(FCSOutput.kMeanFCSPlot2D(parsedFCS, bestClusterEuclid, removeCluster), outPng, pngWidth)
               }
             }
@@ -177,7 +175,6 @@ object Main extends App {
       case _: String => false
     }
   }
-
   println("Bye bye")
   System.exit(0)
 }

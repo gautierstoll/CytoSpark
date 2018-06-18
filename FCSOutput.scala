@@ -254,13 +254,9 @@ object FCSOutput {
       val yMinMaxFCSComp = Option(dataSubFCS.col(c2).toArray.min, dataSubFCS.col(c2).toArray.max)
       // unormalized cluster centers
       val col1 = clusterMean.map(x => x._1.raw(c1)).toArray.
-        map(x => x *
-          pow(fcsParsed.meanSquareColTakenMap(c1) - pow(fcsParsed.meanColTakenMap(c1), 2), .5) +
-          fcsParsed.meanColTakenMap(c1))
+        map(x => x * fcsParsed.sdColTakenMap(c1) + fcsParsed.meanColTakenMap(c1))
       val col2 = clusterMean.map(x => x._1.raw(c2)).toArray.
-        map(x => x *
-          pow(fcsParsed.meanSquareColTakenMap(c2) - pow(fcsParsed.meanColTakenMap(c2), 2), .5) +
-          fcsParsed.meanColTakenMap(c2))
+        map(x => x * fcsParsed.sdColTakenMap(c2) + fcsParsed.meanColTakenMap(c2))
       val totalSize = clusterSize.map(_._2.toDouble).sum
       xyplot(
         Mat(Vec(col1), Vec(col2),
