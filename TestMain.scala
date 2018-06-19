@@ -33,6 +33,7 @@ import scala.tools.nsc.transform.patmat.Lit
 object Main extends App {
   println("FCS analyzer, https://github.com/gautierstoll/CytoSpark, version 0.9")
   val maxSeedParralel = 10000
+
   def takeIntFromLine(askingPromp: String, defaultVal: Int, minVal: Int): Int = {
     (scala.io.StdIn.readLine(askingPromp) match {
       case "" => defaultVal
@@ -50,6 +51,7 @@ object Main extends App {
       else y
     }
   }
+
   def takeListInt(askingPromp: String, minVal: Int, maxVal: Int): List[Int] = {
     scala.io.StdIn.readLine(askingPromp).
       toCharArray.filter(_ != ' ').mkString("").split(",").
@@ -57,6 +59,7 @@ object Main extends App {
         case _: Throwable => (minVal - 1)
       }).toList.filter(x => (x <= maxVal) && (x >= minVal))
   }
+
   var loopFile = true
   var fcsFile: String = ""
   while (loopFile) {
@@ -66,7 +69,9 @@ object Main extends App {
       if (!Files.exists(Paths.get(fcsFile))) {
         println("File " + fcsFile + " do not exist")
         val retry = scala.io.StdIn.readLine("Retry? (Y)/N ")
-        if (retry == "Y") filePromp = true else {println("Bye Bye");System.exit(0)}
+        if (retry == "Y") filePromp = true else {
+          println("Bye Bye"); System.exit(0)
+        }
       }
       else filePromp = false
     }
@@ -74,13 +79,13 @@ object Main extends App {
     val inputParser = fcsHeader.getOnlineFCSInput
     val parsedFCS = new FCSParserFull(inputParser)
     var clusterLoop = true
-    var kMeanEuclid: ParArray[(List[Double], KMeansResult)] = null
+    var fcsDataKMean: FCSDataKMean = null
     var nbCluster = 6
     var nbRow: Int = inputParser.takeNbEvent
     var nbIteration: Int = 10
     var nbStep: Int = 5
     while (clusterLoop) {
-      if (kMeanEuclid == null) {
+      if (fcsDataKMean == null) {
         println("Clustering parameters:")
         nbCluster = takeIntFromLine("Number of clusters [6]: ", 6, 1)
         nbRow =
@@ -99,17 +104,17 @@ object Main extends App {
         val rand4K = new Random(seed)
         val parArrayForKEuclid = (seed :: (for (index <- (1 until nbAttemp)) yield rand4K.nextInt(maxSeedParralel)).toList).
           toParArray
-        kMeanEuclid =
+        fcsDataKMean =
           parsedFCS.kmeanFCSEuclidConv(KMeanFCSInput(nbCluster, nbRow, nbIteration, 0), nbStep, parArrayForKEuclid)
         println("Cluster seed: \t" + parArrayForKEuclid.mkString("\t"))
       }
       else
-        kMeanEuclid = parsedFCS.kmeanFCSEuclidConvContinue(KMeanFCSInput(nbCluster, nbRow, nbIteration, 0), nbStep, kMeanEuclid)
-      println("Cluster quality:\t" + kMeanEuclid.map(x => x._1.last).mkString("\t"))
-      show(FCSOutput.kMeanFCSPlotSeqEuclid(kMeanEuclid))
+        fcsDataKMean = parsedFCS.kmeanFCSEuclidConvContinue(KMeanFCSInput(nbCluster, nbRow, nbIteration, 0), nbStep, fcsDataKMean.euclidKResult)
+      println("Cluster quality:\t" + fcsDataKMean.euclidKResult.map(x => x._1.last).mkString("\t"))
+      show(FCSOutput.kMeanFCSPlotSeqEuclid(fcsDataKMean.euclidKResult))
       clusterLoop = scala.io.StdIn.readLine("Retry, (C)ontinue or (P)lot ?") match {
         case "P" => {
-          val bestClusterEuclid = kMeanEuclid.filter(x => x._1.last == kMeanEuclid.map(x => x._1.last).min).head._2
+          //val bestClusterEuclid = kMeanEuclid.filter(x => x._1.last == kMeanEuclid.map(x => x._1.last).min).head._2
           var bestClusterList: (List[EllipseClusterId], Array[String]) = null
           var loopPlot = true
           while (loopPlot) {
@@ -118,15 +123,15 @@ object Main extends App {
             scala.io.StdIn.readLine("Scatter, Scatter with (G)rid, (C)luster center, (E)llipse or (T)ree plot? ") match {
               case "C" => {
                 val outPdf = scala.io.StdIn.readLine("Cluster file: ") + ".pdf"
-                FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlotClusters2D(parsedFCS, bestClusterEuclid, removeCluster), outPdf)
+                FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlotClusters2D(fcsDataKMean, removeCluster), outPdf)
               }
               case "E" => {
-                if (bestClusterList == null) bestClusterList = FCSOutput.clusterForPlot(parsedFCS, bestClusterEuclid)
+                if (bestClusterList == null) bestClusterList = FCSOutput.clusterForPlot(fcsDataKMean)
                 val outPdf = scala.io.StdIn.readLine("Ellipse file: ") + ".pdf"
                 FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlotEllipse2D(bestClusterList, removeCluster), outPdf)
               }
               case "T" => {
-                if (bestClusterList == null) bestClusterList = FCSOutput.clusterForPlot(parsedFCS, bestClusterEuclid)
+                if (bestClusterList == null) bestClusterList = FCSOutput.clusterForPlot(fcsDataKMean)
                 val ellipseTree = FCSOutput.treeKmeanClust(bestClusterList, removeCluster)
                 val outPdf = scala.io.StdIn.readLine("File: ") + ".pdf"
                 FCSOutput.plotKSeqToPdf(FCSOutput.treeKmeanClustPlot2D(bestClusterList, ellipseTree), outPdf)
@@ -138,17 +143,17 @@ object Main extends App {
               case "G" => {
                 val outPdf = scala.io.StdIn.readLine("File: ") + ".pdf"
                 val gridWidth = takeIntFromLine("Grid size[50]: ", 50, 2)
-                FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlot2DGrid(parsedFCS, bestClusterEuclid, gridWidth,removeCluster), outPdf)
+                FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlot2DGrid(fcsDataKMean, gridWidth, removeCluster), outPdf)
               }
               case _: String => {
                 val outPng = scala.io.StdIn.readLine("File: ") + ".png"
                 val pngWidth = takeIntFromLine("Png width[2000]: ", 2000, 1000)
-                FCSOutput.plotKSeqToPng(FCSOutput.kMeanFCSPlot2D(parsedFCS, bestClusterEuclid, removeCluster), outPng, pngWidth)
+                FCSOutput.plotKSeqToPng(FCSOutput.kMeanFCSPlot2D(fcsDataKMean, removeCluster), outPng, pngWidth)
               }
             }
             if (scala.io.StdIn.readLine("Write cluster sizes to file? Y/(N): ") == "Y") {
               val outCsv = scala.io.StdIn.readLine("Csv file: ") + ".csv"
-              FCSOutput.writeClusterSizeCsv(bestClusterEuclid.clusters, outCsv)
+              FCSOutput.writeClusterSizeCsv(fcsDataKMean.bestKMean.clusters, outCsv)
             }
             loopPlot = scala.io.StdIn.readLine("New plot? (Y)/N: ") match {
               case "Y" => true
@@ -157,7 +162,7 @@ object Main extends App {
           }
           scala.io.StdIn.readLine("New cluster? (Y)/N: ") match {
             case "Y" => {
-              kMeanEuclid = null
+              fcsDataKMean = null
               true
             }
             case _: String => false
@@ -165,7 +170,7 @@ object Main extends App {
         }
         case "C" => true
         case _: String => {
-          kMeanEuclid = null
+          fcsDataKMean = null
           true
         }
       }

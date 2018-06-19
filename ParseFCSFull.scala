@@ -287,8 +287,8 @@ class FCSParserFull(fcsInput: FCSInputFull) {
         }
       }
     }
-    val eventMean : Double = tmpSum / fcsInput.takeNbEvent
-    val eventSD : Double = pow((tmpSumSq / fcsInput.takeNbEvent - eventMean * eventMean), .5) //bias variance
+    val eventMean: Double = tmpSum / fcsInput.takeNbEvent
+    val eventSD: Double = pow((tmpSumSq / fcsInput.takeNbEvent - eventMean * eventMean), .5) //bias variance
     for (event <- (0 until fcsInput.takeNbEvent)) {
       dataNormalizedTakenArrayFCS(event * nbParam + paramByteListLogMin._1) =
         (dataTakenArrayFCS(event * nbParam + paramByteListLogMin._1) - eventMean) / eventSD
@@ -296,8 +296,8 @@ class FCSParserFull(fcsInput: FCSInputFull) {
     (paramByteListLogMin._1, eventMean, eventSD)
   }).toArray.sortBy(x => x._1)
 
-  val meanColTakenMap : Double = mean_sdCol.map(x => x._2)
-  val sdColTakenMap  : Double = mean_sdCol.map(x => x._3)
+  val meanColTakenMap: Array[Double] = mean_sdCol.map(x => x._2)
+  val sdColTakenMap: Array[Double] = mean_sdCol.map(x => x._3)
 
   val dataTakenMatFCS: Mat[Double] = Mat(fcsInput.takeNbEvent, takenParam.length, dataTakenArrayFCS)
   val dataNormalizedTakenMatFCS: Mat[Double] = Mat(fcsInput.takeNbEvent, takenParam.length, dataNormalizedTakenArrayFCS)
@@ -311,7 +311,7 @@ class FCSParserFull(fcsInput: FCSInputFull) {
   }
 
   // kmean clustering
-  def kmeanFCS(kMeanFCSInput: KMeanFCSInput): KMeansResult = {
+  private def kmeanFCS(kMeanFCSInput: KMeanFCSInput): KMeansResult = {
     val dataSubFCS = dataNormalizedTakenMatFCS.row((0 until kMeanFCSInput.nbRows).toArray)
     val rand4K = new Random(kMeanFCSInput.seedK)
     val dataInitK = dataSubFCS.row((1 to kMeanFCSInput.clusterNb).
@@ -348,7 +348,8 @@ class FCSParserFull(fcsInput: FCSInputFull) {
 
   // kmean clustering, several steps and several attempts paralleled), with euclid norm quality
   def kmeanFCSEuclidConv(kMeanFCSInput: KMeanFCSInput, stepK: Int, seedArrayK: ParArray[Int]):
-  ParArray[(List[Double], KMeansResult)] = { // careful: it correspond to iterations*stepK + (stepk -1) or something like that
+  //ParArray[(List[Double], KMeansResult)] = { // careful: it correspond to iterations*stepK + (stepk -1) or something like that
+  FCSDataKMean = {
     def listEuclid(initKMeans: IndexedSeq[Vec[Double]], nbRows: Int, iterations: Int, step: Int):
     List[(Double, KMeansResult)] = {
       if (step == 0) Nil else {
@@ -361,19 +362,21 @@ class FCSParserFull(fcsInput: FCSInputFull) {
           listEuclid(stepKMeans.means, nbRows, iterations, step - 1)
       }
     }
-
-    seedArrayK.map(seedKFromArray => {
-      val rand4K = new Random(seedKFromArray)
-      val dataInitK = dataNormalizedTakenMatFCS.row((0 until kMeanFCSInput.nbRows).toArray).
-        row((1 to kMeanFCSInput.clusterNb).map(x => rand4K.nextInt(kMeanFCSInput.nbRows)).toArray)
-      val listEuclidRand = listEuclid(dataInitK.rows, kMeanFCSInput.nbRows, kMeanFCSInput.iterations, stepK)
-      print("Finish seed " + seedKFromArray + "\r")
-      (listEuclidRand.map(x => x._1), listEuclidRand.last._2)
-    })
+    FCSDataKMean(fcsTextSegmentMap, nbEvent, takenParam, meanColTakenMap, sdColTakenMap, dataTakenMatFCS,
+      seedArrayK.map(seedKFromArray => {
+        val rand4K = new Random(seedKFromArray)
+        val dataInitK = dataNormalizedTakenMatFCS.row((0 until kMeanFCSInput.nbRows).toArray).
+          row((1 to kMeanFCSInput.clusterNb).map(x => rand4K.nextInt(kMeanFCSInput.nbRows)).toArray)
+        val listEuclidRand = listEuclid(dataInitK.rows, kMeanFCSInput.nbRows, kMeanFCSInput.iterations, stepK)
+        print("Finish seed " + seedKFromArray + "\r")
+        (listEuclidRand.map(x => x._1), listEuclidRand.last._2)
+      }))
   }
-// kmeanFCSEuclid to be continued from result of kmeanFCSEuclid
+
+  // kmeanFCSEuclid to be continued from result of kmeanFCSEuclid
   def kmeanFCSEuclidConvContinue(kMeanFCSInput: KMeanFCSInput, stepK: Int, previousEuclid: ParArray[(List[Double], KMeansResult)]):
-  ParArray[(List[Double], KMeansResult)] = {
+  //ParArray[(List[Double], KMeansResult)] = {
+  FCSDataKMean = {
     //same inner function as above (not very clean...)
     def listEuclid(initKMeans: IndexedSeq[Vec[Double]], nbRows: Int, iterations: Int, step: Int):
     List[(Double, KMeansResult)] = {
@@ -387,11 +390,11 @@ class FCSParserFull(fcsInput: FCSInputFull) {
           listEuclid(stepKMeans.means, nbRows, iterations, step - 1)
       }
     }
-
+    FCSDataKMean(fcsTextSegmentMap, nbEvent, takenParam, meanColTakenMap, sdColTakenMap, dataTakenMatFCS,
     previousEuclid.map(euclid => {
       val listEuclidNew = listEuclid(euclid._2.means, kMeanFCSInput.nbRows, kMeanFCSInput.iterations, stepK)
       (euclid._1 ::: listEuclidNew.map(_._1), listEuclidNew.last._2)
-    })
+    }))
   }
 
   // kmean++ clustering, several steps and several attempts (paralleled), with euclid norm quality
@@ -458,11 +461,12 @@ class FCSParserFull(fcsInput: FCSInputFull) {
       listMeanKMeans(dataInitK.rows, kMeanFCSInput.nbRows, kMeanFCSInput.iterations, stepK)
     })
   }
-  
+
 }
 
 case class FCSDataKMean(textSegmentMap: Map[String, String], nbEvent: Int,
-                        takenParam: scala.collection.immutable.IndexedSeq[Int], meanCol : Double,
-                        sdCol : Double, dataMat: Mat[Double], euclidKResult: ParArray[(List[Double], KMeansResult)]) {
-  def writeToFile :Unit = {}
+                        takenParam: scala.collection.immutable.IndexedSeq[Int], meanCol: Array[Double],
+                        sdCol: Array[Double], dataMat: Mat[Double], euclidKResult : ParArray[(List[Double], KMeansResult)]) {
+  val bestKMean = euclidKResult.toArray.filter(y => (y._1.last == (euclidKResult.toArray.map(x => x._1.last).min))).head._2
+  def writeToFile: Unit = {}
 }
