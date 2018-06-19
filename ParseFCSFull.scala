@@ -463,4 +463,6 @@ class FCSParserFull(fcsInput: FCSInputFull) {
 
 case class FCSDataKMean(textSegmentMap: Map[String, String], nbEvent: Int,
                         takenParam: scala.collection.immutable.IndexedSeq[Int], meanCol : Double,
-                        sdCol : Double, dataMat: Mat[Double], kResult: KMeansResult)
+                        sdCol : Double, dataMat: Mat[Double], euclidKResult: ParArray[(List[Double], KMeansResult)]) {
+  def writeToFile :Unit = {}
+}

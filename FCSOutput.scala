@@ -178,7 +178,7 @@ object FCSOutput {
     sequence(projections.toList, TableLayout(4))
   }
 
-  //2d ellipse plots, based on KMeanResults, minmax from data
+  //2d ellipse plots, based on KMeanResults, minmax from data, not very useful
 
   def kMeanFCSPlotEllipseFromData2D(fcsParsed: FCSParserFull, kMeanR: KMeansResult, excludeCluster: Array[Int] = Array())
   : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
@@ -298,20 +298,6 @@ object FCSOutput {
     val clusterList4Tree = clusterListParam._1.filter(cluster => !excludeCluster.contains(cluster.clusterId))
     ClusterEllipse.treeEllipseCluster(clusterList4Tree)
   }
-
-  //
-  //
-  //  def treeKmeanClust(fcsParsed: FCSParserFull, kMeanR: KMeansResult): List[ClusterEllipse.ArrowEllipseCluster] = {
-  //    val clusterList = kMeanR.clusters.toSeq.distinct.map(clusterId => {
-  //      val indexId = kMeanR.clusters.toSeq.zipWithIndex.filter(x => x._1 == clusterId).map(_._2)
-  //      val dataMat = fcsParsed.dataTakenMatFCS.row(indexId.toArray)
-  //      ClusterEllipse.EllipseClusterId(ClusterEllipse.EllipseCluster(indexId.length,
-  //        dataMat.cols.map(x => breeze.stats.mean(x.toArray)).toArray,
-  //        covmat(new DenseMatrix(dataMat.numCols, dataMat.numRows, dataMat.toArray).t)
-  //      ), clusterId)
-  //    }).toList
-  //    ClusterEllipse.treeEllipseCluster(clusterList)
-  //  }
 
   def treeKmeanClustPlot2D(clusterListParam: (List[EllipseClusterId], Array[String]), treeArrow: List[ClusterEllipse.ArrowEllipseCluster])
   : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
