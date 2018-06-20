@@ -60,6 +60,15 @@ object Main extends App {
       }).toList.filter(x => (x <= maxVal) && (x >= minVal))
   }
 
+  def takeRemoveParam(fcsDataKMean: FCSDataKMean): List[Int] = {
+    val askingListParam: String = "Remove Paramters? "+(for (paramAndIndex <- fcsDataKMean.takenParam.zipWithIndex) yield {
+      (paramAndIndex._2 + 1).toString + ": " + (try fcsDataKMean.textSegmentMap("$P" + paramAndIndex._1 + "S") catch {
+        case _: Throwable => fcsDataKMean.textSegmentMap("$P" + paramAndIndex._1 + "N")
+      })
+    }).reduce(_ + ", " + _)+ " "
+    takeListInt(askingListParam, 1, fcsDataKMean.takenParam.length)
+  }
+
   var loopFile = true
   var fcsFile: String = ""
   while (loopFile) {
@@ -70,7 +79,8 @@ object Main extends App {
         println("File " + fcsFile + " do not exist")
         val retry = scala.io.StdIn.readLine("Retry? (Y)/N ")
         if (retry == "Y") filePromp = true else {
-          println("Bye Bye"); System.exit(0)
+          println("Bye Bye");
+          System.exit(0)
         }
       }
       else filePromp = false
@@ -120,21 +130,22 @@ object Main extends App {
           while (loopPlot) {
             val removeCluster =
               this.takeListInt("Remove clusters (separated by ','): ", 1, nbCluster).map(_ - 1).toArray
+            val removeParam = this.takeRemoveParam(fcsDataKMean).map(_ - 1).toArray
             scala.io.StdIn.readLine("Scatter, Scatter with (G)rid, (C)luster center, (E)llipse or (T)ree plot? ") match {
               case "C" => {
                 val outPdf = scala.io.StdIn.readLine("Cluster file: ") + ".pdf"
-                FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlotClusters2D(fcsDataKMean, removeCluster), outPdf)
+                FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlotClusters2D(fcsDataKMean, removeCluster,removeParam), outPdf)
               }
               case "E" => {
                 if (bestClusterList == null) bestClusterList = FCSOutput.clusterForPlot(fcsDataKMean)
                 val outPdf = scala.io.StdIn.readLine("Ellipse file: ") + ".pdf"
-                FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlotEllipse2D(bestClusterList, removeCluster), outPdf)
+                FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlotEllipse2D(bestClusterList, removeCluster, removeParam), outPdf)
               }
               case "T" => {
                 if (bestClusterList == null) bestClusterList = FCSOutput.clusterForPlot(fcsDataKMean)
                 val ellipseTree = FCSOutput.treeKmeanClust(bestClusterList, removeCluster)
                 val outPdf = scala.io.StdIn.readLine("File: ") + ".pdf"
-                FCSOutput.plotKSeqToPdf(FCSOutput.treeKmeanClustPlot2D(bestClusterList, ellipseTree), outPdf)
+                FCSOutput.plotKSeqToPdf(FCSOutput.treeKmeanClustPlot2D(bestClusterList, ellipseTree,removeParam), outPdf)
                 if (scala.io.StdIn.readLine("Write tree to file? Y/(N): ") == "Y") {
                   val outCsv = scala.io.StdIn.readLine("Csv file: ") + ".csv"
                   FCSOutput.writeClusterTreeSizeCsv(ellipseTree, outCsv)
@@ -143,12 +154,12 @@ object Main extends App {
               case "G" => {
                 val outPdf = scala.io.StdIn.readLine("File: ") + ".pdf"
                 val gridWidth = takeIntFromLine("Grid size[50]: ", 50, 2)
-                FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlot2DGrid(fcsDataKMean, gridWidth, removeCluster), outPdf)
+                FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlot2DGrid(fcsDataKMean, gridWidth, removeCluster,removeParam), outPdf)
               }
               case _: String => {
                 val outPng = scala.io.StdIn.readLine("File: ") + ".png"
                 val pngWidth = takeIntFromLine("Png width[2000]: ", 2000, 1000)
-                FCSOutput.plotKSeqToPng(FCSOutput.kMeanFCSPlot2D(fcsDataKMean, removeCluster), outPng, pngWidth)
+                FCSOutput.plotKSeqToPng(FCSOutput.kMeanFCSPlot2D(fcsDataKMean, removeCluster,removeParam), outPng, pngWidth)
               }
             }
             if (scala.io.StdIn.readLine("Write cluster sizes to file? Y/(N): ") == "Y") {
