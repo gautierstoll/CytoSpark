@@ -208,7 +208,9 @@ class FCSParserFull(fcsInput: FCSInputFull) {
   val nbEvent: Int = fcsTextSegmentMap("$TOT").toArray.filter(_ != ' ').mkString("").toInt
   private val bitToFloat: List[Int] = (1 to nbPar).
     map(x => "$P".concat(x.toString).concat("B")).map(x => fcsTextSegmentMap(x).toInt).toList
-  val takenParam: scala.collection.immutable.IndexedSeq[Int] = fcsInput.takeParameter.map(_._1).toIndexedSeq
+
+
+  val takenParam: scala.collection.immutable.IndexedSeq[Int] = fcsInput.takeParameter.map(_._1).toIndexedSeq //carefull, start at 1
 
   for (i <- binaryFileIndex until firstDataSegment) yield fcsFileBuffer.read
   binaryFileIndex = firstDataSegment
@@ -220,86 +222,90 @@ class FCSParserFull(fcsInput: FCSInputFull) {
     binaryFileIndex += 1
   }
 
+  private val spillArray = fcsTextSegmentMap("SPILL").split(",")
+  val nbCompParam = spillArray.head.toInt
+  private val indexCompParam = (1 to nbCompParam).map(x => {
+    val regName = "P(.*)N".r
+    regName.findFirstMatchIn(fcsTextSegmentMap.find(keyVal => keyVal._2 == spillArray(x)).get._1).get.group(1).toInt
+  }).map(_ - 1) // index should start a 0
+
+  val compMatrix: Array[Double] = inv(new DenseMatrix(nbCompParam, nbCompParam, spillArray.drop(nbCompParam + 1).map(_.toDouble)).t).toArray
+
   private val byteTakeList = bitToFloat.
     foldLeft(List[Int](0))((x, y) => (x.head + y / 8) :: x).tail.reverse.zip(bitToFloat).map(x => (x._1 until (x._1 + x._2 / 8))).
     toArray
-  private val takenByteTakeList = takenParam.map(x => byteTakeList(x - 1)) //carefull, takenParam start at 1
-  private val parralelParamByteListLogMin = takenParam.indices. //._1: Parameter index (order the will be used after parralel action)
-    zip(takenByteTakeList). // ._2 Byte that are taken in Byte Array
-    zip(fcsInput.takeParameter.map(_._2)).map(x => (x._1._1, x._1._2, x._2)). //._3 log?
-    zip(fcsInput.takeParameter.map(_._3)).map(x => (x._1._1, x._1._2, x._1._3, x._2)).toParArray //._4 minimum if log is taken
 
-
+  //private val dataTakenArrayFCSNotC =
+  //  new Array[Double](fcsInput.takeNbEvent * takenParam.length)
   private val dataTakenArrayFCS =
     new Array[Double](fcsInput.takeNbEvent * takenParam.length)
   private val dataNormalizedTakenArrayFCS =
     new Array[Double](fcsInput.takeNbEvent * takenParam.length)
-  println("Get Data")
-  private val mean_sdCol: Array[(Int, Double, Double)] = parralelParamByteListLogMin.map(paramByteListLogMin => {
-    val eventNbByte = bitToFloat.sum / 8
+  println("Get data and compensate")
+  (0 until fcsInput.takeNbEvent).toParArray.foreach(event => {
     val nbParam = takenParam.length
-    val byteLength = paramByteListLogMin._2.length
+    val eventNbByte = bitToFloat.sum / 8
+    val lineArray: Array[Double] = (0 until nbPar).map(par => {
+      if (byteTakeList(par).length == 4) {
+        var tempByteBuffer = ByteBuffer.wrap(byteTakeList(par).map(x => dataByteArrayFCS(event * eventNbByte + x)).toArray)
+        if (fcsTextSegmentMap("$BYTEORD") == "1,2,3,4") tempByteBuffer.order(ByteOrder.LITTLE_ENDIAN)
+        tempByteBuffer.getFloat.toDouble
+      }
+      else {
+        var tempByteBuffer = ByteBuffer.wrap(byteTakeList(par).map(x => dataByteArrayFCS(event * eventNbByte + x)).toArray)
+        if (fcsTextSegmentMap("$BYTEORD") == "1,2,3,4") tempByteBuffer.order(ByteOrder.LITTLE_ENDIAN)
+        tempByteBuffer.getDouble
+      }
+    }).toArray
+    takenParam.zipWithIndex.foreach(param => { // careful, takenParam start at 1
+      //dataTakenArrayFCSNotC(event * nbParam + (param._2)) = lineArray(param._1 - 1)
+      if (indexCompParam.contains(param._1 - 1)) {
+        val indexCompMatrixRow = indexCompParam.indexOf(param._1 - 1)
+        dataTakenArrayFCS(event * nbParam + (param._2)) =
+          indexCompParam.zipWithIndex.map(compParam => {
+            compMatrix(indexCompMatrixRow * nbCompParam + compParam._2) * lineArray(compParam._1)
+          }).sum
+      }
+      else dataTakenArrayFCS(event * nbParam + (param._2)) = lineArray(param._1 - 1)
+    })
+  })
+  println("Take log and normalize")
+  private val parralelParamLogMin = fcsInput.takeParameter.zipWithIndex.map(x => (x._2, x._1._2, x._1._3)) // (index,log?,min if log)
+  private val mean_sdCol: Array[(Int, Double, Double)] = parralelParamLogMin.map(paramLogMin => {
+    val nbParam = takenParam.length
     var tmpSum = 0d
     var tmpSumSq = 0d
-    if (paramByteListLogMin._3) {
-      var tmpMin = Double.MaxValue
-      for (event <- (0 until fcsInput.takeNbEvent)) {
-        if (byteLength == 4) {
-          var tempByteBuffer = ByteBuffer.wrap(paramByteListLogMin._2.map(x => dataByteArrayFCS(event * eventNbByte + x)).toArray)
-          if (fcsTextSegmentMap("$BYTEORD") == "1,2,3,4") tempByteBuffer.order(ByteOrder.LITTLE_ENDIAN)
-          val doubleFromBytes: Double = tempByteBuffer.getFloat.toDouble
-          dataTakenArrayFCS(event * nbParam + paramByteListLogMin._1) = doubleFromBytes
-          tmpMin = doubleFromBytes.min(tmpMin)
-        }
-        else {
-          var tempByteBuffer = ByteBuffer.wrap(paramByteListLogMin._2.map(x => dataByteArrayFCS(event * eventNbByte + x)).toArray)
-          if (fcsTextSegmentMap("$BYTEORD") == "1,2,3,4") tempByteBuffer.order(ByteOrder.LITTLE_ENDIAN)
-          val doubleFromBytes: Double = tempByteBuffer.getDouble
-          dataTakenArrayFCS(event * nbParam + paramByteListLogMin._1) = doubleFromBytes
-          tmpMin = doubleFromBytes.min(tmpMin)
-        }
-      }
-      for (event <- (0 until fcsInput.takeNbEvent)) {
-        val logValue = log10(dataTakenArrayFCS(event * nbParam + paramByteListLogMin._1) - tmpMin +
-          pow(10, paramByteListLogMin._4))
+    if (paramLogMin._2) {
+      val tmpMin = (0 until fcsInput.takeNbEvent).map(event => dataTakenArrayFCS(event * nbParam + paramLogMin._1)).min
+      (0 until fcsInput.takeNbEvent).foreach(event => {
+        val logValue = log10(dataTakenArrayFCS(event * nbParam + paramLogMin._1) - tmpMin +
+          pow(10, paramLogMin._3))
         tmpSum += logValue
         tmpSumSq += logValue * logValue
-        dataTakenArrayFCS(event * nbParam + paramByteListLogMin._1) = logValue
-      }
-    }
-    else {
-      for (event <- (0 until fcsInput.takeNbEvent)) {
-        if (byteLength == 4) {
-          var tempByteBuffer = ByteBuffer.wrap(paramByteListLogMin._2.map(x => dataByteArrayFCS(event * eventNbByte + x)).toArray)
-          if (fcsTextSegmentMap("$BYTEORD") == "1,2,3,4") tempByteBuffer.order(ByteOrder.LITTLE_ENDIAN)
-          val doubleFromBytes: Double = tempByteBuffer.getFloat.toDouble
-          dataTakenArrayFCS(event * nbParam + paramByteListLogMin._1) = doubleFromBytes
-          tmpSum += doubleFromBytes
-          tmpSumSq += doubleFromBytes * doubleFromBytes
-        }
-        else {
-          var tempByteBuffer = ByteBuffer.wrap(paramByteListLogMin._2.map(x => dataByteArrayFCS(event * eventNbByte + x)).toArray)
-          if (fcsTextSegmentMap("$BYTEORD") == "1,2,3,4") tempByteBuffer.order(ByteOrder.LITTLE_ENDIAN)
-          val doubleFromBytes: Double = tempByteBuffer.getDouble
-          dataTakenArrayFCS(event * nbParam + paramByteListLogMin._1) = doubleFromBytes
-          tmpSum += doubleFromBytes
-          tmpSumSq += doubleFromBytes * doubleFromBytes
-        }
-      }
+        dataTakenArrayFCS(event * nbParam + paramLogMin._1) = logValue
+      })
+    } else {
+      (0 until fcsInput.takeNbEvent).foreach(event => {
+        val nonLogValue = dataTakenArrayFCS(event * nbParam + paramLogMin._1)
+        tmpSum += nonLogValue
+        tmpSumSq += nonLogValue * nonLogValue
+      })
     }
     val eventMean: Double = tmpSum / fcsInput.takeNbEvent
     val eventSD: Double = pow((tmpSumSq / fcsInput.takeNbEvent - eventMean * eventMean), .5) //bias variance
     for (event <- (0 until fcsInput.takeNbEvent)) {
-      dataNormalizedTakenArrayFCS(event * nbParam + paramByteListLogMin._1) =
-        (dataTakenArrayFCS(event * nbParam + paramByteListLogMin._1) - eventMean) / eventSD
+      dataNormalizedTakenArrayFCS(event * nbParam + paramLogMin._1) =
+        (dataTakenArrayFCS(event * nbParam + paramLogMin._1) - eventMean) / eventSD
     }
-    (paramByteListLogMin._1, eventMean, eventSD)
+    (paramLogMin._1, eventMean, eventSD)
   }).toArray.sortBy(x => x._1)
+
 
   val meanColTakenMap: Array[Double] = mean_sdCol.map(x => x._2)
   val sdColTakenMap: Array[Double] = mean_sdCol.map(x => x._3)
 
   val dataTakenMatFCS: Mat[Double] = Mat(fcsInput.takeNbEvent, takenParam.length, dataTakenArrayFCS)
+  //val dataTakenMatFCSNotC: Mat[Double] = Mat(fcsInput.takeNbEvent, takenParam.length, dataTakenArrayFCSNotC)
   val dataNormalizedTakenMatFCS: Mat[Double] = Mat(fcsInput.takeNbEvent, takenParam.length, dataNormalizedTakenArrayFCS)
 
   def getTakenMatrixFCS: DenseMatrix[Double] = {
@@ -362,6 +368,7 @@ class FCSParserFull(fcsInput: FCSInputFull) {
           listEuclid(stepKMeans.means, nbRows, iterations, step - 1)
       }
     }
+
     FCSDataKMean(fcsTextSegmentMap, nbEvent, takenParam, meanColTakenMap, sdColTakenMap, dataTakenMatFCS,
       seedArrayK.map(seedKFromArray => {
         val rand4K = new Random(seedKFromArray)
@@ -390,11 +397,12 @@ class FCSParserFull(fcsInput: FCSInputFull) {
           listEuclid(stepKMeans.means, nbRows, iterations, step - 1)
       }
     }
+
     FCSDataKMean(fcsTextSegmentMap, nbEvent, takenParam, meanColTakenMap, sdColTakenMap, dataTakenMatFCS,
-    previousEuclid.map(euclid => {
-      val listEuclidNew = listEuclid(euclid._2.means, kMeanFCSInput.nbRows, kMeanFCSInput.iterations, stepK)
-      (euclid._1 ::: listEuclidNew.map(_._1), listEuclidNew.last._2)
-    }))
+      previousEuclid.map(euclid => {
+        val listEuclidNew = listEuclid(euclid._2.means, kMeanFCSInput.nbRows, kMeanFCSInput.iterations, stepK)
+        (euclid._1 ::: listEuclidNew.map(_._1), listEuclidNew.last._2)
+      }))
   }
 
   // kmean++ clustering, several steps and several attempts (paralleled), with euclid norm quality
@@ -466,7 +474,8 @@ class FCSParserFull(fcsInput: FCSInputFull) {
 
 case class FCSDataKMean(textSegmentMap: Map[String, String], nbEvent: Int,
                         takenParam: scala.collection.immutable.IndexedSeq[Int], meanCol: Array[Double],
-                        sdCol: Array[Double], dataMat: Mat[Double], euclidKResult : ParArray[(List[Double], KMeansResult)]) {
+                        sdCol: Array[Double], dataMat: Mat[Double], euclidKResult: ParArray[(List[Double], KMeansResult)]) {
   val bestKMean = euclidKResult.toArray.filter(y => (y._1.last == (euclidKResult.toArray.map(x => x._1.last).min))).head._2
+
   def writeToFile: Unit = {}
 }
