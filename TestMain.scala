@@ -115,7 +115,7 @@ object Main extends App {
         val parArrayForKEuclid = (seed :: (for (index <- (1 until nbAttemp)) yield rand4K.nextInt(maxSeedParralel)).toList).
           toParArray
         fcsDataKMean =
-          parsedFCS.kmeanFCSEuclidConv(KMeanFCSInput(nbCluster, nbRow, nbIteration, 0), nbStep, parArrayForKEuclid)
+          parsedFCS.kmeanPPFCSEuclidConv(KMeanFCSInput(nbCluster, nbRow, nbIteration, 0), nbStep, parArrayForKEuclid)
         println("Cluster seed: \t" + parArrayForKEuclid.mkString("\t"))
       }
       else
