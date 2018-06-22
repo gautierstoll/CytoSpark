@@ -19,7 +19,14 @@ import scala.collection.parallel.mutable._
 object ClusterEllipse {
 
   case class EllipseCluster(size: Int, mean: Array[Double], varMat: DenseMatrix[Double]) {
-    val ellipseMat = inv(varMat)
+    val ellipseMat = try (inv(varMat)) catch {
+      case _: Throwable => {
+        println("Impossible to invert matrix")
+        println("Data size: "+size)
+        println(varMat)
+        sys.exit(0)
+      }
+    }
   }
 
   case class EllipseClusterId(cluster: EllipseCluster, clusterId: Int) {}
@@ -46,24 +53,26 @@ object ClusterEllipse {
   }
 
   case class ArrowEllipseCluster(source: EllipseClusterId, target: EllipseClusterId) {}
-//carfull: the treeEllipseCluster create a new fusion cluster with a maxId above the max of Ids. This could overload the Ids
+
+  //careful: the treeEllipseCluster create a new fusion cluster with a maxId above the max of Ids. This could overload the Ids
   // if the method is applied on a clusterCutList on which some cluster has been removed by another method
   def treeEllipseCluster(clusterCutList: List[EllipseClusterId]): List[ArrowEllipseCluster] = {
-    val maxId = clusterCutList.map(x=>x.clusterId).max
-    if (clusterCutList.length == 1) Nil
+    val maxId = clusterCutList.map(x => x.clusterId).max
+    val clusterCutListNoOne = clusterCutList.filter(elClId => (elClId.cluster.size > 1))
+    if (clusterCutListNoOne.length == 1) Nil
     else {
-      val minDistList = (for (g <- clusterCutList.indices.combinations(2)) yield {
-        (distEllipseCluster(clusterCutList(g(0)).cluster, clusterCutList(g(1)).cluster)
-          , clusterCutList(g(0)).clusterId, clusterCutList(g(1)).clusterId)
+      val minDistList = (for (g <- clusterCutListNoOne.indices.combinations(2)) yield {
+        (distEllipseCluster(clusterCutListNoOne(g(0)).cluster, clusterCutListNoOne(g(1)).cluster)
+          , clusterCutListNoOne(g(0)).clusterId, clusterCutListNoOne(g(1)).clusterId)
       }).toList
       val minDist = minDistList.map(x => x._1).min
       val removeClusterId = minDistList.filter(x => (x._1 == minDist)).map(x => (x._2, x._3)).head
-      val clusterA = clusterCutList.filter(x => (x.clusterId == removeClusterId._1)).head
-      val clusterB = clusterCutList.filter(x => (x.clusterId == removeClusterId._2)).head
+      val clusterA = clusterCutListNoOne.filter(x => (x.clusterId == removeClusterId._1)).head
+      val clusterB = clusterCutListNoOne.filter(x => (x.clusterId == removeClusterId._2)).head
       val newCluster = EllipseClusterId(fusionEllipseCluster(clusterA.cluster, clusterB.cluster), maxId + 1)
-      println("Construct fusion cluster "+(maxId+1+1)+" from "+(removeClusterId._1+1)+" and "+(removeClusterId._2+1)+", distance:"+minDist)
+      println("Construct fusion cluster " + (maxId + 1 + 1) + " from " + (removeClusterId._1 + 1) + " and " + (removeClusterId._2 + 1) + ", distance:" + minDist)
       val newClusterList = newCluster ::
-        (clusterCutList.filter(x => ((x.clusterId != removeClusterId._1) && (x.clusterId != removeClusterId._2))))
+        (clusterCutListNoOne.filter(x => ((x.clusterId != removeClusterId._1) && (x.clusterId != removeClusterId._2))))
       ArrowEllipseCluster(clusterA, newCluster) :: ArrowEllipseCluster(clusterB, newCluster) ::
         treeEllipseCluster(newClusterList)
     }
