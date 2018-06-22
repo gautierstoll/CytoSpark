@@ -67,7 +67,8 @@ object FCSOutput {
       Mat(segmentNb + 1, 2, (0 to (segmentNb)).map(x => x.toDouble / segmentNb * 2 * Pi).map(x => ellipseD1D2(x)).flatMap(x => Array(x._1, x._2)).toArray)
     }
 
-    val clusterListParam4Plot = (clusterListParam._1.filter(x => !excludeCluster.contains(x.clusterId)), clusterListParam._2)
+    clusterListParam._1.filter(eClId => (eClId.cluster.size < 2) ).foreach(eClId => println("Cluster "+(eClId.clusterId+1)+" has size 1"))
+    val clusterListParam4Plot = (clusterListParam._1.filter(x => (!excludeCluster.contains(x.clusterId) && x.cluster.size > 1)), clusterListParam._2)
     val param4Plot = clusterListParam._2.indices.filter(x => !excludeParam.contains(x))
     val projections = param4Plot.combinations(2).map { g =>
       val c1 = g(0)
@@ -329,10 +330,10 @@ object FCSOutput {
       val yMinMaxFCSComp = Option(mat4Plot.col(Array(cy, c2y)).toArray.min - abs(mat4Plot.col(Array(cy, c2y)).toArray.min) * .05,
         mat4Plot.col(Array(cy, c2y)).toArray.max + abs(mat4Plot.col(Array(cy, c2y)).toArray.max) * .05)
       xyplot(mat4Plot ->
-        List(lineSegment(xCol = cx, yCol = cy, x2Col = c2x, y2Col = c2y, colorCol = overCol, stroke = Stroke(.5)),
+        List(lineSegment(xCol = cx, yCol = cy, x2Col = c2x, y2Col = c2y, colorCol = overCol, stroke = Stroke(.3)),
           point(xCol = cx, yCol = cy, colorCol = (clusterListParam._2.length) * 2,
             sizeCol = overCol, shapeCol = overCol, errorTopCol = overCol, errorBottomCol = overCol,
-            valueText = true, color = Color.BLACK, labelFontSize =.6 fts)
+            valueText = true, color = Color.BLACK, labelFontSize =1 fts)
         ))(xlim = xMinMaxFCSComp, ylim = yMinMaxFCSComp,
         xlab = clusterListParam._2(g(0)),
         ylab = clusterListParam._2(g(1))
