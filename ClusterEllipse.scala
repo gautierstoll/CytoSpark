@@ -22,11 +22,12 @@ object ClusterEllipse {
     val ellipseMat = try (inv(varMat)) catch {
       case _: Throwable => {
         println("Impossible to invert matrix")
-        println("Data size: "+size)
+        println("Data size: " + size)
         println(varMat)
-        sys.exit(0)
+        null
       }
     }
+       val zeroVarIndex = (0 until varMat.cols).filter(x => varMat(x,x) == 0)
   }
 
   case class EllipseClusterId(cluster: EllipseCluster, clusterId: Int) {}
