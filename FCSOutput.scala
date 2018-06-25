@@ -66,7 +66,7 @@ object FCSOutput {
       val ellipseD1D2 = ellipse2DVarCurve(cluster, index1, index2)
       Mat(segmentNb + 1, 2, (0 to (segmentNb)).map(x => x.toDouble / segmentNb * 2 * Pi).map(x => ellipseD1D2(x)).flatMap(x => Array(x._1, x._2)).toArray)
     }
-
+// code that test var of clusterListParam
     clusterListParam._1.filter(eClId => (eClId.cluster.size < 2) ).foreach(eClId => println("Cluster "+(eClId.clusterId+1)+" has size 1"))
     val clusterListParam4Plot = (clusterListParam._1.filter(x => (!excludeCluster.contains(x.clusterId) && x.cluster.size > 1)), clusterListParam._2)
     val param4Plot = clusterListParam._2.indices.filter(x => !excludeParam.contains(x))
