@@ -66,9 +66,14 @@ object FCSOutput {
       val ellipseD1D2 = ellipse2DVarCurve(cluster, index1, index2)
       Mat(segmentNb + 1, 2, (0 to (segmentNb)).map(x => x.toDouble / segmentNb * 2 * Pi).map(x => ellipseD1D2(x)).flatMap(x => Array(x._1, x._2)).toArray)
     }
-// code that test var of clusterListParam
-    clusterListParam._1.filter(eClId => (eClId.cluster.size < 2) ).foreach(eClId => println("Cluster "+(eClId.clusterId+1)+" has size 1"))
-    val clusterListParam4Plot = (clusterListParam._1.filter(x => (!excludeCluster.contains(x.clusterId) && x.cluster.size > 1)), clusterListParam._2)
+
+    //clusterListParam._1.filter(eClId => (eClId.cluster.size < 2) ).foreach(eClId => println("Cluster "+(eClId.clusterId+1)+" has size 1"))
+    val clusterListParam4Plot = (clusterListParam._1.filter(x => (!excludeCluster.contains(x.clusterId))), clusterListParam._2)
+    val errCluster = clusterListParam4Plot._1.
+      filter(clId => (clId.cluster.size == 1) ||
+        (clId.cluster.zeroVarIndex.filter(zeroVar => !excludeParam.contains(zeroVar)).length > 0))
+    if (errCluster.length > 0) throw new ClusterEllipse.EllipseException(errCluster)
+
     val param4Plot = clusterListParam._2.indices.filter(x => !excludeParam.contains(x))
     val projections = param4Plot.combinations(2).map { g =>
       val c1 = g(0)

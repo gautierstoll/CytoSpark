@@ -63,11 +63,11 @@ object Main extends App {
   }
 
   def takeRemoveParam(fcsDataKMean: FCSDataKMean): List[Int] = {
-    val askingListParam: String = "Remove Paramters? "+(for (paramAndIndex <- fcsDataKMean.takenParam.zipWithIndex) yield {
+    val askingListParam: String = "Remove Paramters? " + (for (paramAndIndex <- fcsDataKMean.takenParam.zipWithIndex) yield {
       (paramAndIndex._2 + 1).toString + ": " + (try fcsDataKMean.textSegmentMap("$P" + paramAndIndex._1 + "S") catch {
         case _: Throwable => fcsDataKMean.textSegmentMap("$P" + paramAndIndex._1 + "N")
       })
-    }).reduce(_ + ", " + _)+ " "
+    }).reduce(_ + ", " + _) + " "
     takeListInt(askingListParam, 1, fcsDataKMean.takenParam.length)
   }
 
@@ -136,18 +136,24 @@ object Main extends App {
             scala.io.StdIn.readLine("[Scatter], Scatter with (g)rid, (c)luster center, (e)llipse or (t)ree plot? ") match {
               case "c" => {
                 val outPdf = scala.io.StdIn.readLine("Cluster file: ") + ".pdf"
-                FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlotClusters2D(fcsDataKMean, removeCluster,removeParam), outPdf)
+                FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlotClusters2D(fcsDataKMean, removeCluster, removeParam), outPdf)
               }
               case "e" => {
                 if (bestClusterList == null) bestClusterList = FCSOutput.clusterForPlot(fcsDataKMean)
                 val outPdf = scala.io.StdIn.readLine("Ellipse file: ") + ".pdf"
-                FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlotEllipse2D(bestClusterList, removeCluster, removeParam), outPdf)
+                val ellipsePdf = try (FCSOutput.kMeanFCSPlotEllipse2D(bestClusterList, removeCluster, removeParam)) catch {
+                  case ex: ClusterEllipse.EllipseException => {
+                    println(ex.errMessage()); null
+                  }
+                }
+                if (ellipsePdf != null)
+                  FCSOutput.plotKSeqToPdf(ellipsePdf, outPdf)
               }
               case "t" => {
                 if (bestClusterList == null) bestClusterList = FCSOutput.clusterForPlot(fcsDataKMean)
                 val ellipseTree = FCSOutput.treeKmeanClust(bestClusterList, removeCluster)
                 val outPdf = scala.io.StdIn.readLine("File: ") + ".pdf"
-                FCSOutput.plotKSeqToPdf(FCSOutput.treeKmeanClustPlot2D(bestClusterList, ellipseTree,removeParam), outPdf)
+                FCSOutput.plotKSeqToPdf(FCSOutput.treeKmeanClustPlot2D(bestClusterList, ellipseTree, removeParam), outPdf)
                 if (scala.io.StdIn.readLine("Write tree to file? y/[n]: ") == "y") {
                   val outCsv = scala.io.StdIn.readLine("Csv file: ") + ".csv"
                   FCSOutput.writeClusterTreeSizeCsv(ellipseTree, outCsv)
@@ -156,12 +162,12 @@ object Main extends App {
               case "g" => {
                 val outPdf = scala.io.StdIn.readLine("File: ") + ".pdf"
                 val gridWidth = takeIntFromLine("Grid size[50]: ", 50, 2)
-                FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlot2DGrid(fcsDataKMean, gridWidth, removeCluster,removeParam), outPdf)
+                FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlot2DGrid(fcsDataKMean, gridWidth, removeCluster, removeParam), outPdf)
               }
               case _: String => {
                 val outPng = scala.io.StdIn.readLine("File: ") + ".png"
                 val pngWidth = takeIntFromLine("Png width[2000]: ", 2000, 1000)
-                FCSOutput.plotKSeqToPng(FCSOutput.kMeanFCSPlot2D(fcsDataKMean, removeCluster,removeParam), outPng, pngWidth)
+                FCSOutput.plotKSeqToPng(FCSOutput.kMeanFCSPlot2D(fcsDataKMean, removeCluster, removeParam), outPng, pngWidth)
               }
             }
             if (scala.io.StdIn.readLine("Write cluster sizes to file? y/[n]: ") == "y") {
@@ -175,7 +181,7 @@ object Main extends App {
           }
           scala.io.StdIn.readLine("New cluster? [y]/n: ") match {
             case "n" => false
-            case _ :String => {
+            case _: String => {
               fcsDataKMean = null
               true
             }

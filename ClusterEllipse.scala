@@ -15,8 +15,16 @@ import stat.kmeans._
 import stat.sparse.SMat
 import scala.collection.parallel.mutable._
 
-
 object ClusterEllipse {
+  class EllipseException(listExceptionClId : List[EllipseClusterId]) extends Exception() {
+    val sizeId = listExceptionClId.filter(clId => clId.cluster.size == 1).map(clId => (clId.cluster.size,clId.clusterId))
+    val zeroVarId = listExceptionClId.filter(clId => ((clId.cluster.ellipseMat == null) && (clId.cluster.size > 1))).
+      map(clId => (clId.cluster.zeroVarIndex,clId.clusterId))
+    def errMessage() : String = {
+      sizeId.map(x => "Size: "+x._1.toString+" of cluster "+ x._2.toString).mkString("\n") +
+      zeroVarId.map(x => "Indices "+(x._1.mkString(","))+ " of cluster "+ x._2.toString)
+    }
+  }
 
   case class EllipseCluster(size: Int, mean: Array[Double], varMat: DenseMatrix[Double]) {
     val ellipseMat = try (inv(varMat)) catch {
