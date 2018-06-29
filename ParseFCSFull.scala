@@ -467,6 +467,7 @@ class FCSParserFull(fcsInput: FCSInputFull) {
 
 }
 
+// careful: clusters are based on normalized data.
 case class FCSDataKMean(textSegmentMap: Map[String, String], nbEvent: Int,
                         takenParam: scala.collection.immutable.IndexedSeq[Int], meanCol: Array[Double],
                         sdCol: Array[Double], dataMat: Mat[Double], euclidKResult: ParArray[(List[Double], KMeansResult)]) {
