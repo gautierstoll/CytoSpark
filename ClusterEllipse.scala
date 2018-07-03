@@ -20,16 +20,17 @@ object ClusterEllipse {
     val sizeId = listExceptionClId.filter(clId => clId.cluster.size == 1).map(clId => (clId.cluster.size,clId.clusterId))
     val zeroVarId = listExceptionClId.filter(clId => ((clId.cluster.ellipseMat == null) && (clId.cluster.size > 1))).
       map(clId => (clId.cluster.zeroVarIndex,clId.clusterId))
-    def errMessage() : String = {
-      sizeId.map(x => "Size: "+x._1.toString+" of cluster "+ x._2.toString).mkString("\n") +
-      zeroVarId.map(x => "Indices "+(x._1.mkString(","))+ " of cluster "+ x._2.toString)
+    def errMessage() : String = { "Ellipse cluster exception: \n" +
+      sizeId.map(x => "Size: "+x._1.toString+" of cluster "+ (x._2+1).toString).mkString("\n") +
+      "Zero variance of " +
+      zeroVarId.map(x => "Indices "+(x._1).map(_+1).mkString(",")+ " of cluster "+ (x._2+1).toString).mkString("\n")
     }
   }
 
   case class EllipseCluster(size: Int, mean: Array[Double], varMat: DenseMatrix[Double]) {
     val ellipseMat = try (inv(varMat)) catch {
       case _: Throwable => {
-        println("Impossible to invert matrix")
+        println("Impossible to invert matrix, may cause problems for ellipse/tree")
         println("Data size: " + size)
         println(varMat)
         null
@@ -86,4 +87,27 @@ object ClusterEllipse {
         treeEllipseCluster(newClusterList)
     }
   }
+  def levelTreeEllipseCluster (clusterCutList: List[EllipseClusterId]): List[ArrowEllipseCluster] = {
+    val maxId = clusterCutList.map(x => x.clusterId).max
+    val clusterCutListNoOne = clusterCutList.filter(elClId => (elClId.cluster.size > 1))
+    if (clusterCutListNoOne.length == 1) Nil
+    else {
+      val minDistList : List[(Double,Int,Int)] = (for (g <- clusterCutListNoOne.indices.combinations(2)) yield {
+        (distEllipseCluster(clusterCutListNoOne(g(0)).cluster, clusterCutListNoOne(g(1)).cluster)
+          , clusterCutListNoOne(g(0)).clusterId, clusterCutListNoOne(g(1)).clusterId)
+      }).toList
+      def levelStep (distClustId : List[(Double,Int,Int)]) : List[ArrowEllipseCluster] = {
+        if (distClustId.length == 0) Nil
+        else {
+          val minDist = distClustId.map(x => x._1).min
+          val removeClusterId = minDistList.filter(x => (x._1 == distClustId)).map(x => (x._2, x._3)).head
+          val clusterA = clusterCutListNoOne.filter(x => (x.clusterId == removeClusterId._1)).head
+          val clusterB = clusterCutListNoOne.filter(x => (x.clusterId == removeClusterId._2)).head
+          val newCluster = EllipseClusterId(fusionEllipseCluster(clusterA.cluster, clusterB.cluster), maxId + 1)
+          // val newdistClustId = distClustId.filter( x=> (x._1 != ...) )
+        }
+      }
+    }
+  }
+
 }

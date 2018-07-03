@@ -473,5 +473,5 @@ case class FCSDataKMean(textSegmentMap: Map[String, String], nbEvent: Int,
                         sdCol: Array[Double], dataMat: Mat[Double], euclidKResult: ParArray[(List[Double], KMeansResult)]) {
   val bestKMean = euclidKResult.toArray.filter(y => (y._1.last == (euclidKResult.toArray.map(x => x._1.last).min))).head._2
 
-  def writeToFile: Unit = {} // to be continued, with also atlernative constructor from file
+  def writeToFile: Unit = {} // to be continued, with also alternative constructor from file
 }

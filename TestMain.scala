@@ -63,7 +63,7 @@ object Main extends App {
   }
 
   def takeRemoveParam(fcsDataKMean: FCSDataKMean): List[Int] = {
-    val askingListParam: String = "Remove Paramters? " + (for (paramAndIndex <- fcsDataKMean.takenParam.zipWithIndex) yield {
+    val askingListParam: String = "Remove Parameters? " + (for (paramAndIndex <- fcsDataKMean.takenParam.zipWithIndex) yield {
       (paramAndIndex._2 + 1).toString + ": " + (try fcsDataKMean.textSegmentMap("$P" + paramAndIndex._1 + "S") catch {
         case _: Throwable => fcsDataKMean.textSegmentMap("$P" + paramAndIndex._1 + "N")
       })
@@ -99,7 +99,7 @@ object Main extends App {
     while (clusterLoop) {
       if (fcsDataKMean == null) {
         println("Clustering parameters:")
-        nbCluster = takeIntFromLine("Number of clusters [6]: ", 6, 1)
+        nbCluster = takeIntFromLine("Number of clusters [6] (large number takes more time to compute, but associated potatoes are easier to cook): ", 6, 1)
         nbRow =
           takeIntFromLine("Number of used rows [" + inputParser.takeNbEvent + "]: ", inputParser.takeNbEvent, 1) match {
             case y: Int => if (y > inputParser.takeNbEvent) {
@@ -109,8 +109,8 @@ object Main extends App {
           }
         nbIteration =
           takeIntFromLine("Number of K-Mean iterations [10]: ", 10, 1)
-        nbStep = takeIntFromLine("Number of K-Mean steps [5]: ", 5, 2)
-        val nbAttemp: Int = takeIntFromLine("Number of K-Mean clustering [4]: ", 4, 1)
+        nbStep = takeIntFromLine("Number of K-Mean steps (ie blocks of K-mean iterations) [5]: ", 5, 2)
+        val nbAttemp: Int = takeIntFromLine("Number of K-Mean clustering (done in parallel) [4]: ", 4, 1)
         val seed: Int =
           takeIntFromLine("Pseudo-random generator initial condition [10]: ", 10, 0)
         val rand4K = new Random(seed)
@@ -133,7 +133,11 @@ object Main extends App {
             val removeCluster =
               this.takeListInt("Remove clusters (separated by ','): ", 1, nbCluster).map(_ - 1).toArray
             val removeParam = this.takeRemoveParam(fcsDataKMean).map(_ - 1).toArray //removeParam start at 0
-            scala.io.StdIn.readLine("[Scatter], Scatter with (g)rid, (c)luster center, (e)llipse or (t)ree plot? ") match {
+            scala.io.StdIn.readLine("- [Scatter], potential large png file\n" +
+              "- Scatter with virtual (g)rid, lighter than scatter, pdf file\n" +
+              "- (c)luster center, pdf file \n" +
+              "- (e)llipse or potatoes, easy to cook pdf file" +
+              "- (t)ree of cluster, nice organic pdf file\n? ") match {
               case "c" => {
                 val outPdf = scala.io.StdIn.readLine("Cluster file: ") + ".pdf"
                 FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlotClusters2D(fcsDataKMean, removeCluster, removeParam), outPdf)
@@ -143,7 +147,8 @@ object Main extends App {
                 val outPdf = scala.io.StdIn.readLine("Ellipse file: ") + ".pdf"
                 val ellipsePdf = try (FCSOutput.kMeanFCSPlotEllipse2D(bestClusterList, removeCluster, removeParam)) catch {
                   case ex: ClusterEllipse.EllipseException => {
-                    println(ex.errMessage()); null
+                    println(ex.errMessage());
+                    null
                   }
                 }
                 if (ellipsePdf != null)
@@ -151,14 +156,22 @@ object Main extends App {
               }
               case "t" => {
                 if (bestClusterList == null) bestClusterList = FCSOutput.clusterForPlot(fcsDataKMean)
-                val ellipseTree = FCSOutput.treeKmeanClust(bestClusterList, removeCluster,removeParam)
-                val outPdf = scala.io.StdIn.readLine("File: ") + ".pdf"
-                FCSOutput.plotKSeqToPdf(
-                  FCSOutput.treeKmeanClustPlot2D(bestClusterList._2.zipWithIndex.filter(x => !removeParam.contains(x._2)).map(x=>x._1), ellipseTree),
-                  outPdf)
-                if (scala.io.StdIn.readLine("Write tree to file? y/[n]: ") == "y") {
-                  val outCsv = scala.io.StdIn.readLine("Csv file: ") + ".csv"
-                  FCSOutput.writeClusterTreeSizeCsv(ellipseTree, outCsv)
+                val ellipseTree = try (FCSOutput.treeKmeanClust(bestClusterList, removeCluster, removeParam)) catch {
+                  case ex: ClusterEllipse.EllipseException => {
+                    println(ex.errMessage());
+                    null
+                  }
+                }
+                if (ellipseTree != null) {
+                  val outPdf = scala.io.StdIn.readLine("File: ") + ".pdf"
+                  FCSOutput.plotKSeqToPdf(
+                    FCSOutput.treeKmeanClustPlot2D(bestClusterList._2.zipWithIndex.filter(x => !removeParam.contains(x._2)).map(x => x._1), ellipseTree),
+                    outPdf)
+
+                  if (scala.io.StdIn.readLine("Write tree to file? y/[n]: ") == "y") {
+                    val outCsv = scala.io.StdIn.readLine("Csv file: ") + ".csv"
+                    FCSOutput.writeClusterTreeSizeCsv(ellipseTree, outCsv)
+                  }
                 }
               }
               case "g" => {

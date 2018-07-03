@@ -310,6 +310,10 @@ object FCSOutput {
 
   def treeKmeanClust(clusterListParam: (List[EllipseClusterId], Array[String]), excludeCluster: Array[Int] = Array(), excludeParam: Array[Int] = Array()):
   List[ClusterEllipse.ArrowEllipseCluster] = {
+    val errCluster = clusterListParam._1.
+      filter(clId => (clId.cluster.size == 1) ||
+        (clId.cluster.zeroVarIndex.filter(zeroVar => !excludeParam.contains(zeroVar)).length > 0))
+    if (errCluster.length > 0) throw new ClusterEllipse.EllipseException(errCluster)
     val keepParam = (0 until clusterListParam._1.head.cluster.mean.length).filter(i => !excludeParam.contains(i))
     val clusterList4Tree = clusterListParam._1.filter(clId => !excludeCluster.contains(clId.clusterId)).
       map(clId => EllipseClusterId(ClusterEllipse.EllipseCluster(clId.cluster.size,
