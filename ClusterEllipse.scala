@@ -92,6 +92,7 @@ object ClusterEllipse {
     }
   }
 
+  // construct tree level by level, from initial cluster as leaves
   def levelTreeEllipseCluster(clusterCutList: List[EllipseClusterId]): List[ArrowEllipseCluster] = {
     val maxId = clusterCutList.map(x => x.clusterId).max
     val clusterCutListNoOne = clusterCutList.filter(elClId => (elClId.cluster.size > 1))
@@ -102,23 +103,23 @@ object ClusterEllipse {
           , clusterCutListNoOne(g(0)).clusterId, clusterCutListNoOne(g(1)).clusterId)
       }).toList
 
+      //closure for one level step
       def levelStep(distClustId: List[(Double, Int, Int)]): List[ArrowEllipseCluster] = {
         if (distClustId.length == 0) Nil
         else {
           val minDist = distClustId.map(x => x._1).min
-          val removeClusterId = minDistList.filter(x => (x._1 == distClustId)).map(x => (x._2, x._3)).head
+          val removeClusterId = minDistList.filter(x => (x._1 == minDist)).map(x => (x._2, x._3)).head
           val clusterA = clusterCutListNoOne.filter(x => (x.clusterId == removeClusterId._1)).head
           val clusterB = clusterCutListNoOne.filter(x => (x.clusterId == removeClusterId._2)).head
           val newCluster = EllipseClusterId(fusionEllipseCluster(clusterA.cluster, clusterB.cluster), maxId + 1)
           println("Construct fusion cluster " + (maxId + 1 + 1) + " from " + (removeClusterId._1 + 1) + " and "
             + (removeClusterId._2 + 1) + ", distance:" + minDist)
           if (distClustId.length == 3) {
-            val remainClusterId = distClustId.filter(distIdId =>
-              ((distClustId._2 != removeClusterId._1 && distClustId._2 != removeClusterId._2 ) ||
-                (distClustId._3 != removeClusterId._1 && distClustId._3 != removeClusterId._2))).head
+            val remainClusterId = distClustId.flatMap(distIdId => List(distIdId._1, distIdId._2)).filter(id =>
+              (id != removeClusterId._1 && id != removeClusterId._2)).head
             val clusterC = clusterCutListNoOne.filter(x => (x.clusterId == remainClusterId)).head
-            ArrowEllipseCluster(clusterA, newCluster) :: ArrowEllipseCluster(clusterB, newCluster) ::
-              ArrowEllipseCluster(clusterC, clusterC)
+            List(ArrowEllipseCluster(clusterA, newCluster), ArrowEllipseCluster(clusterB, newCluster),
+              ArrowEllipseCluster(clusterC, clusterC))
           } else {
             val newdistClustId = distClustId.filter(distIdId =>
               ((distIdId._2 != clusterA.clusterId) && (distIdId._2 != clusterB.clusterId) &&
@@ -128,8 +129,29 @@ object ClusterEllipse {
           }
         }
       }
-      // apply levelStep, construct new clusterCutListnoOne
+
+      val levelArrowCluster = levelStep(minDistList)
+      val newClusterList = levelArrowCluster.map(_.target)
+      levelArrowCluster ::: levelTreeEllipseCluster(newClusterList)
     }
   }
 
+  def connectedClusterNetwork(clusterList: List[EllipseClusterId]): List[ArrowEllipseCluster] = {
+    val clusterListNoOne = clusterList.filter(elClId => (elClId.cluster.size > 1))
+    if (clusterListNoOne.length == 1) Nil
+    else {
+      val minDistList = (for (g <- clusterListNoOne.indices.combinations(2)) yield {
+        (distEllipseCluster(clusterListNoOne(g(0)).cluster, clusterListNoOne(g(1)).cluster)
+          , clusterListNoOne(g(0)).clusterId, clusterListNoOne(g(1)).clusterId)
+      }).toList
+
+      def recConnClusterNet(remainClusterList: List[EllipseClusterId], remainDistList: List[(Double, Int, Int)]):
+      List[ArrowEllipseCluster] = {
+        val minDist = remainDistList.map(_._1).min
+        val removeClusterId = remainDistList.filter(x => (x._1 == minDist)).map(x => (x._2, x._3)).head
+        val clusterA = clusterListNoOne.filter(x => (x.clusterId == removeClusterId._1)).head
+        val clusterB = clusterListNoOne.filter(x => (x.clusterId == removeClusterId._2)).head
+      }
+    }
+  }
 }
