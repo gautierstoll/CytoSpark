@@ -153,7 +153,7 @@ object ClusterEllipse {
           val clusterA = clusterListNoOne.filter(x => (x.clusterId == removeClusterId._1)).head
           val clusterB = clusterListNoOne.filter(x => (x.clusterId == removeClusterId._2)).head
           val remainCList = cList.filter(cl => ((cl.clusterId != removeClusterId._1) && (cl.clusterId != removeClusterId._2)))
-          val remainDList = dList.filter(x => (remainCList.contains(x._2) || remainCList.contains(x._3) ))
+          val remainDList = dList.filter(x => (remainCList.map(_.clusterId).contains(x._2) || remainCList.map(_.clusterId).contains(x._3) ))
           println("Remove " + removeClusterId._1 + " " + removeClusterId._2)
           println(remainCList.map(_.clusterId).mkString(" "))
           println(remainDList.map(x=>(x._2,x._3)).mkString(" "))
