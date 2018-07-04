@@ -45,7 +45,7 @@ val bestClusterList = FCSOutput.clusterForPlot(kmeanEuclid)
 
 val testConnectedTree = ClusterEllipse.connectedClusterNetwork(bestClusterList._1)
 
-val treeConnOut = FCSOutput.treeKmeanClustPlot2D(bestClusterList._2,testConnectedTree)
+//val treeConnOut = FCSOutput.treeKmeanClustPlot2D(bestClusterList._2,testConnectedTree)
 //val kmeanExp12 = dataExp12.kmeansFCS(KMeanFCSInput(20,10000,100,10))
 //def testFunction(testvar : Int) =
 //{
