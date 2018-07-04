@@ -148,11 +148,11 @@ object ClusterEllipse {
       List[ArrowEllipseCluster] = {
         val minDist = dList.map(_._1).min
         val removeClusterId = dList.filter(x => (x._1 == minDist)).map(x => (x._2, x._3)).head
-        val clusterA = cList.filter(x => (x.clusterId == removeClusterId._1)).head
-        val clusterB = cList.filter(x => (x.clusterId == removeClusterId._2)).head
+        val clusterA = clusterListNoOne.filter(x => (x.clusterId == removeClusterId._1)).head
+        val clusterB = clusterListNoOne.filter(x => (x.clusterId == removeClusterId._2)).head
         val remainDList = dList.filter(x => !((x._2 == removeClusterId._1 && x._3 == removeClusterId._2) ||
           (x._2 == removeClusterId._2 && x._3 == removeClusterId._1) )) // the second part of || may not be necessary
-        val remainCList = cList.filter(cl => (cl.clusterId != removeClusterId._1 && cl.clusterId != removeClusterId._2))
+        val remainCList = cList.filter(cl => ((cl.clusterId != removeClusterId._1) && (cl.clusterId != removeClusterId._2)))
         if (remainCList.length == 0) Nil else {
           ArrowEllipseCluster(clusterA, clusterB) :: recurConnClusterNet(remainCList, remainDList)
         }

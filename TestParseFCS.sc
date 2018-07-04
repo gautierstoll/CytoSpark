@@ -21,6 +21,8 @@ import stat.sparse.SMat
 
 import scala.collection.parallel.mutable._
 
+import scala.collection.parallel.mutable._
+
 import java.nio.ByteBuffer
 
 //val exp12FCS = new FCSParserCompact("Exp 12 T cells_Tube_001.fcs",-1000)
@@ -35,7 +37,15 @@ val inputExp12 =
 //    List((5,false,0.0), (6,false,0.0), (7,false,0.0), (8,false,0.0), (9,false,0.0), (10,false,0.0), (11,false,0.0)),10000)
 
 
-//val dataExp12 = new FCSParserFull(inputExp12)
+val dataExp12 = new FCSParserFull(inputExp12)
+
+val kmeanEuclid = dataExp12.kmeanPPFCSEuclidConv(KMeanFCSInput(20,10000,10,0),4,ParArray(10,3,4,100))
+
+val bestClusterList = FCSOutput.clusterForPlot(kmeanEuclid)
+
+val testConnectedTree = ClusterEllipse.connectedClusterNetwork(bestClusterList._1)
+
+val treeConnOut = FCSOutput.treeKmeanClustPlot2D(bestClusterList._2,testConnectedTree)
 //val kmeanExp12 = dataExp12.kmeansFCS(KMeanFCSInput(20,10000,100,10))
 //def testFunction(testvar : Int) =
 //{
