@@ -35,7 +35,6 @@ object Main extends App {
   println("Written in Scala because it is fun. Hope it is also fast.")
   println("Code: https://github.com/gautierstoll/CytoSpark, version 0.9. Because I am not a professional, I think my code is quite ugly...")
   val maxSeedParralel = 10000
-
   def takeIntFromLine(askingPromp: String, defaultVal: Int, minVal: Int): Int = {
     (scala.io.StdIn.readLine(askingPromp) match {
       case "" => defaultVal
