@@ -310,9 +310,11 @@ object FCSOutput {
 
   def treeKmeanClust(clusterListParam: (List[EllipseClusterId], Array[String]), excludeCluster: Array[Int] = Array(), excludeParam: Array[Int] = Array()):
   List[ClusterEllipse.ArrowEllipseCluster] = {
+
     val errCluster = clusterListParam._1.
-      filter(clId => (clId.cluster.size == 1) ||
-        (clId.cluster.zeroVarIndex.filter(zeroVar => !excludeParam.contains(zeroVar)).length > 0))
+      filter(clId => (!excludeCluster.contains(clId.clusterId) && (
+        (clId.cluster.size == 1) ||
+          (clId.cluster.zeroVarIndex.filter(zeroVar => !excludeParam.contains(zeroVar)).length > 0))))
     if (errCluster.length > 0) throw new ClusterEllipse.EllipseException(errCluster)
     val keepParam = (0 until clusterListParam._1.head.cluster.mean.length).filter(i => !excludeParam.contains(i))
     val clusterList4Tree = clusterListParam._1.filter(clId => !excludeCluster.contains(clId.clusterId)).
@@ -322,13 +324,32 @@ object FCSOutput {
     ClusterEllipse.treeEllipseCluster(clusterList4Tree)
   }
 
-  def treeKmeanClustPlot2D(paramName: Array[String], // length of paramName = length of cluster means, parameter coudl be excluded in treeKmeanClust
+  def connNetworkClust(clusterListParam: (List[EllipseClusterId], Array[String]), excludeCluster: Array[Int] = Array(), excludeParam: Array[Int] = Array()):
+  List[ClusterEllipse.ArrowEllipseCluster] = {
+
+    val errCluster = clusterListParam._1.
+      filter(clId => (!excludeCluster.contains(clId.clusterId) && (
+        (clId.cluster.size == 1) ||
+        (clId.cluster.zeroVarIndex.filter(zeroVar => !excludeParam.contains(zeroVar)).length > 0))))
+    if (errCluster.length > 0) throw new ClusterEllipse.EllipseException(errCluster)
+    val keepParam = (0 until clusterListParam._1.head.cluster.mean.length).filter(i => !excludeParam.contains(i))
+    val clusterList4Tree = clusterListParam._1.filter(clId => !excludeCluster.contains(clId.clusterId)).
+      map(clId => EllipseClusterId(ClusterEllipse.EllipseCluster(clId.cluster.size,
+        clId.cluster.mean.zipWithIndex.filter(x => keepParam.contains(x._2)).map(_._1),
+        clId.cluster.varMat(keepParam, keepParam).toDenseMatrix), clId.clusterId))
+    ClusterEllipse.connectedCluster(clusterList4Tree)
+  }
+
+  def networkKmeanClustPlot2D(paramName: Array[String], // length of paramName = length of cluster means, parameter coudl be excluded in treeKmeanClust
                            treeArrow: List[ClusterEllipse.ArrowEllipseCluster], excludeParam: Array[Int] = Array())
   : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
-    val mat4Plot = Mat(treeArrow.length, (paramName.length) * 2 + 1,
+    val matArrow4Plot = Mat(treeArrow.length, (paramName.length) * 2 + 1,
       treeArrow.
         flatMap(x => Array(x.source.cluster.mean, x.target.cluster.mean, Array(x.source.clusterId.toDouble + 1))).flatMap(x => x).
         toArray)
+    val distinctCluster = treeArrow.flatMap(x=> List(x.source,x.target)).distinct
+    val matCluster4Plot = Mat(distinctCluster.length,paramName.length+1,
+      distinctCluster.flatMap(x=> Array(x.cluster.mean,Array(x.clusterId.toDouble+1))).flatMap(x => x).toArray)
     val projections = paramName.indices.combinations(2).map{ g =>
       val cx = (g(0))
       val cy = (g(1))
@@ -336,15 +357,15 @@ object FCSOutput {
       val c2y = g(1) + paramName.length
       val overCol = (paramName.length) * 2 + 1
       print(cx + " x " + cy + "       " + "\r")
-      val xMinMaxFCSComp : Option[(Double,Double)]= Option(mat4Plot.col(Array(cx, c2x)).toArray.min - abs(mat4Plot.col(Array(cx, c2x)).toArray.min) * .05,
-        mat4Plot.col(Array(cx, c2x)).toArray.max + abs(mat4Plot.col(Array(cx, c2x)).toArray.max) * .05)
-      val yMinMaxFCSComp = Option(mat4Plot.col(Array(cy, c2y)).toArray.min - abs(mat4Plot.col(Array(cy, c2y)).toArray.min) * .05,
-        mat4Plot.col(Array(cy, c2y)).toArray.max + abs(mat4Plot.col(Array(cy, c2y)).toArray.max) * .05)
-      xyplot(mat4Plot ->
-        List(lineSegment(xCol = cx, yCol = cy, x2Col = c2x, y2Col = c2y, colorCol = overCol, stroke = Stroke(.3)),
-          point(xCol = cx, yCol = cy, colorCol = (paramName.length) * 2,
-            sizeCol = overCol, shapeCol = overCol, errorTopCol = overCol, errorBottomCol = overCol,
-            valueText = true, color = Color.BLACK, labelFontSize = 1 fts)
+      val xMinMaxFCSComp : Option[(Double,Double)]= Option(matCluster4Plot.col(Array(cx)).toArray.min - abs(matCluster4Plot.col(Array(cx)).toArray.min) * .05,
+        matCluster4Plot.col(Array(cx)).toArray.max + abs(matCluster4Plot.col(Array(cx)).toArray.max) * .05)
+      val yMinMaxFCSComp = Option(matCluster4Plot.col(Array(cy)).toArray.min - abs(matCluster4Plot.col(Array(cy)).toArray.min) * .05,
+        matCluster4Plot.col(Array(cy)).toArray.max + abs(matCluster4Plot.col(Array(cy)).toArray.max) * .05)
+      xyplot((matArrow4Plot ->
+        lineSegment(xCol = cx, yCol = cy, x2Col = c2x, y2Col = c2y, colorCol = overCol, stroke = Stroke(.3))),
+        (matCluster4Plot -> point(xCol = cx, yCol = cy, colorCol = (paramName.length),
+          sizeCol = overCol, shapeCol = overCol, errorTopCol = overCol, errorBottomCol = overCol,
+          valueText = true, color = Color.BLACK, labelFontSize = 1 fts)
         ))(xlim = xMinMaxFCSComp, ylim = yMinMaxFCSComp,
         xlab = paramName(g(0)),
         ylab = paramName(g(1))

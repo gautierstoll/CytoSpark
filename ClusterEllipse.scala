@@ -1,18 +1,23 @@
 
 import java.io._
+
 import breeze.linalg._
 import breeze.numerics._
 import java.nio.ByteBuffer
+
 import org.saddle._
 import stat._
+
 import scala.util._
 import org.nspl._
 import org.nspl.saddle._
 import org.nspl.data._
 import org.nspl.awtrenderer._
 import org.saddle.io._
+import shapeless.Inr
 import stat.kmeans._
 import stat.sparse.SMat
+
 import scala.collection.parallel.mutable._
 
 object ClusterEllipse {
@@ -25,7 +30,7 @@ object ClusterEllipse {
     def errMessage(): String = {
       "Ellipse cluster exception: \n" +
         sizeId.map(x => "Size: " + x._1.toString + " of cluster " + (x._2 + 1).toString).mkString("\n") +
-        "Zero variance of " +
+        " Zero variance of " +
         zeroVarId.map(x => "Indices " + (x._1).map(_ + 1).mkString(",") + " of cluster " + (x._2 + 1).toString).mkString("\n")
     }
   }
@@ -136,7 +141,7 @@ object ClusterEllipse {
     }
   }
 
-  def connectedClusterNetwork(clusterList: List[EllipseClusterId]): List[ArrowEllipseCluster] = {
+  def connectedCluster(clusterList: List[EllipseClusterId]): List[ArrowEllipseCluster] = {
     val clusterListNoOne = clusterList.filter(elClId => (elClId.cluster.size > 1))
     if (clusterListNoOne.length == 1) Nil
     else {
@@ -145,23 +150,26 @@ object ClusterEllipse {
           , clusterListNoOne(g(0)).clusterId, clusterListNoOne(g(1)).clusterId)
       }).toList
 
-      def recurConnClusterNet(cList: List[EllipseClusterId], dList: List[(Double, Int, Int)]):
+      def recurConnClusterNet(cListComp: List[(EllipseClusterId, Int)], dList: List[(Double, Int, Int)]):
       List[ArrowEllipseCluster] = {
-        if (cList.length == 0) Nil else {
-          val minDist = dList.map(_._1).min
-          val removeClusterId = dList.filter(x => (x._1 == minDist)).map(x => (x._2, x._3)).head
-          val clusterA = clusterListNoOne.filter(x => (x.clusterId == removeClusterId._1)).head
-          val clusterB = clusterListNoOne.filter(x => (x.clusterId == removeClusterId._2)).head
-          val remainCList = cList.filter(cl => ((cl.clusterId != removeClusterId._1) && (cl.clusterId != removeClusterId._2)))
-          val remainDList = dList.filter(x => (remainCList.map(_.clusterId).contains(x._2) || remainCList.map(_.clusterId).contains(x._3) ))
-          println("Remove " + removeClusterId._1 + " " + removeClusterId._2)
-          println(remainCList.map(_.clusterId).mkString(" "))
-          println(remainDList.map(x=>(x._2,x._3)).mkString(" "))
-          ArrowEllipseCluster(clusterA, clusterB) :: recurConnClusterNet(remainCList, remainDList)
+        if (cListComp.map(x => x._2).distinct.length == 1) Nil else {
+          val connectDistList = dList.filter(dist => {
+            val compA = cListComp.filter(cl => cl._1.clusterId == dist._2).head._2
+            val compB = cListComp.filter(cl => cl._1.clusterId == dist._3).head._2
+            compA != compB
+          })
+          val connectDist = connectDistList.filter(dist => (dist._1 == connectDistList.map(_._1).min)).head
+          val clusterCompA = cListComp.filter(x => (x._1.clusterId == connectDist._2)).head
+          val clusterCompB = cListComp.filter(x => (x._1.clusterId == connectDist._3)).head
+          val newCListComp = cListComp.map(clComp => {
+            if (clComp._2 == clusterCompB._2)
+              (clComp._1,clusterCompA._2)
+            else clComp
+          })
+          ArrowEllipseCluster(clusterCompA._1, clusterCompB._1) :: recurConnClusterNet(newCListComp, dList)
         }
       }
-
-      recurConnClusterNet(clusterListNoOne, distList)
+      recurConnClusterNet(clusterListNoOne.zipWithIndex, distList)
     }
   }
 }
