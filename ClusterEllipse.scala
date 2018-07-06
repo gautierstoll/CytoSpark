@@ -97,7 +97,7 @@ object ClusterEllipse {
     }
   }
 
-  // construct tree level by level, from initial cluster as leaves
+  // construct tree level by level, from initial cluster as leaves, not tested yet
   def levelTreeEllipseCluster(clusterCutList: List[EllipseClusterId]): List[ArrowEllipseCluster] = {
     val maxId = clusterCutList.map(x => x.clusterId).max
     val clusterCutListNoOne = clusterCutList.filter(elClId => (elClId.cluster.size > 1))
