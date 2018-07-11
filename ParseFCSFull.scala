@@ -464,7 +464,6 @@ class FCSParserFull(fcsInput: FCSInputFull) {
       listMeanKMeans(dataInitK.rows, kMeanFCSInput.nbRows, kMeanFCSInput.iterations, stepK)
     })
   }
-
 }
 
 // careful: clusters are based on normalized data.

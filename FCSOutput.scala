@@ -27,8 +27,89 @@ import scala.collection.parallel.mutable._
 import org.saddle.io.CsvImplicits._
 
 
+class FCSOutput(textSegmentMap: Map[String, String],
+                takenParam: scala.collection.immutable.IndexedSeq[Int], dataMat: Mat[Double],clusters: Vec[Int]) {
+  val clusterListParam = this.clusterForPlot()
+  def this(fcsDataKMean : FCSDataKMean) = this(fcsDataKMean.textSegmentMap,fcsDataKMean.takenParam,fcsDataKMean.dataMat,
+    fcsDataKMean.bestKMean.clusters)
+  // cluster and parameters names for 2d plot
+  //def clusterForPlot(fcsParsed: FCSParserFull, kMeanR: KMeansResult): (List[EllipseClusterId], Array[String]) = {
+  def clusterForPlot(): (List[EllipseClusterId], Array[String]) = {
+    val clusterList = this.clusters.toSeq.distinct.toParArray.map(clusterId => {
+      val indexId = this.clusters.toSeq.zipWithIndex.filter(x => x._1 == clusterId).map(_._2)
+      val dataMat = this.dataMat.row(indexId.toArray)
+      ClusterEllipse.EllipseClusterId(ClusterEllipse.EllipseCluster(indexId.length,
+        dataMat.cols.map(x => breeze.stats.mean(x.toArray)).toArray,
+        covmat(new DenseMatrix(dataMat.numCols, dataMat.numRows, dataMat.toArray).t)
+      ), clusterId)
+    }).toList
+    val labelParam = this.takenParam.map(param =>
+      try this.textSegmentMap("$P" + param + "S") catch {
+        case _: Throwable => this.textSegmentMap("$P" + param + "N")
+      }
+    ).toArray
+    (clusterList, labelParam)
+  }
+
+  // plot ellipse, from list of EllipseClusterId, minmax based on ellipses
+  def kMeanFCSPlotEllipse2D(excludeCluster: Array[Int] = Array(), excludeParam: Array[Int] = Array())
+  : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
+    def ellipsePoints2DVar(cluster: EllipseCluster, index1: Int, index2: Int, segmentNb: Int): org.saddle.Mat[Double] = {
+      def ellipse2DVarCurve(cluster: EllipseCluster, index1: Int, index2: Int): (Double => (Double, Double)) = {
+        val svdCov = svd(cluster.varMat(List(index1, index2), List(index1, index2)).toDenseMatrix)
+        val Vt = svdCov.Vt
+        val S = svdCov.S
+        (angle => {
+          val vectEllipse = Vt * DenseVector(pow(S(0), .5) * cos(angle), pow(S(1), .5) * sin(angle))
+          (vectEllipse(0) + cluster.mean(index1), vectEllipse(1) + cluster.mean(index2))
+        })
+      }
+
+      val ellipseD1D2 = ellipse2DVarCurve(cluster, index1, index2)
+      Mat(segmentNb + 1, 2, (0 to (segmentNb)).map(x => x.toDouble / segmentNb * 2 * Pi).map(x => ellipseD1D2(x)).flatMap(x => Array(x._1, x._2)).toArray)
+    }
+
+    //clusterListParam._1.filter(eClId => (eClId.cluster.size < 2) ).foreach(eClId => println("Cluster "+(eClId.clusterId+1)+" has size 1"))
+    val clusterListParam4Plot = (clusterListParam._1.filter(x => (!excludeCluster.contains(x.clusterId))), clusterListParam._2)
+    val errCluster = clusterListParam4Plot._1.
+      filter(clId => (clId.cluster.size == 1) ||
+        (clId.cluster.zeroVarIndex.filter(zeroVar => !excludeParam.contains(zeroVar)).length > 0))
+    if (errCluster.length > 0) throw new ClusterEllipse.EllipseException(errCluster)
+
+    val param4Plot = clusterListParam._2.indices.filter(x => !excludeParam.contains(x))
+    val projections = param4Plot.combinations(2).map { g =>
+      val c1 = g(0)
+      val c2 = g(1)
+      print(c1 + " x " + c2 + "     \r")
+      val clusterEllipseMatForPlot = Mat(clusterListParam4Plot._1.flatMap(ellClustId =>
+        (ellipsePoints2DVar(ellClustId.cluster, c1, c2, 100).cols.toList :::
+          List(Vec(Array.fill(100 + 1)(ellClustId.clusterId.toDouble))))).toArray)
+      val indexX = (0 until (clusterEllipseMatForPlot.numCols / 3)).map(x => x * 3).toArray
+      val indexY = (0 until (clusterEllipseMatForPlot.numCols / 3)).map(x => x * 3 + 1).toArray
+      val xMinMax = Option(clusterEllipseMatForPlot.col(indexX).toArray.min - abs(clusterEllipseMatForPlot.col(indexX).toArray.min) * .05,
+        clusterEllipseMatForPlot.col(indexX).toArray.max + abs(clusterEllipseMatForPlot.col(indexX).toArray.max) * .05)
+      val yMinMax = Option(clusterEllipseMatForPlot.col(indexY).toArray.min - abs(clusterEllipseMatForPlot.col(indexY).toArray.min) * .05,
+        clusterEllipseMatForPlot.col(indexY).toArray.max + abs(clusterEllipseMatForPlot.col(indexY).toArray.max) * .05)
+      xyplot(clusterEllipseMatForPlot ->
+        (0 until (clusterEllipseMatForPlot.numCols / 3)).map(x => line(xCol = x * 3, yCol = x * 3 + 1, colorCol = x * 3 + 2,
+          color = DiscreteColors(clusterListParam._1.length - 1))).toList)(
+        xlim = xMinMax, ylim = yMinMax,
+        extraLegend = clusterListParam4Plot._1.map(_.clusterId).toArray.sorted.map(
+          x =>
+            (x + 1).toString -> PointLegend(shape = Shape.rectangle(0, 0, 1, 1), //x._1 + 1 for starting cluster nb with 1
+              color = DiscreteColors(clusterListParam._1.length - 1)(x.toDouble))),
+        xlab = clusterListParam._2(c1), ylab = clusterListParam._2(c2)
+      )
+    }
+    sequence(projections.toList, TableLayout(4))
+  }
+
+//continue to add method to class
+
+}
 // methods for output
 object FCSOutput {
+
   // cluster and parameters names for 2d plot
   //def clusterForPlot(fcsParsed: FCSParserFull, kMeanR: KMeansResult): (List[EllipseClusterId], Array[String]) = {
   def clusterForPlot(fcsDataKMean: FCSDataKMean): (List[EllipseClusterId], Array[String]) = {
@@ -373,6 +454,7 @@ object FCSOutput {
     }
     sequence(projections.toList, TableLayout(4))
   }
+
 
   def plotKSeqToPng(plotSeq: Build[ElemList[Elems2[org.nspl.XYPlotArea, org.nspl.Legend]]],
                     fileName: String, widthPng: Int = 1000) = {
