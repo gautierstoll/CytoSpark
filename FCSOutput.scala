@@ -28,10 +28,13 @@ import org.saddle.io.CsvImplicits._
 
 
 class FCSOutput(textSegmentMap: Map[String, String],
-                takenParam: scala.collection.immutable.IndexedSeq[Int], dataMat: Mat[Double],clusters: Vec[Int]) {
+                takenParam: scala.collection.immutable.IndexedSeq[Int], dataMat: Mat[Double], clusters: Vec[Int]) {
   val clusterListParam = this.clusterForPlot()
-  def this(fcsDataKMean : FCSDataKMean) = this(fcsDataKMean.textSegmentMap,fcsDataKMean.takenParam,fcsDataKMean.dataMat,
+  val clusterNumber = clusterListParam._1.length
+
+  def this(fcsDataKMean: FCSDataKMean) = this(fcsDataKMean.textSegmentMap, fcsDataKMean.takenParam, fcsDataKMean.dataMat,
     fcsDataKMean.bestKMean.clusters)
+
   // cluster and parameters names for 2d plot
   //def clusterForPlot(fcsParsed: FCSParserFull, kMeanR: KMeansResult): (List[EllipseClusterId], Array[String]) = {
   def clusterForPlot(): (List[EllipseClusterId], Array[String]) = {
@@ -92,21 +95,141 @@ class FCSOutput(textSegmentMap: Map[String, String],
         clusterEllipseMatForPlot.col(indexY).toArray.max + abs(clusterEllipseMatForPlot.col(indexY).toArray.max) * .05)
       xyplot(clusterEllipseMatForPlot ->
         (0 until (clusterEllipseMatForPlot.numCols / 3)).map(x => line(xCol = x * 3, yCol = x * 3 + 1, colorCol = x * 3 + 2,
-          color = DiscreteColors(clusterListParam._1.length - 1))).toList)(
+          color = DiscreteColors(clusterNumber - 1))).toList)(
         xlim = xMinMax, ylim = yMinMax,
         extraLegend = clusterListParam4Plot._1.map(_.clusterId).toArray.sorted.map(
           x =>
             (x + 1).toString -> PointLegend(shape = Shape.rectangle(0, 0, 1, 1), //x._1 + 1 for starting cluster nb with 1
-              color = DiscreteColors(clusterListParam._1.length - 1)(x.toDouble))),
+              color = DiscreteColors(clusterNumber - 1)(x.toDouble))),
         xlab = clusterListParam._2(c1), ylab = clusterListParam._2(c2)
       )
     }
     sequence(projections.toList, TableLayout(4))
   }
 
-//continue to add method to class
+  // 2D scatter plots
+  //  def kMeanFCSPlot2D(fcsParsed: FCSParserFull, kMeanR: KMeansResult, excludeCluster: Array[Int] = Array())
+  def kMeanFCSPlot2D(excludeCluster: Array[Int] = Array(), excludeParam: Array[Int] = Array())
+  : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
+    val keepIndex = (0 until clusters.length).
+      filter(x => (!excludeCluster.contains(clusters(x).toArray.head))).toArray
+    val dataSubFCS = dataMat.row(keepIndex)
+    //val subKMeanR = KMeansResult(
+    //  clusters = clusters.filter(x => !(excludeCluster.contains(x))),
+    //  means = fcsDataKMean.bestKMean.means
+    //)
+    val subClusters = clusters.filter(x => !(excludeCluster.contains(x)))
+    val param4Plot = takenParam.indices.filter(x => !excludeParam.contains(x))
+    val projections = param4Plot.combinations(2).map { g =>
+      val c1 = g(0)
+      val c2 = g(1)
+      print(c1 + " x " + c2 + "        \r")
+      val xMinMaxFCSComp = Option(dataSubFCS.col(c1).toArray.min, dataSubFCS.col(c1).toArray.max)
+      val yMinMaxFCSComp = Option(dataSubFCS.col(c2).toArray.min, dataSubFCS.col(c2).toArray.max)
+      val col1 = dataSubFCS.col(c1)
+      val col2 = dataSubFCS.col(c2)
+      xyplot(
+        Mat(col1, col2, subClusters.map(_.toDouble)) -> point(
+          labelText = false, size = 4.0 / log10(clusters.length),
+          color = DiscreteColors(clusterNumber - 1)))(
+        xlim = xMinMaxFCSComp, ylim = yMinMaxFCSComp,
+        extraLegend = subClusters.toArray.distinct.sorted.map(
+          x =>
+            (x + 1).toString -> PointLegend(shape = Shape.rectangle(0, 0, 1, 1), //x._1 + 1 for starting cluster nb with 1
+              color = DiscreteColors(clusterNumber - 1)(x.toDouble))),
+          xlab = clusterListParam._2(c1), ylab = clusterListParam._2(c2)
+      )
+    }
+    sequence(projections.toList, TableLayout(4))
+  }
+  // 2D scatter Grid plots
+  //def kMeanFCSPlot2DGrid(fcsParsed: FCSParserFull, kMeanR: KMeansResult, grid2D: Int, excludeCluster: Array[Int] = Array())
+  def kMeanFCSPlot2DGrid(grid2D: Int, excludeCluster: Array[Int] = Array(), excludeParam: Array[Int] = Array())
+  : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
+
+    val keepIndex = (0 until clusters.length).
+      filter(x => (!excludeCluster.contains(clusters(x).toArray.head))).toArray
+    val dataSubFCS = dataMat.row(keepIndex)
+    val subClusters = clusters.filter(x => !(excludeCluster.contains(x)))
+    val param4Plot = takenParam.indices.filter(x => !excludeParam.contains(x))
+    val projections = param4Plot.combinations(2).map { g =>
+      val c1 = g(0)
+      val c2 = g(1)
+      print(c1 + " x " + c2 + "        \r")
+      val xMin = dataSubFCS.col(c1).toArray.min
+      val xMax = dataSubFCS.col(c1).toArray.max
+      val yMin = dataSubFCS.col(c2).toArray.min
+      val yMax = dataSubFCS.col(c2).toArray.max
+      val gridX = grid2D.toDouble / (xMax - xMin)
+      val gridY = grid2D.toDouble / (yMax - yMin)
+      val xMinMaxFCSComp = Option(xMin, xMax)
+      val yMinMaxFCSComp = Option(yMin, yMax)
+      val array2DCluster = dataSubFCS.col(c1).toArray.zip(dataSubFCS.col(c2).toArray).zip(subClusters.map(_.toDouble).toArray).
+        map(x => (x._1._1, x._1._2, x._2))
+      val gridGroupArray = array2DCluster.groupBy(x => floor((x._1 - xMin) * gridX) * grid2D + floor((x._2 - yMin) * gridY)).map(_._2.head)
+      val mat4Plot = Mat(gridGroupArray.map(_._1).toArray, gridGroupArray.map(_._2).toArray, gridGroupArray.map(_._3).toArray)
+      xyplot(
+        mat4Plot -> point(
+          labelText = false, size = 4.0 / log10(gridGroupArray.toArray.length),
+          color = DiscreteColors(clusterNumber - 1)))(
+        xlim = xMinMaxFCSComp, ylim = yMinMaxFCSComp,
+        extraLegend = clusters.toArray.distinct.sorted.map(
+          x =>
+            (x + 1).toString -> PointLegend(shape = Shape.rectangle(0, 0, 1, 1), //x._1 + 1 for starting cluster nb with 1
+              color = DiscreteColors(clusterNumber - 1)(x.toDouble))),
+        xlab = clusterListParam._2(c1), ylab = clusterListParam._2(c2)
+      )
+    }
+    sequence(projections.toList, TableLayout(4))
+  }
+  // 2d plots of kmean cluster centers
+  //  def kMeanFCSPlotClusters2D(fcsParsed: FCSParserFull, kMeanR: KMeansResult, excludeCluster: Array[Int] = Array())
+  def kMeanFCSPlotClusters2D(excludeCluster: Array[Int] = Array(), excludeParam: Array[Int] = Array())
+  : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
+    val keepIndex = (0 until clusters.length).
+      filter(x => (!excludeCluster.contains(clusters(x).toArray.head))).toArray
+    val dataSubFCS = dataMat.row(keepIndex)
+    val clusterSize = clusters.toArray.groupBy(x => x).map(x => (x._1, x._2.length)).
+      filter(x => (!excludeCluster.contains(x._2))).toList.sortBy(_._1) //strange, to be checked
+    //val clusterMean = means.zipWithIndex.filter(x => (!excludeCluster.contains(x._2)))
+    val param4Plot = takenParam.indices.filter(x => !excludeParam.contains(x))
+    val projections = param4Plot.combinations(2).map { g =>
+      val c1 = (g(0))
+      val c2 = (g(1))
+      print(c1 + " x " + c2 + "       " + "\r")
+      val xMinMaxFCSComp = Option(dataSubFCS.col(c1).toArray.min, dataSubFCS.col(c1).toArray.max)
+      val yMinMaxFCSComp = Option(dataSubFCS.col(c2).toArray.min, dataSubFCS.col(c2).toArray.max)
+
+      // to be checked... use clusterListParam...
+      val col1 = (0 until clusterNumber).filter(clIndex => !excludeCluster.contains(clIndex)).
+        map(clIndex => clusterListParam._1.filter(x => x.clusterId ==clIndex).head.cluster.mean(c1)).toArray
+      val col2 = (0 until clusterNumber).filter(clIndex => !excludeCluster.contains(clIndex)).
+        map(clIndex => clusterListParam._1.filter(x => x.clusterId ==clIndex).head.cluster.mean(c2)).toArray
+
+      val totalSize = clusterSize.map(_._2.toDouble).sum
+      xyplot(
+        Mat(Vec(col1), Vec(col2),
+          Vec(clusterSize.map(x => x._1.toDouble).toArray),
+          Vec(clusterSize.map(x => 10 * log10(x._2.toDouble) / log10(totalSize.toDouble)).toArray)) ->
+          point(
+            labelText = false,
+            color = DiscreteColors(clusterNumber - 1)))(
+        xlim = xMinMaxFCSComp, ylim = yMinMaxFCSComp,
+        extraLegend = clusterSize.toArray.map(
+          x =>
+            (x._1 + 1).toString -> PointLegend(shape = Shape.rectangle(0, 0, 1, 1), //x._1 + 1 for starting cluster nb with 1
+              color = DiscreteColors(clusterNumber - 1)(x._1.toDouble))),
+        xlab = clusterListParam._2(c1), ylab = clusterListParam._2(c2)
+      )
+    }
+    sequence(projections.toList, TableLayout(4))
+  }
+
+  //continue to add tree methods to class
+
 
 }
+
 // methods for output
 object FCSOutput {
 
@@ -411,7 +534,7 @@ object FCSOutput {
     val errCluster = clusterListParam._1.
       filter(clId => (!excludeCluster.contains(clId.clusterId) && (
         (clId.cluster.size == 1) ||
-        (clId.cluster.zeroVarIndex.filter(zeroVar => !excludeParam.contains(zeroVar)).length > 0))))
+          (clId.cluster.zeroVarIndex.filter(zeroVar => !excludeParam.contains(zeroVar)).length > 0))))
     if (errCluster.length > 0) throw new ClusterEllipse.EllipseException(errCluster)
     val keepParam = (0 until clusterListParam._1.head.cluster.mean.length).filter(i => !excludeParam.contains(i))
     val clusterList4Tree = clusterListParam._1.filter(clId => !excludeCluster.contains(clId.clusterId)).
@@ -422,23 +545,23 @@ object FCSOutput {
   }
 
   def networkKmeanClustPlot2D(paramName: Array[String], // length of paramName = length of cluster means, parameter coudl be excluded in treeKmeanClust
-                           treeArrow: List[ClusterEllipse.ArrowEllipseCluster], excludeParam: Array[Int] = Array())
+                              treeArrow: List[ClusterEllipse.ArrowEllipseCluster], excludeParam: Array[Int] = Array())
   : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
     val matArrow4Plot = Mat(treeArrow.length, (paramName.length) * 2 + 1,
       treeArrow.
         flatMap(x => Array(x.source.cluster.mean, x.target.cluster.mean, Array(x.source.clusterId.toDouble + 1))).flatMap(x => x).
         toArray)
-    val distinctCluster = treeArrow.flatMap(x=> List(x.source,x.target)).distinct
-    val matCluster4Plot = Mat(distinctCluster.length,paramName.length+1,
-      distinctCluster.flatMap(x=> Array(x.cluster.mean,Array(x.clusterId.toDouble+1))).flatMap(x => x).toArray)
-    val projections = paramName.indices.combinations(2).map{ g =>
+    val distinctCluster = treeArrow.flatMap(x => List(x.source, x.target)).distinct
+    val matCluster4Plot = Mat(distinctCluster.length, paramName.length + 1,
+      distinctCluster.flatMap(x => Array(x.cluster.mean, Array(x.clusterId.toDouble + 1))).flatMap(x => x).toArray)
+    val projections = paramName.indices.combinations(2).map { g =>
       val cx = (g(0))
       val cy = (g(1))
       val c2x = g(0) + paramName.length
       val c2y = g(1) + paramName.length
       val overCol = (paramName.length) * 2 + 1
       print(cx + " x " + cy + "       " + "\r")
-      val xMinMaxFCSComp : Option[(Double,Double)]= Option(matCluster4Plot.col(Array(cx)).toArray.min - abs(matCluster4Plot.col(Array(cx)).toArray.min) * .05,
+      val xMinMaxFCSComp: Option[(Double, Double)] = Option(matCluster4Plot.col(Array(cx)).toArray.min - abs(matCluster4Plot.col(Array(cx)).toArray.min) * .05,
         matCluster4Plot.col(Array(cx)).toArray.max + abs(matCluster4Plot.col(Array(cx)).toArray.max) * .05)
       val yMinMaxFCSComp = Option(matCluster4Plot.col(Array(cy)).toArray.min - abs(matCluster4Plot.col(Array(cy)).toArray.min) * .05,
         matCluster4Plot.col(Array(cy)).toArray.max + abs(matCluster4Plot.col(Array(cy)).toArray.max) * .05)
@@ -447,7 +570,7 @@ object FCSOutput {
         (matCluster4Plot -> point(xCol = cx, yCol = cy, colorCol = (paramName.length),
           sizeCol = overCol, shapeCol = overCol, errorTopCol = overCol, errorBottomCol = overCol,
           valueText = true, color = Color.BLACK, labelFontSize = 1 fts)
-        ))(xlim = xMinMaxFCSComp, ylim = yMinMaxFCSComp,
+          ))(xlim = xMinMaxFCSComp, ylim = yMinMaxFCSComp,
         xlab = paramName(g(0)),
         ylab = paramName(g(1))
       )
