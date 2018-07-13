@@ -190,7 +190,7 @@ class FCSOutput(textSegmentMap: Map[String, String],
       filter(x => (!excludeCluster.contains(clusters(x).toArray.head))).toArray
     val dataSubFCS = dataMat.row(keepIndex)
     val clusterSize = clusters.toArray.groupBy(x => x).map(x => (x._1, x._2.length)).
-      filter(x => (!excludeCluster.contains(x._2))).toList.sortBy(_._1) //strange, to be checked
+      filter(x => (!excludeCluster.contains(x._1))).toList.sortBy(_._1) //strange, to be checked
     //val clusterMean = means.zipWithIndex.filter(x => (!excludeCluster.contains(x._2)))
     val param4Plot = takenParam.indices.filter(x => !excludeParam.contains(x))
     val projections = param4Plot.combinations(2).map { g =>
@@ -463,7 +463,7 @@ object FCSOutput {
       filter(x => (!excludeCluster.contains(fcsDataKMean.bestKMean.clusters(x).toArray.head))).toArray
     val dataSubFCS = fcsDataKMean.dataMat.row(keepIndex)
     val clusterSize = fcsDataKMean.bestKMean.clusters.toArray.groupBy(x => x).map(x => (x._1, x._2.length)).
-      filter(x => (!excludeCluster.contains(x._2))).toList.sortBy(_._1)
+      filter(x => (!excludeCluster.contains(x._1))).toList.sortBy(_._1)
     val clusterMean = fcsDataKMean.bestKMean.means.zipWithIndex.filter(x => (!excludeCluster.contains(x._2)))
     val param4Plot = fcsDataKMean.bestKMean.means.head.toArray.indices.filter(x => !excludeParam.contains(x))
     val projections = param4Plot.combinations(2).map { g =>
