@@ -136,6 +136,7 @@ object Main extends App {
               "- Scatter with virtual (g)rid, lighter than scatter, pdf file\n" +
               "- (c)luster center, pdf file \n" +
               "- (e)llipse or potatoes, easy to cook pdf file\n" +
+              "- cluster center (a)nd ellipse\n " +
               "- (t)ree of cluster, nice organic pdf file\n" +
               "- (n)etwork of cluster, avoiding a poor cluster to be alone, pdf file\n? ") match {
               case "c" => {
@@ -153,6 +154,18 @@ object Main extends App {
                 }
                 if (ellipsePdf != null)
                   FCSOutput.plotKSeqToPdf(ellipsePdf, outPdf)
+              }
+              case "a" => {
+                if (bestClusterList == null) bestClusterList = FCSOutput.clusterForPlot(fcsDataKMean)
+                val outPdf = scala.io.StdIn.readLine("Ellipse and center file: ") + ".pdf"
+                val ellipseCenterPdf = try (FCSOutput.kMeanFCSPlotClusterEllipse2D(fcsDataKMean,bestClusterList, removeCluster, removeParam)) catch {
+                  case ex: ClusterEllipse.EllipseException => {
+                    println(ex.errMessage());
+                    null
+                  }
+                }
+                if (ellipseCenterPdf != null)
+                  FCSOutput.plotKSeqToPdf(ellipseCenterPdf, outPdf)
               }
               case "t" => {
                 if (bestClusterList == null) bestClusterList = FCSOutput.clusterForPlot(fcsDataKMean)

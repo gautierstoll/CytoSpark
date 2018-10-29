@@ -474,3 +474,7 @@ case class FCSDataKMean(textSegmentMap: Map[String, String], nbEvent: Int,
 
   def writeToFile: Unit = {} // to be continued, with also alternative constructor from file
 }
+
+case class FCSKMean(textSegmentMap: Map[String, String], nbEvent: Int,
+                     takenParam: scala.collection.immutable.IndexedSeq[Int], meanCol: Array[Double],
+                     sdCol: Array[Double], euclidKResult: ParArray[(List[Double], KMeansResult)]) {}
