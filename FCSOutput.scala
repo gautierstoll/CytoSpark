@@ -235,18 +235,18 @@ object FCSOutput {
 
   // cluster and parameters names for 2d plot
   //def clusterForPlot(fcsParsed: FCSParserFull, kMeanR: KMeansResult): (List[EllipseClusterId], Array[String]) = {
-  def clusterForPlot(fcsDataKMean: FCSDataKMean): (List[EllipseClusterId], Array[String]) = {
-    val clusterList = fcsDataKMean.bestKMean.clusters.toSeq.distinct.toParArray.map(clusterId => {
-      val indexId = fcsDataKMean.bestKMean.clusters.toSeq.zipWithIndex.filter(x => x._1 == clusterId).map(_._2)
-      val dataMat = fcsDataKMean.dataMat.row(indexId.toArray)
+  def clusterForPlot(fcsDataFinalKMean: FCSDataFinalKMean): (List[EllipseClusterId], Array[String]) = {
+    val clusterList = fcsDataFinalKMean.bestKMean.clusters.toSeq.distinct.toParArray.map(clusterId => {
+      val indexId = fcsDataFinalKMean.bestKMean.clusters.toSeq.zipWithIndex.filter(x => x._1 == clusterId).map(_._2)
+      val dataMat = fcsDataFinalKMean.dataMat.row(indexId.toArray)
       ClusterEllipse.EllipseClusterId(ClusterEllipse.EllipseCluster(indexId.length,
         dataMat.cols.map(x => breeze.stats.mean(x.toArray)).toArray,
         covmat(new DenseMatrix(dataMat.numCols, dataMat.numRows, dataMat.toArray).t)
       ), clusterId)
     }).toList
-    val labelParam = fcsDataKMean.takenParam.map(param =>
-      try fcsDataKMean.textSegmentMap("$P" + param + "S") catch {
-        case _: Throwable => fcsDataKMean.textSegmentMap("$P" + param + "N")
+    val labelParam = fcsDataFinalKMean.takenParam.map(param =>
+      try fcsDataFinalKMean.textSegmentMap("$P" + param + "S") catch {
+        case _: Throwable => fcsDataFinalKMean.textSegmentMap("$P" + param + "N")
       }
     ).toArray
     (clusterList, labelParam)
@@ -308,16 +308,16 @@ object FCSOutput {
 
   // 2D scatter plots
   //  def kMeanFCSPlot2D(fcsParsed: FCSParserFull, kMeanR: KMeansResult, excludeCluster: Array[Int] = Array())
-  def kMeanFCSPlot2D(fcsDataKMean: FCSDataKMean, excludeCluster: Array[Int] = Array(), excludeParam: Array[Int] = Array())
+  def kMeanFCSPlot2D(fcsDataFinalKMean: FCSDataFinalKMean, excludeCluster: Array[Int] = Array(), excludeParam: Array[Int] = Array())
   : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
-    val keepIndex = (0 until fcsDataKMean.bestKMean.clusters.length).
-      filter(x => (!excludeCluster.contains(fcsDataKMean.bestKMean.clusters(x).toArray.head))).toArray
-    val dataSubFCS = fcsDataKMean.dataMat.row(keepIndex)
+    val keepIndex = (0 until fcsDataFinalKMean.bestKMean.clusters.length).
+      filter(x => (!excludeCluster.contains(fcsDataFinalKMean.bestKMean.clusters(x).toArray.head))).toArray
+    val dataSubFCS = fcsDataFinalKMean.dataMat.row(keepIndex)
     val subKMeanR = KMeansResult(
-      clusters = fcsDataKMean.bestKMean.clusters.filter(x => !(excludeCluster.contains(x))),
-      means = fcsDataKMean.bestKMean.means
+      clusters = fcsDataFinalKMean.bestKMean.clusters.filter(x => !(excludeCluster.contains(x))),
+      means = fcsDataFinalKMean.bestKMean.means
     )
-    val param4Plot = fcsDataKMean.takenParam.indices.filter(x => !excludeParam.contains(x))
+    val param4Plot = fcsDataFinalKMean.takenParam.indices.filter(x => !excludeParam.contains(x))
     val projections = param4Plot.combinations(2).map { g =>
       val c1 = g(0)
       val c2 = g(1)
@@ -328,18 +328,18 @@ object FCSOutput {
       val col2 = dataSubFCS.col(c2)
       xyplot(
         Mat(col1, col2, subKMeanR.clusters.map(_.toDouble)) -> point(
-          labelText = false, size = 4.0 / log10(fcsDataKMean.bestKMean.clusters.length),
-          color = DiscreteColors(fcsDataKMean.bestKMean.means.length - 1)))(
+          labelText = false, size = 4.0 / log10(fcsDataFinalKMean.bestKMean.clusters.length),
+          color = DiscreteColors(fcsDataFinalKMean.bestKMean.means.length - 1)))(
         xlim = xMinMaxFCSComp, ylim = yMinMaxFCSComp,
         extraLegend = subKMeanR.clusters.toArray.distinct.sorted.map(
           x =>
             (x + 1).toString -> PointLegend(shape = Shape.rectangle(0, 0, 1, 1), //x._1 + 1 for starting cluster nb with 1
-              color = DiscreteColors(fcsDataKMean.bestKMean.means.length - 1)(x.toDouble))),
-        xlab = try fcsDataKMean.textSegmentMap("$P" + fcsDataKMean.takenParam(c1) + "S") catch {
-          case _: Throwable => fcsDataKMean.textSegmentMap("$P" + fcsDataKMean.takenParam(c1) + "N")
+              color = DiscreteColors(fcsDataFinalKMean.bestKMean.means.length - 1)(x.toDouble))),
+        xlab = try fcsDataFinalKMean.textSegmentMap("$P" + fcsDataFinalKMean.takenParam(c1) + "S") catch {
+          case _: Throwable => fcsDataFinalKMean.textSegmentMap("$P" + fcsDataFinalKMean.takenParam(c1) + "N")
         },
-        ylab = try fcsDataKMean.textSegmentMap("$P" + fcsDataKMean.takenParam(c2) + "S") catch {
-          case _: Throwable => fcsDataKMean.textSegmentMap("$P" + fcsDataKMean.takenParam(c2) + "N")
+        ylab = try fcsDataFinalKMean.textSegmentMap("$P" + fcsDataFinalKMean.takenParam(c2) + "S") catch {
+          case _: Throwable => fcsDataFinalKMean.textSegmentMap("$P" + fcsDataFinalKMean.takenParam(c2) + "N")
         }
       )
     }
@@ -348,17 +348,17 @@ object FCSOutput {
 
   // 2D scatter Grid plots
   //def kMeanFCSPlot2DGrid(fcsParsed: FCSParserFull, kMeanR: KMeansResult, grid2D: Int, excludeCluster: Array[Int] = Array())
-  def kMeanFCSPlot2DGrid(fcsDataKMean: FCSDataKMean, grid2D: Int, excludeCluster: Array[Int] = Array(), excludeParam: Array[Int] = Array())
+  def kMeanFCSPlot2DGrid(fcsDataFinalKMean: FCSDataFinalKMean, grid2D: Int, excludeCluster: Array[Int] = Array(), excludeParam: Array[Int] = Array())
   : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
 
-    val keepIndex = (0 until fcsDataKMean.bestKMean.clusters.length).
-      filter(x => (!excludeCluster.contains(fcsDataKMean.bestKMean.clusters(x).toArray.head))).toArray
-    val dataSubFCS = fcsDataKMean.dataMat.row(keepIndex)
+    val keepIndex = (0 until fcsDataFinalKMean.bestKMean.clusters.length).
+      filter(x => (!excludeCluster.contains(fcsDataFinalKMean.bestKMean.clusters(x).toArray.head))).toArray
+    val dataSubFCS = fcsDataFinalKMean.dataMat.row(keepIndex)
     val subKMeanR = KMeansResult(
-      clusters = fcsDataKMean.bestKMean.clusters.filter(x => !(excludeCluster.contains(x))),
-      means = fcsDataKMean.bestKMean.means
+      clusters = fcsDataFinalKMean.bestKMean.clusters.filter(x => !(excludeCluster.contains(x))),
+      means = fcsDataFinalKMean.bestKMean.means
     )
-    val param4Plot = fcsDataKMean.takenParam.indices.filter(x => !excludeParam.contains(x))
+    val param4Plot = fcsDataFinalKMean.takenParam.indices.filter(x => !excludeParam.contains(x))
     val projections = param4Plot.combinations(2).map { g =>
       val c1 = g(0)
       val c2 = g(1)
@@ -378,94 +378,35 @@ object FCSOutput {
       xyplot(
         mat4Plot -> point(
           labelText = false, size = 4.0 / log10(gridGroupArray.toArray.length),
-          color = DiscreteColors(fcsDataKMean.bestKMean.means.length - 1)))(
+          color = DiscreteColors(fcsDataFinalKMean.bestKMean.means.length - 1)))(
         xlim = xMinMaxFCSComp, ylim = yMinMaxFCSComp,
         extraLegend = subKMeanR.clusters.toArray.distinct.sorted.map(
           x =>
             (x + 1).toString -> PointLegend(shape = Shape.rectangle(0, 0, 1, 1), //x._1 + 1 for starting cluster nb with 1
-              color = DiscreteColors(fcsDataKMean.bestKMean.means.length - 1)(x.toDouble))),
-        xlab = try fcsDataKMean.textSegmentMap("$P" + fcsDataKMean.takenParam(c1) + "S") catch {
-          case _: Throwable => fcsDataKMean.textSegmentMap("$P" + fcsDataKMean.takenParam(c1) + "N")
+              color = DiscreteColors(fcsDataFinalKMean.bestKMean.means.length - 1)(x.toDouble))),
+        xlab = try fcsDataFinalKMean.textSegmentMap("$P" + fcsDataFinalKMean.takenParam(c1) + "S") catch {
+          case _: Throwable => fcsDataFinalKMean.textSegmentMap("$P" + fcsDataFinalKMean.takenParam(c1) + "N")
         },
-        ylab = try fcsDataKMean.textSegmentMap("$P" + fcsDataKMean.takenParam(c2) + "S") catch {
-          case _: Throwable => fcsDataKMean.textSegmentMap("$P" + fcsDataKMean.takenParam(c2) + "N")
+        ylab = try fcsDataFinalKMean.textSegmentMap("$P" + fcsDataFinalKMean.takenParam(c2) + "S") catch {
+          case _: Throwable => fcsDataFinalKMean.textSegmentMap("$P" + fcsDataFinalKMean.takenParam(c2) + "N")
         }
       )
     }
     sequence(projections.toList, TableLayout(4))
   }
 
-  //2d ellipse plots, based on KMeanResults, minmax from data, not very useful and deprecated
-
-  def kMeanFCSPlotEllipseFromData2D(fcsParsed: FCSParserFull, kMeanR: KMeansResult, excludeCluster: Array[Int] = Array(),
-                                    excludeParam: Array[Int] = Array())
-  : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
-    def ellipsePoints2DVar(xData: Array[Double], yData: Array[Double], segmentNb: Int): org.saddle.Mat[Double] = {
-      def ellipse2DVarCurve(data1: Array[Double], data2: Array[Double]): (Double => (Double, Double)) = {
-        val svdCov = svd(covmat(DenseMatrix(data1, data2).t))
-        val Vt = svdCov.Vt
-        val S = svdCov.S
-        (angle => {
-          val vectEllipse = Vt * DenseVector(pow(S(0), .5) * cos(angle), pow(S(1), .5) * sin(angle))
-          (vectEllipse(0) + breeze.stats.mean(data1), vectEllipse(1) + breeze.stats.mean(data2))
-        })
-      }
-
-      val ellipseD1D2 = ellipse2DVarCurve(xData, yData)
-      Mat(segmentNb + 1, 2, (0 to (segmentNb)).map(x => x.toDouble / segmentNb * 2 * Pi).map(x => ellipseD1D2(x)).flatMap(x => Array(x._1, x._2)).toArray)
-    }
-
-    val keepIndex = (0 until kMeanR.clusters.length).
-      filter(x => (!excludeCluster.contains(kMeanR.clusters(x).toArray.head))).toArray
-    val dataSubFCS = fcsParsed.dataTakenMatFCS.row(keepIndex)
-    val subKMeanR = KMeansResult(
-      clusters = kMeanR.clusters.filter(x => !(excludeCluster.contains(x))),
-      means = kMeanR.means
-    )
-    val param4Plot = fcsParsed.takenParam.indices.filter(x => !excludeParam.contains(x))
-    val projections = param4Plot.combinations(2).map { g =>
-      val c1 = g(0)
-      val c2 = g(1)
-      print(c1 + " x " + c2 + "     \r")
-      val xMinMaxFCSComp = Option(dataSubFCS.col(c1).toArray.min, dataSubFCS.col(c1).toArray.max)
-      val yMinMaxFCSComp = Option(dataSubFCS.col(c2).toArray.min, dataSubFCS.col(c2).toArray.max)
-      val col1 = dataSubFCS.col(c1)
-      val col2 = dataSubFCS.col(c2)
-      // full matrix, with x and y points for ellipse, with color
-      val clusterEllipseMatForPlot = Mat(subKMeanR.clusters.toSeq.distinct.flatMap(clusterIndex =>
-        (ellipsePoints2DVar(col1.toSeq.zip(subKMeanR.clusters.toSeq).filter(x => (x._2 == clusterIndex)).map(x => x._1).toArray,
-          col2.toSeq.zip(subKMeanR.clusters.toSeq).filter(x => (x._2 == clusterIndex)).map(x => x._1).toArray, 100).cols.toList :::
-          List(Vec(Array.fill(100 + 1)(clusterIndex.toDouble))))).toArray)
-      xyplot(clusterEllipseMatForPlot ->
-        (0 until (clusterEllipseMatForPlot.numCols / 3)).map(x => line(xCol = x * 3, yCol = x * 3 + 1, colorCol = x * 3 + 2,
-          color = DiscreteColors(kMeanR.means.length - 1))).toList)(
-        xlim = xMinMaxFCSComp, ylim = yMinMaxFCSComp,
-        extraLegend = subKMeanR.clusters.toArray.distinct.sorted.map(
-          x =>
-            (x + 1).toString -> PointLegend(shape = Shape.rectangle(0, 0, 1, 1), //x._1 + 1 for starting cluster nb with 1
-              color = DiscreteColors(kMeanR.means.length - 1)(x.toDouble))),
-        xlab = try fcsParsed.fcsTextSegmentMap("$P" + fcsParsed.takenParam(c1) + "S") catch {
-          case _: Throwable => fcsParsed.fcsTextSegmentMap("$P" + fcsParsed.takenParam(c1) + "N")
-        },
-        ylab = try fcsParsed.fcsTextSegmentMap("$P" + fcsParsed.takenParam(c2) + "S") catch {
-          case _: Throwable => fcsParsed.fcsTextSegmentMap("$P" + fcsParsed.takenParam(c2) + "N")
-        }
-      )
-    }
-    sequence(projections.toList, TableLayout(4))
-  }
 
   // 2d plots of kmean cluster centers
   //  def kMeanFCSPlotClusters2D(fcsParsed: FCSParserFull, kMeanR: KMeansResult, excludeCluster: Array[Int] = Array())
-  def kMeanFCSPlotClusters2D(fcsDataKMean: FCSDataKMean, excludeCluster: Array[Int] = Array(), excludeParam: Array[Int] = Array())
+  def kMeanFCSPlotClusters2D(fcsDataFinalKMean: FCSDataFinalKMean, excludeCluster: Array[Int] = Array(), excludeParam: Array[Int] = Array())
   : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
-    val keepIndex = (0 until fcsDataKMean.bestKMean.clusters.length).
-      filter(x => (!excludeCluster.contains(fcsDataKMean.bestKMean.clusters(x).toArray.head))).toArray
-    val dataSubFCS = fcsDataKMean.dataMat.row(keepIndex)
-    val clusterSize = fcsDataKMean.bestKMean.clusters.toArray.groupBy(x => x).map(x => (x._1, x._2.length)).
+    val keepIndex = (0 until fcsDataFinalKMean.bestKMean.clusters.length).
+      filter(x => (!excludeCluster.contains(fcsDataFinalKMean.bestKMean.clusters(x).toArray.head))).toArray
+    val dataSubFCS = fcsDataFinalKMean.dataMat.row(keepIndex)
+    val clusterSize = fcsDataFinalKMean.bestKMean.clusters.toArray.groupBy(x => x).map(x => (x._1, x._2.length)).
       filter(x => (!excludeCluster.contains(x._1))).toList.sortBy(_._1)
-    val clusterMean = fcsDataKMean.bestKMean.means.zipWithIndex.filter(x => (!excludeCluster.contains(x._2)))
-    val param4Plot = fcsDataKMean.bestKMean.means.head.toArray.indices.filter(x => !excludeParam.contains(x))
+    val clusterMean = fcsDataFinalKMean.bestKMean.means.zipWithIndex.filter(x => (!excludeCluster.contains(x._2)))
+    val param4Plot = fcsDataFinalKMean.bestKMean.means.head.toArray.indices.filter(x => !excludeParam.contains(x))
     val projections = param4Plot.combinations(2).map { g =>
       val c1 = (g(0))
       val c2 = (g(1))
@@ -474,9 +415,9 @@ object FCSOutput {
       val yMinMaxFCSComp = Option(dataSubFCS.col(c2).toArray.min, dataSubFCS.col(c2).toArray.max)
       // unormalized cluster centers
       val col1 = clusterMean.map(x => x._1.raw(c1)).toArray.
-        map(x => x * fcsDataKMean.sdCol(c1) + fcsDataKMean.meanCol(c1))
+        map(x => x * fcsDataFinalKMean.sdCol(c1) + fcsDataFinalKMean.meanCol(c1))
       val col2 = clusterMean.map(x => x._1.raw(c2)).toArray.
-        map(x => x * fcsDataKMean.sdCol(c2) + fcsDataKMean.meanCol(c2))
+        map(x => x * fcsDataFinalKMean.sdCol(c2) + fcsDataFinalKMean.meanCol(c2))
       val totalSize = clusterSize.map(_._2.toDouble).sum
       xyplot(
         Mat(Vec(col1), Vec(col2),
@@ -484,17 +425,17 @@ object FCSOutput {
           Vec(clusterSize.map(x => 10 * log10(x._2.toDouble) / log10(totalSize.toDouble)).toArray)) ->
           point(
             labelText = false,
-            color = DiscreteColors(fcsDataKMean.bestKMean.means.length - 1)))(
+            color = DiscreteColors(fcsDataFinalKMean.bestKMean.means.length - 1)))(
         xlim = xMinMaxFCSComp, ylim = yMinMaxFCSComp,
         extraLegend = clusterSize.toArray.map(
           x =>
             (x._1 + 1).toString -> PointLegend(shape = Shape.rectangle(0, 0, 1, 1), //x._1 + 1 for starting cluster nb with 1
-              color = DiscreteColors(fcsDataKMean.bestKMean.means.length - 1)(x._1.toDouble))),
-        xlab = try fcsDataKMean.textSegmentMap("$P" + fcsDataKMean.takenParam(c1) + "S") catch {
-          case _: Throwable => fcsDataKMean.textSegmentMap("$P" + fcsDataKMean.takenParam(c1) + "N")
+              color = DiscreteColors(fcsDataFinalKMean.bestKMean.means.length - 1)(x._1.toDouble))),
+        xlab = try fcsDataFinalKMean.textSegmentMap("$P" + fcsDataFinalKMean.takenParam(c1) + "S") catch {
+          case _: Throwable => fcsDataFinalKMean.textSegmentMap("$P" + fcsDataFinalKMean.takenParam(c1) + "N")
         },
-        ylab = try fcsDataKMean.textSegmentMap("$P" + fcsDataKMean.takenParam(c2) + "S") catch {
-          case _: Throwable => fcsDataKMean.textSegmentMap("$P" + fcsDataKMean.takenParam(c2) + "N")
+        ylab = try fcsDataFinalKMean.textSegmentMap("$P" + fcsDataFinalKMean.takenParam(c2) + "S") catch {
+          case _: Throwable => fcsDataFinalKMean.textSegmentMap("$P" + fcsDataFinalKMean.takenParam(c2) + "N")
         }
       )
     }
@@ -502,7 +443,7 @@ object FCSOutput {
   }
 
   // plot ellipse with centers
-  def kMeanFCSPlotClusterEllipse2D(fcsDataKMean: FCSDataKMean,clusterListParam: (List[EllipseClusterId], Array[String]),
+  def kMeanFCSPlotClusterEllipse2D(fcsDataFinalKMean: FCSDataFinalKMean,clusterListParam: (List[EllipseClusterId], Array[String]),
                             excludeCluster: Array[Int] = Array(), excludeParam: Array[Int] = Array())
   : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
     def ellipsePoints2DVar(cluster: EllipseCluster, index1: Int, index2: Int, segmentNb: Int): org.saddle.Mat[Double] = {
@@ -527,12 +468,12 @@ object FCSOutput {
         (clId.cluster.zeroVarIndex.filter(zeroVar => !excludeParam.contains(zeroVar)).length > 0))
     if (errCluster.length > 0) throw new ClusterEllipse.EllipseException(errCluster)
     // Centers
-    val keepIndex = (0 until fcsDataKMean.bestKMean.clusters.length).
-      filter(x => (!excludeCluster.contains(fcsDataKMean.bestKMean.clusters(x).toArray.head))).toArray
-    val dataSubFCS = fcsDataKMean.dataMat.row(keepIndex)
-    val clusterSize = fcsDataKMean.bestKMean.clusters.toArray.groupBy(x => x).map(x => (x._1, x._2.length)).
+    val keepIndex = (0 until fcsDataFinalKMean.bestKMean.clusters.length).
+      filter(x => (!excludeCluster.contains(fcsDataFinalKMean.bestKMean.clusters(x).toArray.head))).toArray
+    val dataSubFCS = fcsDataFinalKMean.dataMat.row(keepIndex)
+    val clusterSize = fcsDataFinalKMean.bestKMean.clusters.toArray.groupBy(x => x).map(x => (x._1, x._2.length)).
       filter(x => (!excludeCluster.contains(x._1))).toList.sortBy(_._1)
-    val clusterMean = fcsDataKMean.bestKMean.means.zipWithIndex.filter(x => (!excludeCluster.contains(x._2)))
+    val clusterMean = fcsDataFinalKMean.bestKMean.means.zipWithIndex.filter(x => (!excludeCluster.contains(x._2)))
 
     val param4Plot = clusterListParam._2.indices.filter(x => !excludeParam.contains(x))
     val projections = param4Plot.combinations(2).map { g =>
@@ -549,9 +490,9 @@ object FCSOutput {
       val yMinMax = Option(clusterEllipseMatForPlot.col(indexY).toArray.min - abs(clusterEllipseMatForPlot.col(indexY).toArray.min) * .05,
         clusterEllipseMatForPlot.col(indexY).toArray.max + abs(clusterEllipseMatForPlot.col(indexY).toArray.max) * .05)
       val col1 = clusterMean.map(x => x._1.raw(c1)).toArray.
-        map(x => x * fcsDataKMean.sdCol(c1) + fcsDataKMean.meanCol(c1))
+        map(x => x * fcsDataFinalKMean.sdCol(c1) + fcsDataFinalKMean.meanCol(c1))
       val col2 = clusterMean.map(x => x._1.raw(c2)).toArray.
-        map(x => x * fcsDataKMean.sdCol(c2) + fcsDataKMean.meanCol(c2))
+        map(x => x * fcsDataFinalKMean.sdCol(c2) + fcsDataFinalKMean.meanCol(c2))
       val totalSize = clusterSize.map(_._2.toDouble).sum
       xyplot((clusterEllipseMatForPlot -> // ellipse
         (0 until (clusterEllipseMatForPlot.numCols / 3)).map(x => line(xCol = x * 3, yCol = x * 3 + 1, colorCol = x * 3 + 2,
@@ -561,7 +502,7 @@ object FCSOutput {
           Vec(clusterSize.map(x => 10 * log10(x._2.toDouble) / log10(totalSize.toDouble)).toArray)) ->
           point(
             labelText = false,
-            color = DiscreteColors(fcsDataKMean.bestKMean.means.length - 1))))( // centers
+            color = DiscreteColors(fcsDataFinalKMean.bestKMean.means.length - 1))))( // centers
         xlim = xMinMax, ylim = yMinMax,
         extraLegend = clusterListParam4Plot._1.map(_.clusterId).toArray.sorted.map(
           x =>
