@@ -21,7 +21,6 @@ import stat.sparse.SMat
 import scala.collection.parallel.mutable._
 
 object ClusterEllipse {
-
   class EllipseException(listExceptionClId: List[EllipseClusterId]) extends Exception() {
     val sizeId = listExceptionClId.filter(clId => clId.cluster.size == 1).map(clId => (clId.cluster.size, clId.clusterId))
     val zeroVarId = listExceptionClId.filter(clId => ((clId.cluster.ellipseMat == null) && (clId.cluster.size > 1))).
@@ -61,6 +60,9 @@ object ClusterEllipse {
       map(x => x / (sizeFus)) - (DenseMatrix(meanFus).t) * DenseMatrix(meanFus)).map(x => x * sizeFus / (sizeFus - 1))
     EllipseCluster(sizeFus, meanFus, varFus)
   }
+
+  def distEllipseCluster(point : Array[Double],ellipseCluster : EllipseCluster) : Double = {
+    (DenseMatrix(point)*(ellipseCluster.ellipseMat)*(DenseMatrix(point).t)).apply(0,0)}
 
   def distEllipseCluster(clusterA: EllipseCluster, clusterB: EllipseCluster): Double = {
     val minVect = inv(clusterA.ellipseMat + clusterB.ellipseMat) *

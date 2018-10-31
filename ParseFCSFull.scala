@@ -19,6 +19,7 @@ import stat.kmeans._
 import stat.sparse.SMat
 import stat.sparse.SVec
 import scala.collection.parallel.mutable._
+import ClusterEllipse._
 import org.saddle.io.CsvImplicits._
 
 //Companion object
@@ -203,7 +204,8 @@ class FCSParserFull(fcsInput: FCSInputFull) {
   private val firstDataSegment = fcsTextSegmentMap("$BEGINDATA").toList.filter(_ != ' ').mkString("").toInt
   private val lastDataSegment = fcsTextSegmentMap("$ENDDATA").toList.filter(_ != ' ').mkString("").toInt
   private val nbPar: Int = fcsTextSegmentMap("$PAR").toInt
-  val nbEvent: Int = fcsTextSegmentMap("$TOT").toArray.filter(_ != ' ').mkString("").toInt
+  //val nbEvent: Int = fcsTextSegmentMap("$TOT").toArray.filter(_ != ' ').mkString("").toInt
+  val nbEvent: Int = fcsInput.takeNbEvent
   private val bitToFloat: List[Int] = (1 to nbPar).
     map(x => "$P".concat(x.toString).concat("B")).map(x => fcsTextSegmentMap(x).toInt).toList
 
@@ -464,8 +466,22 @@ class FCSParserFull(fcsInput: FCSInputFull) {
       listMeanKMeans(dataInitK.rows, kMeanFCSInput.nbRows, kMeanFCSInput.iterations, stepK)
     })
   }
-  // def fcsDataFinalClusterFromEllipse(clusterListParam: (List[EllipseClusterId], Array[String])) : FCSDataFinalKMean = {}
-
+  def fcsDataFinalClusterFromEllipse(clusterListParam: (List[EllipseClusterId], Array[String])) : KMeansResult = {
+    // test that param is compatible with ellipse cluster, compare clusterLisParam._2 with takenParam
+    val cluster4KMean = (0 until nbEvent).map(event => {
+      val elDistIdList = clusterListParam._1.map(elClusterId =>
+        (ClusterEllipse.distEllipseCluster(dataTakenMatFCS.row(event), elClusterId.cluster), elClusterId.clusterId))
+      val minDist = min(elDistIdList.map(_._1))
+      elDistIdList.filter(x => (x._1 == minDist)).head._2
+    })
+    val mean4KMean = cluster4KMean.zipWithIndex.groupBy(_._1).map(x => (x._1,x._2.map(y=> y._2))).
+      map(clusterIdIndices => (0 until takenParam.length).map(param => dataNormalizedTakenMatFCS.col(param).toArray).
+        map(col => {
+          val size4Mean = clusterIdIndices._2.length
+          clusterIdIndices._2.map(index => col(index)).toArray.sum / size4Mean
+        })).map(x=> Vec(x.toArray)).toArray
+    new KMeansResult(Vec(cluster4KMean.toArray),mean4KMean)
+  }
 }
 
 // careful: clusters are based on normalized data.
@@ -486,5 +502,4 @@ case class FCSDataFinalKMean(textSegmentMap : Map[String, String],nbEvent: Int,
     fcsDataParKMean.dataMat,
     fcsDataParKMean.euclidKResult.toArray.
       filter(y => (y._1.last == (fcsDataParKMean.euclidKResult.toArray.map(x => x._1.last).min))).head._2)
-  
 }
