@@ -137,7 +137,7 @@ object Main extends App {
               "- Scatter with virtual (g)rid, lighter than scatter, pdf file\n" +
               "- (c)luster center, pdf file \n" +
               "- (e)llipse or potatoes, easy to cook pdf file\n" +
-              "- cluster center (a)nd ellipse\n " +
+              "- cluster center (a)nd ellipse pdf file\n " +
               "- (t)ree of cluster, nice organic pdf file\n" +
               "- (n)etwork of cluster, avoiding a poor cluster to be alone, pdf file\n? ") match {
               case "c" => {
