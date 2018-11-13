@@ -158,6 +158,9 @@ class FCSHeader(fcsNameInput: String) {
   }
 }
 
+case class TransformParam(index : Int,appFunction : Double => Double,offsetX : Double = 0) {def getValue(x:Double):Double = appFunction(x-offsetX) }
+case class FCSInputFull2(file: String, takeParameter: List[TransformParam], takeNbEvent: Int) {}
+
 // structure for FCSParserFull, takeParameters are indices (start at 1), log ? , min for Log
 case class FCSInputFull(file: String, takeParameter: List[(Int, Boolean, Double)], takeNbEvent: Int) {}
 
