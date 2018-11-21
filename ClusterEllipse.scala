@@ -34,19 +34,33 @@ object ClusterEllipse {
     }
   }
 
-  case class EllipseCluster(size: Int, mean: Array[Double], varMat: DenseMatrix[Double]) {
-    val ellipseMat = try (inv(varMat)) catch {
-      case _: Throwable => {
-        println("Impossible to invert matrix, may cause problems for ellipse/tree")
-        println("Data size: " + size)
-        println(varMat)
-        null
+  case class EllipseCluster(size: Int, mean: Array[Double], varMat: DenseMatrix[Double], giveEllispeMat: DenseMatrix[Double] = null) {
+    val ellipseMat = if (giveEllispeMat == null) {
+      try (inv(varMat)) catch {
+        case _: Throwable => {
+          println("Impossible to invert matrix, may cause problems for ellipse/tree")
+          println("Data size: " + size)
+          println(varMat)
+          null
+        }
       }
-    }
+    } else giveEllispeMat
     val zeroVarIndex = (0 until varMat.cols).filter(x => varMat(x, x) == 0)
   }
 
-  case class EllipseClusterId(cluster: EllipseCluster, clusterId: Int) {}
+  case class EllipseClusterId(cluster: EllipseCluster, clusterId: Int) {
+    def double2Hex(db : Double) : String = java.lang.Long.toHexString(java.lang.Double.doubleToRawLongBits(db)
+    var Name : String = clusterId.toString
+    def toHexString(paramNames : Array[String]): String = {
+      "Parameters=" + paramNames.mkString(":") + ";Name=" + Name + ";Size=" + cluster.size.toString +
+        "\nMeans=" + cluster.mean.map(x => double2Hex(x)).mkString(":") +
+        "\nvar=" + cluster.varMat.toArray.map(x => double2Hex(x)).mkString(":") +
+        "\nellispe=" + cluster.varMat.toArray.map(x => double2Hex(x)).mkString(":") +
+        "\n"
+    }
+  }
+
+  def hexStringToElClusterId(hxString : String)
 
   def fusionEllipseCluster(clusterA: EllipseCluster, clusterB: EllipseCluster): EllipseCluster = {
     val sizeFus = clusterA.size + clusterB.size
