@@ -60,7 +60,15 @@ object ClusterEllipse {
     }
   }
 
-  def hexStringToElClusterId(hxString : String)
+  def hexStringToElClusterIdParam(hxString : String ,id : Int) : (EllipseClusterId,Array[String]) = {
+    val arrayLines = hxString.split("\n")
+    val patternParam = """Parameters=([^;]*);""".r
+    val paramCatch = patternParam.findAllIn(arrayLines(0)).matchData.toArray
+    val parameters = if (paramCatch.length > 0) {paramCatch.head.group(1).split(":")} else {throw new MatchError("Do not find paramters")}
+    
+
+
+  }
 
   def fusionEllipseCluster(clusterA: EllipseCluster, clusterB: EllipseCluster): EllipseCluster = {
     val sizeFus = clusterA.size + clusterB.size
