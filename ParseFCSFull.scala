@@ -158,7 +158,9 @@ class FCSHeader(fcsNameInput: String) {
   }
 }
 
-case class TransformParam(index : Int,appFunction : Double => Double,offsetX : Double = 0) {def getValue(x:Double):Double = appFunction(x-offsetX) }
+// by convention, appFunction == null -> no tranformation, appFuction(x-min(x)+offset), if offset == null appFunction(x)
+case class TransformParam(index : Int,appFunction : Double => Double,offset : Double ) {}
+
 case class FCSInputFull2(file: String, takeParameter: List[TransformParam], takeNbEvent: Int) {}
 
 // structure for FCSParserFull, takeParameters are indices (start at 1), log ? , min for Log
@@ -505,4 +507,7 @@ case class FCSDataFinalKMean(textSegmentMap : Map[String, String],nbEvent: Int,
     fcsDataParKMean.dataMat,
     fcsDataParKMean.euclidKResult.toArray.
       filter(y => (y._1.last == (fcsDataParKMean.euclidKResult.toArray.map(x => x._1.last).min))).head._2)
+}
+object FCSDataFinalKMean {
+  def apply(fcsDataParKMean : FCSDataParKMean) = {new FCSDataFinalKMean(fcsDataParKMean)}
 }

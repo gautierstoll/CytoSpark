@@ -32,28 +32,26 @@ import scala.tools.nsc.transform.patmat.Lit
 
 object Main extends App {
   println("FCS analyzer, by Gautier Stoll, version 0.9")
-  println("Written in Scala because it is fun. Hope it is also fast.")
   println("Code: https://github.com/gautierstoll/CytoSpark, version 0.9. Because I am not a professional, I think my code is quite ugly...")
-  val maxSeedParralel = 10000
+  println("Written in Scala because it is fun. Hope it is also fast.")
+
+  val maxSeedParralel = 10000 //limit to make it handlable by the user
+
   def takeIntFromLine(askingPromp: String, defaultVal: Int, minVal: Int): Int = {
-    (scala.io.StdIn.readLine(askingPromp) match {
+    val takenInt = scala.io.StdIn.readLine(askingPromp) match {
       case "" => defaultVal
       case x: String => try {
         x.toInt
       } catch {
         case _: Throwable => println("Take default " + defaultVal); defaultVal
       }
-    })
-    match {
-      case y: Int => if (y < minVal) {
-        println("Take min " + minVal)
-        minVal
-      }
-      else y
     }
+    if (takenInt < minVal) {
+      println("Take min " + minVal); minVal
+    } else takenInt
   }
 
-  def takeListInt(askingPromp: String, minVal: Int, maxVal: Int): List[Int] = {
+  def takeListInt(askingPromp: String, minVal: Int, maxVal: Int): List[Int] = { //seperated by comma, remove unreadable Int
     scala.io.StdIn.readLine(askingPromp).
       toCharArray.filter(_ != ' ').mkString("").split(",").
       map(x => try (x.toInt) catch {
@@ -70,22 +68,36 @@ object Main extends App {
     takeListInt(askingListParam, 1, fcsDataParKMean.takenParam.length)
   }
 
-  var loopFile = true
-  var fcsFile: String = ""
-  while (loopFile) {
-    var filePromp = true
-    while (filePromp) {
-      fcsFile = scala.io.StdIn.readLine("FCS File: ")
+  def askFileOrNull():String = {
+      val fcsFile = scala.io.StdIn.readLine("FCS File: ")
       if (!Files.exists(Paths.get(fcsFile))) {
         println("File " + fcsFile + " do not exist")
         val retry = scala.io.StdIn.readLine("Retry? y/[n] ")
-        if (retry == "Y") filePromp = true else {
-          println("Bye Bye");
-          System.exit(0)
-        }
+        if (retry == "Y") askFileOrNull() else null
       }
-      else filePromp = false
-    }
+      else fcsFile
+  }
+
+
+  var loopFile = true
+  var fcsFile: String = ""
+  while (loopFile) {
+//    var filePromp = true
+//    while (filePromp) {
+//      fcsFile = scala.io.StdIn.readLine("FCS File: ")
+//      if (!Files.exists(Paths.get(fcsFile))) {
+//        println("File " + fcsFile + " do not exist")
+//        val retry = scala.io.StdIn.readLine("Retry? y/[n] ")
+//        if (retry == "Y") filePromp = true else {
+//          println("Bye Bye");
+//          System.exit(0)
+//        }
+//      }
+//      else filePromp = false
+//    }
+    fcsFile = askFileOrNull()
+    if (fcsFile == null) {println("Bye Bye \n");System.exit(0)}
+
     val fcsHeader = new FCSHeader(fcsFile)
     val inputParser = fcsHeader.getOnlineFCSInput
     val parsedFCS = new FCSParserFull(inputParser)
