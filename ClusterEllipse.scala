@@ -104,6 +104,19 @@ object ClusterEllipse {
     val clusterVarMat = try new DenseMatrix[Double](parameters.length, parameters.length, clusterVar) catch {
       case _: Throwable => throw new MatchError("Wrong dimension of var matrix")
     }
+
+    val ellipseName = """Ellipse=([^;]*);""".r
+    val ellipseCatch = ellipseName.findAllIn(arrayLines(3)).matchData.toArray
+    val clusterEllipse : Array[Double] = if (ellipseCatch.length > 0) {
+      try ellipseCatch.head.group(1).split(":").map(s => java.lang.Double.valueOf(s).toDouble) catch {
+        case _: Throwable => throw new MatchError("Cannot produce Means double")
+      }
+    }
+    else throw new MatchError("Do not find Means")
+    val clusterEllipseMat = try new DenseMatrix[Double](parameters.length, parameters.length, clusterEllipse) catch {
+      case _: Throwable => throw new MatchError("Wrong dimension of var matrix")
+    }
+    (EllipseClusterId(EllipseCluster(clusterSize,clusterMeans,clusterVarMat,clusterEllipseMat),id),parameters)
   }
 
 
