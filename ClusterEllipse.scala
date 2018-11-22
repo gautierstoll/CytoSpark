@@ -54,8 +54,8 @@ object ClusterEllipse {
     def toHexString(paramNames : Array[String]): String = {
       "Parameters=" + paramNames.mkString(":") + ";Name=" + nameId + ";Size=" + cluster.size.toString +
         "\nMeans=" + cluster.mean.map(x => double2Hex(x)).mkString(":") +
-        "\nvar=" + cluster.varMat.toArray.map(x => double2Hex(x)).mkString(":") +
-        "\nellispe=" + cluster.varMat.toArray.map(x => double2Hex(x)).mkString(":") +
+        "\nVar=" + cluster.varMat.toArray.map(x => double2Hex(x)).mkString(":") +
+        "\nEllispe=" + cluster.varMat.toArray.map(x => double2Hex(x)).mkString(":") +
         "\n"
     }
   }
@@ -64,20 +64,20 @@ object ClusterEllipse {
     val arrayLines = hxString.split("\n")
     val patternParam = """Parameters=([^;]*);""".r
     val paramCatch = patternParam.findAllIn(arrayLines(0)).matchData.toArray
-    val parameters = if (paramCatch.length > 0) {
+    val parameters : Array[String] = if (paramCatch.length > 0) {
       paramCatch.head.group(1).split(":")
     } else throw new MatchError("Do not find Paramteers")
 
     val patternName = """Name=([^;]*);""".r
     val nameCatch = patternName.findAllIn(arrayLines(0)).matchData.toArray
-    val nameId = if (nameCatch.length > 0) {
+    val nameId : String = if (nameCatch.length > 0) {
       nameCatch.head.group(1)
     } else throw new MatchError("Do not find Size")
 
 
     val sizeName = """Size=([^;]*);""".r
     val sizeCatch = sizeName.findAllIn(arrayLines(0)).matchData.toArray
-    val clusterSize = if (sizeCatch.length > 0) {
+    val clusterSize : Int = if (sizeCatch.length > 0) {
       try sizeCatch.head.group(1).toInt catch {
         case _: Throwable => throw new MatchError("Cannot produce size int")
       }
@@ -85,13 +85,25 @@ object ClusterEllipse {
     else throw new MatchError("Do not find Size")
 
     val meansName = """Means=([^;]*);""".r
-    val meansCatch = sizeName.findAllIn(arrayLines(1)).matchData.toArray
-    val clusterMeans = if (meansCatch.length > 0) {
-      try meansCatch.head.group(1).split(":").map(s => java.lang.Double.valueOf(s)) catch {
+    val meansCatch = meansName.findAllIn(arrayLines(1)).matchData.toArray
+    val clusterMeans : Array[Double] = if (meansCatch.length > 0) {
+      try meansCatch.head.group(1).split(":").map(s => java.lang.Double.valueOf(s).toDouble) catch {
         case _: Throwable => throw new MatchError("Cannot produce Means double")
       }
     }
     else throw new MatchError("Do not find Means")
+
+    val varName = """Var=([^;]*);""".r
+    val varCatch = varName.findAllIn(arrayLines(2)).matchData.toArray
+    val clusterVar : Array[Double] = if (varCatch.length > 0) {
+      try varCatch.head.group(1).split(":").map(s => java.lang.Double.valueOf(s).toDouble) catch {
+        case _: Throwable => throw new MatchError("Cannot produce Means double")
+      }
+    }
+    else throw new MatchError("Do not find Means")
+    val clusterVarMat = try new DenseMatrix[Double](parameters.length, parameters.length, clusterVar) catch {
+      case _: Throwable => throw new MatchError("Wrong dimension of var matrix")
+    }
   }
 
 
