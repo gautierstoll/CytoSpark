@@ -49,10 +49,10 @@ object ClusterEllipse {
   }
 
   case class EllipseClusterId(cluster: EllipseCluster, clusterId: Int) {
-    def double2Hex(db : Double) : String = java.lang.Long.toHexString(java.lang.Double.doubleToRawLongBits(db)
-    var Name : String = clusterId.toString
+    def double2Hex(db : Double) : String = java.lang.Double.toHexString(db)
+    var nameId : String = clusterId.toString
     def toHexString(paramNames : Array[String]): String = {
-      "Parameters=" + paramNames.mkString(":") + ";Name=" + Name + ";Size=" + cluster.size.toString +
+      "Parameters=" + paramNames.mkString(":") + ";Name=" + nameId + ";Size=" + cluster.size.toString +
         "\nMeans=" + cluster.mean.map(x => double2Hex(x)).mkString(":") +
         "\nvar=" + cluster.varMat.toArray.map(x => double2Hex(x)).mkString(":") +
         "\nellispe=" + cluster.varMat.toArray.map(x => double2Hex(x)).mkString(":") +
@@ -64,11 +64,36 @@ object ClusterEllipse {
     val arrayLines = hxString.split("\n")
     val patternParam = """Parameters=([^;]*);""".r
     val paramCatch = patternParam.findAllIn(arrayLines(0)).matchData.toArray
-    val parameters = if (paramCatch.length > 0) {paramCatch.head.group(1).split(":")} else {throw new MatchError("Do not find paramters")}
-    
+    val parameters = if (paramCatch.length > 0) {
+      paramCatch.head.group(1).split(":")
+    } else throw new MatchError("Do not find Paramteers")
+
+    val patternName = """Name=([^;]*);""".r
+    val nameCatch = patternName.findAllIn(arrayLines(0)).matchData.toArray
+    val nameId = if (nameCatch.length > 0) {
+      nameCatch.head.group(1)
+    } else throw new MatchError("Do not find Size")
 
 
+    val sizeName = """Size=([^;]*);""".r
+    val sizeCatch = sizeName.findAllIn(arrayLines(0)).matchData.toArray
+    val clusterSize = if (sizeCatch.length > 0) {
+      try sizeCatch.head.group(1).toInt catch {
+        case _: Throwable => throw new MatchError("Cannot produce size int")
+      }
+    }
+    else throw new MatchError("Do not find Size")
+
+    val meansName = """Means=([^;]*);""".r
+    val meansCatch = sizeName.findAllIn(arrayLines(1)).matchData.toArray
+    val clusterMeans = if (meansCatch.length > 0) {
+      try meansCatch.head.group(1).split(":").map(s => java.lang.Double.valueOf(s)) catch {
+        case _: Throwable => throw new MatchError("Cannot produce Means double")
+      }
+    }
+    else throw new MatchError("Do not find Means")
   }
+
 
   def fusionEllipseCluster(clusterA: EllipseCluster, clusterB: EllipseCluster): EllipseCluster = {
     val sizeFus = clusterA.size + clusterB.size
