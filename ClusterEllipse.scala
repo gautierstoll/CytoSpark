@@ -34,6 +34,13 @@ object ClusterEllipse {
     }
   }
 
+  def ExportEllipseIdList(ellipseFile : String,listEllipse : List[EllipseClusterId],paramNames: Array[String]) = {
+    val file = new File(ellipseFile+".elcl")
+    val bw = new BufferedWriter(new FileWriter(file))
+    bw.write(listEllipse.map(_.toHexString(paramNames)).mkString("\n"))
+    bw.close()
+  }
+
   case class EllipseCluster(size: Int, mean: Array[Double], varMat: DenseMatrix[Double], giveEllispeMat: DenseMatrix[Double] = null) {
     val ellipseMat = if (giveEllispeMat == null) {
       try (inv(varMat)) catch {

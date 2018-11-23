@@ -95,6 +95,10 @@ object Main extends App {
         case "e" => {
           if (bestClusterList == null) {
             bestClusterList = FCSOutput.clusterForPlot(fcsDataFinalKMean); println("Compute ellipses\n")
+            if (scala.io.StdIn.readLine("Write ellipses to file? [n],y \n")=="y") {
+              val file = scala.io.StdIn.readLine("file: ")
+              ClusterEllipse.ExportEllipseIdList(file,bestClusterList._1,bestClusterList._2)
+            }
           }
           val outPdf = scala.io.StdIn.readLine("Ellipse file: ") + ".pdf"
           val ellipsePdf = try (FCSOutput.kMeanFCSPlotEllipse2D(bestClusterList, removeCluster, removeParam)) catch {
