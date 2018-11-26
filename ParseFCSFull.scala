@@ -60,7 +60,12 @@ object FCSParserFull {
 }
 
 // structure for kmean inputs of FCS
-case class KMeanFCSInput(clusterNb: Int = 5, nbRows: Int = 100, iterations: Int = 100, seedK: Int = 0) {}
+case class KMeanFCSInput(clusterNb: Int = 5, takeRows: Array[Int] = (0 until 100).toArray, iterations: Int = 100, seedK: Int = 0) {}
+object KMeanFCSInput {
+  def apply(clusterNb: Int, nbRows: Int, iterations: Int, seedK: Int) : KMeanFCSInput =
+    new KMeanFCSInput(clusterNb, (0 until nbRows).toArray, iterations: Int, seedK: Int)
+}
+
 
 // case class KMeanEuclid() is missing, should do it once
 
@@ -117,7 +122,7 @@ class FCSHeader(fcsNameInput: String) {
   println("Size of data: " + nbEvent * nbPar)
 
   // method for constructing FCSInputFull from prompt
-  def getOnlineFCSInput: FCSInputFull = {
+  def getOnlineFCSInput_old: FCSInputFull_old = {
     val tParam = (1 to nbPar).map(param => {
       val paramName = fcsTextSegmentMap("$P" + param + "N") +
         (if (fcsTextSegmentMap.contains("$P" + param + "S")) " -> " + fcsTextSegmentMap("$P" + param + "S") else "")
@@ -154,17 +159,61 @@ class FCSHeader(fcsNameInput: String) {
         }
       }
     }
-    FCSInputFull(fcsFile, tParam.toList, tNbEvent)
+    FCSInputFull_old(fcsFile, tParam.toList, tNbEvent)
+  }
+
+  // method for constructing FCSInputFull from prompt
+  def getOnlineFCSInput: FCSInputFull = {
+    val tParam: List[TransformParam] = (1 to nbPar).map(param => {
+      val paramName = fcsTextSegmentMap("$P" + param + "N") +
+        (if (fcsTextSegmentMap.contains("$P" + param + "S")) " -> " + fcsTextSegmentMap("$P" + param + "S") else "")
+      println()
+      print(paramName)
+      if (!(scala.io.StdIn.readLine(", Take [y]/n? ") == "n")) {
+        (scala.io.StdIn.readLine("Apply function: [Nothing], (l)og or (h)yperbolic sine? ")) match {
+          case "l" => {
+            val oVal = scala.io.StdIn.readLine ("Offset value (default 1.0): ") match {
+              case "" => 1.0
+              case resp: String => try {
+                resp.toDouble
+              } catch {
+                case _: Throwable => {
+                  println("Take 1.0"); 1.0
+                }
+              }
+            }
+            TransformParam(param, (x => log10(x)) : (Double => Double), if (oVal <= 0.0 ) {println("Take 1.0");1.0
+            } else oVal)
+          }
+          case "h" => {TransformParam(param, (x => asinh(x) ):(Double => Double), NaN)}
+          case _: String => TransformParam(param, null, NaN)
+        }
+      } else null
+    }).filter(_ != null).toList
+
+    val tNbEvent = scala.io.StdIn.readLine("Nb of events [" + nbEvent + "]: ") match {
+      case "" => nbEvent
+      case res: String => try {
+        res.toInt
+      } catch {
+        case _: Throwable => {
+          println("Take " + nbEvent);
+          nbEvent
+        }
+      }
+    }
+    FCSInputFull(fcsFile, tParam, tNbEvent)
   }
 }
 
+// index start at 1
 // by convention, appFunction == null -> no tranformation, appFuction(x-min(x)+offset), if offset == null appFunction(x)
-case class TransformParam(index : Int,appFunction : Double => Double,offset : Double ) {}
+case class TransformParam(index : Int, appFunction : (Double => Double),offset : Double ) {}
 
-case class FCSInputFull2(file: String, takeParameter: List[TransformParam], takeNbEvent: Int) {}
+case class FCSInputFull(file: String, takeParameter: List[TransformParam], takeNbEvent: Int) {}
 
 // structure for FCSParserFull, takeParameters are indices (start at 1), log ? , min for Log
-case class FCSInputFull(file: String, takeParameter: List[(Int, Boolean, Double)], takeNbEvent: Int) {}
+case class FCSInputFull_old(file: String, takeParameter: List[(Int, Boolean, Double)], takeNbEvent: Int) {}
 
 class FCSParserFull(fcsInput: FCSInputFull) {
   private val fcsFile = new String(fcsInput.file)
@@ -214,7 +263,7 @@ class FCSParserFull(fcsInput: FCSInputFull) {
   private val bitToFloat: List[Int] = (1 to nbPar).
     map(x => "$P".concat(x.toString).concat("B")).map(x => fcsTextSegmentMap(x).toInt).toList
 
-  val takenParam: scala.collection.immutable.IndexedSeq[Int] = fcsInput.takeParameter.map(_._1).toIndexedSeq //carefull, start at 1
+  val takenParam: scala.collection.immutable.IndexedSeq[Int] = fcsInput.takeParameter.map(_.index).toIndexedSeq //carefull, start at 1
 
   for (i <- binaryFileIndex until firstDataSegment) yield fcsFileBuffer.read
   binaryFileIndex = firstDataSegment
@@ -273,36 +322,38 @@ class FCSParserFull(fcsInput: FCSInputFull) {
       else dataTakenArrayFCS(event * nbParam + (param._2)) = lineArray(param._1 - 1)
     })
   })
-  println("Take log and normalize")
-  private val parralelParamLogMin = fcsInput.takeParameter.zipWithIndex.map(x => (x._2, x._1._2, x._1._3)) // (index,log?,min if log)
-  private val mean_sdCol: Array[(Int, Double, Double)] = parralelParamLogMin.map(paramLogMin => {
+  println("Apply function and normalize")
+
+  // parallelize?
+  private val mean_sdCol: Array[(Int, Double, Double)] = fcsInput.takeParameter.zipWithIndex.map(takeParamZipindex => {
     val nbParam = takenParam.length
     var tmpSum = 0d
     var tmpSumSq = 0d
-    if (paramLogMin._2) {
-      val tmpMin = (0 until fcsInput.takeNbEvent).map(event => dataTakenArrayFCS(event * nbParam + paramLogMin._1)).min
+    if (takeParamZipindex._1.appFunction != null) {
+      val tmpMin = if (!takeParamZipindex._1.offset.isNaN)
+        (0 until fcsInput.takeNbEvent).map(event => dataTakenArrayFCS(event * nbParam + takeParamZipindex._2)).min - takeParamZipindex._1.offset
+      else 0
       (0 until fcsInput.takeNbEvent).foreach(event => {
-        val logValue = log10(dataTakenArrayFCS(event * nbParam + paramLogMin._1) - tmpMin +
-          pow(10, paramLogMin._3))
-        tmpSum += logValue
-        tmpSumSq += logValue * logValue
-        dataTakenArrayFCS(event * nbParam + paramLogMin._1) = logValue
+        val functionValue = takeParamZipindex._1.appFunction(dataTakenArrayFCS(event * nbParam + takeParamZipindex._2) - tmpMin)
+        tmpSum += functionValue
+        tmpSumSq += functionValue * functionValue
+        dataTakenArrayFCS(event * nbParam + takeParamZipindex._2) = functionValue
       })
     } else {
       (0 until fcsInput.takeNbEvent).foreach(event => {
-        val nonLogValue = dataTakenArrayFCS(event * nbParam + paramLogMin._1)
-        tmpSum += nonLogValue
-        tmpSumSq += nonLogValue * nonLogValue
+        val noFunctionValue = dataTakenArrayFCS(event * nbParam + takeParamZipindex._2)
+        tmpSum += noFunctionValue
+        tmpSumSq += noFunctionValue * noFunctionValue
       })
     }
     val eventMean: Double = tmpSum / fcsInput.takeNbEvent
     val eventSD: Double = pow((tmpSumSq / fcsInput.takeNbEvent - eventMean * eventMean), .5) //bias variance
     for (event <- (0 until fcsInput.takeNbEvent)) {
-      dataNormalizedTakenArrayFCS(event * nbParam + paramLogMin._1) =
-        (dataTakenArrayFCS(event * nbParam + paramLogMin._1) - eventMean) / eventSD
+      dataNormalizedTakenArrayFCS(event * nbParam + takeParamZipindex._2) =
+        (dataTakenArrayFCS(event * nbParam + takeParamZipindex._2) - eventMean) / eventSD
     }
-    (paramLogMin._1, eventMean, eventSD)
-  }).toArray.sortBy(x => x._1)
+    (takeParamZipindex._2, eventMean, eventSD)
+  }).toArray.sortBy(x => x._1) // sort needed when parallelized
 
 
   val meanColTakenMap: Array[Double] = mean_sdCol.map(x => x._2)
@@ -322,10 +373,10 @@ class FCSParserFull(fcsInput: FCSInputFull) {
 
   // kmean clustering
   private def kmeanFCS(kMeanFCSInput: KMeanFCSInput): KMeansResult = {
-    val dataSubFCS = dataNormalizedTakenMatFCS.row((0 until kMeanFCSInput.nbRows).toArray)
+    val dataSubFCS = dataNormalizedTakenMatFCS.row(kMeanFCSInput.takeRows)
     val rand4K = new Random(kMeanFCSInput.seedK)
     val dataInitK = dataSubFCS.row((1 to kMeanFCSInput.clusterNb).
-      map(x => rand4K.nextInt(kMeanFCSInput.nbRows)).toArray)
+      map(x => rand4K.nextInt(kMeanFCSInput.takeRows.length)).toArray)
     kmeans.apply(dataSubFCS, dataInitK, kMeanFCSInput.iterations)
   }
 
@@ -348,11 +399,11 @@ class FCSParserFull(fcsInput: FCSInputFull) {
     }
 
     val rand4K = new Random(kMeanFCSInput.seedK)
-    val initDataIndex = rand4K.nextInt(kMeanFCSInput.nbRows)
+    val initDataIndex = rand4K.nextInt(kMeanFCSInput.takeRows.length)
     val clusterIndices = initClust(List(initDataIndex),
-      (0 until kMeanFCSInput.nbRows).filter(x => x != initDataIndex).toArray,
+      kMeanFCSInput.takeRows.filter(x => x != initDataIndex),
       kMeanFCSInput.clusterNb - 1, rand4K).toArray
-    kmeans.apply(dataNormalizedTakenMatFCS.row((0 until kMeanFCSInput.nbRows).toArray),
+    kmeans.apply(dataNormalizedTakenMatFCS.row(kMeanFCSInput.takeRows),
       dataNormalizedTakenMatFCS.row(clusterIndices), kMeanFCSInput.iterations)
   }
 
@@ -375,9 +426,9 @@ class FCSParserFull(fcsInput: FCSInputFull) {
     FCSDataParKMean(fcsTextSegmentMap, nbEvent, takenParam, meanColTakenMap, sdColTakenMap, dataTakenMatFCS,
       seedArrayK.map(seedKFromArray => {
         val rand4K = new Random(seedKFromArray)
-        val dataInitK = dataNormalizedTakenMatFCS.row((0 until kMeanFCSInput.nbRows).toArray).
-          row((1 to kMeanFCSInput.clusterNb).map(x => rand4K.nextInt(kMeanFCSInput.nbRows)).toArray)
-        val listEuclidRand = listEuclid(dataInitK.rows, kMeanFCSInput.nbRows, kMeanFCSInput.iterations, stepK)
+        val dataInitK = dataNormalizedTakenMatFCS.row(kMeanFCSInput.takeRows).
+          row((1 to kMeanFCSInput.clusterNb).map(x => rand4K.nextInt(kMeanFCSInput.takeRows.length)).toArray)
+        val listEuclidRand = listEuclid(dataInitK.rows, kMeanFCSInput.takeRows.length, kMeanFCSInput.iterations, stepK)
         print("Finish seed " + seedKFromArray + "\r")
         (listEuclidRand.map(x => x._1), listEuclidRand.last._2)
       }))
@@ -387,22 +438,22 @@ class FCSParserFull(fcsInput: FCSInputFull) {
   def kmeanFCSEuclidConvContinue(kMeanFCSInput: KMeanFCSInput, stepK: Int, previousEuclid: ParArray[(List[Double], KMeansResult)]):
   FCSDataParKMean = {
     //same inner function as above (not very clean...)
-    def listEuclid(initKMeans: IndexedSeq[Vec[Double]], nbRows: Int, iterations: Int, step: Int):
+    def listEuclid(initKMeans: IndexedSeq[Vec[Double]], takeRows: Array[Int], iterations: Int, step: Int):
     List[(Double, KMeansResult)] = {
       if (step == 0) Nil else {
         print("Step " + step + "\r")
-        val stepKMeans = kmeans.apply(dataNormalizedTakenMatFCS.row((0 until nbRows).toArray),
+        val stepKMeans = kmeans.apply(dataNormalizedTakenMatFCS.row(takeRows),
           Mat(initKMeans.length, initKMeans.head.length,
             initKMeans.flatMap(_.toArray).toArray), iterations)
-        (stepKMeans.clusters.toArray.zip(kmeans.matToSparse(dataNormalizedTakenMatFCS.row((0 until nbRows).toArray))).
-          map(x => kmeans.euclid(x._2, stepKMeans.means(x._1))).sum / nbRows / nbPar, stepKMeans) ::
-          listEuclid(stepKMeans.means, nbRows, iterations, step - 1)
+        (stepKMeans.clusters.toArray.zip(kmeans.matToSparse(dataNormalizedTakenMatFCS.row(takeRows))).
+          map(x => kmeans.euclid(x._2, stepKMeans.means(x._1))).sum / takeRows.length / nbPar, stepKMeans) ::
+          listEuclid(stepKMeans.means, takeRows, iterations, step - 1)
       }
     }
 
     new FCSDataParKMean(fcsTextSegmentMap, nbEvent, takenParam, meanColTakenMap, sdColTakenMap, dataTakenMatFCS,
       previousEuclid.map(euclid => {
-        val listEuclidNew = listEuclid(euclid._2.means, kMeanFCSInput.nbRows, kMeanFCSInput.iterations, stepK)
+        val listEuclidNew = listEuclid(euclid._2.means, kMeanFCSInput.takeRows, kMeanFCSInput.iterations, stepK)
         (euclid._1 ::: listEuclidNew.map(_._1), listEuclidNew.last._2)
       }))
   }
@@ -426,27 +477,27 @@ class FCSParserFull(fcsInput: FCSInputFull) {
       }
     }
 
-    def listEuclid(initKMeans: IndexedSeq[Vec[Double]], nbRows: Int, iterations: Int, step: Int):
+    def listEuclid(initKMeans: IndexedSeq[Vec[Double]], takeRows: Array[Int], iterations: Int, step: Int):
     List[(Double, KMeansResult)] = {
       if (step == 0) Nil else {
         println("Step " + step)
-        val stepKMeans = kmeans.apply(dataNormalizedTakenMatFCS.row((0 until nbRows).toArray),
+        val stepKMeans = kmeans.apply(dataNormalizedTakenMatFCS.row(takeRows),
           Mat(initKMeans.length, initKMeans.head.length,
             initKMeans.flatMap(_.toArray).toArray), iterations)
-        (stepKMeans.clusters.toArray.zip(kmeans.matToSparse(dataNormalizedTakenMatFCS.row((0 until nbRows).toArray))).
-          map(x => kmeans.euclid(x._2, stepKMeans.means(x._1))).sum / nbRows / nbPar, stepKMeans) ::
-          listEuclid(stepKMeans.means, nbRows, iterations, step - 1)
+        (stepKMeans.clusters.toArray.zip(kmeans.matToSparse(dataNormalizedTakenMatFCS.row(takeRows))).
+          map(x => kmeans.euclid(x._2, stepKMeans.means(x._1))).sum / takeRows.length / nbPar, stepKMeans) ::
+          listEuclid(stepKMeans.means, takeRows, iterations, step - 1)
       }
     }
     FCSDataParKMean(fcsTextSegmentMap, nbEvent, takenParam, meanColTakenMap, sdColTakenMap, dataTakenMatFCS,
     seedArrayK.map(seedKFromArray => {
       val rand4K = new Random(seedKFromArray)
-      val initDataIndex = rand4K.nextInt(kMeanFCSInput.nbRows)
+      val initDataIndex = rand4K.nextInt(kMeanFCSInput.takeRows.length)
       val clusterIndices = initClust(List(initDataIndex),
-        (0 until kMeanFCSInput.nbRows).filter(x => x != initDataIndex).toArray,
+        kMeanFCSInput.takeRows.filter(x => x != initDataIndex).toArray,
         kMeanFCSInput.clusterNb - 1, rand4K).toArray
       val listEuclidRand = listEuclid(dataNormalizedTakenMatFCS.row(clusterIndices).rows,
-        kMeanFCSInput.nbRows, kMeanFCSInput.iterations, stepK)
+        kMeanFCSInput.takeRows, kMeanFCSInput.iterations, stepK)
       (listEuclidRand.map(x => x._1), listEuclidRand.last._2)
     }))
   }
@@ -454,21 +505,21 @@ class FCSParserFull(fcsInput: FCSInputFull) {
   // kmean clustering, several steps and several attemps
   def kmeanFCSTestConv(kMeanFCSInput: KMeanFCSInput, stepK: Int, seedArrayK: Array[Int]):
   Array[List[IndexedSeq[Vec[Double]]]] = {
-    def listMeanKMeans(initKMeans: IndexedSeq[Vec[Double]], nbRows: Int, iterations: Int, step: Int)
+    def listMeanKMeans(initKMeans: IndexedSeq[Vec[Double]], takeRows: Array[Int], iterations: Int, step: Int)
     : List[IndexedSeq[Vec[Double]]] = {
       if (step == 0) Nil else {
-        val meanKMeans = kmeans.apply(dataNormalizedTakenMatFCS.row((0 until nbRows).toArray),
+        val meanKMeans = kmeans.apply(dataNormalizedTakenMatFCS.row(takeRows),
           Mat(initKMeans.length, initKMeans.head.length,
             initKMeans.flatMap(_.toArray).toArray), iterations).means
-        meanKMeans :: listMeanKMeans(meanKMeans, nbRows, iterations, step - 1)
+        meanKMeans :: listMeanKMeans(meanKMeans, takeRows, iterations, step - 1)
       }
     }
 
     seedArrayK.map(seedKFromArray => {
       val rand4K = new Random(seedKFromArray)
-      val dataInitK = dataNormalizedTakenMatFCS.row((0 until kMeanFCSInput.nbRows).toArray).
-        row((1 to kMeanFCSInput.clusterNb).map(x => rand4K.nextInt(kMeanFCSInput.nbRows)).toArray)
-      listMeanKMeans(dataInitK.rows, kMeanFCSInput.nbRows, kMeanFCSInput.iterations, stepK)
+      val dataInitK = dataNormalizedTakenMatFCS.row(kMeanFCSInput.takeRows).
+        row((1 to kMeanFCSInput.clusterNb).map(x => rand4K.nextInt(kMeanFCSInput.takeRows.length)).toArray)
+      listMeanKMeans(dataInitK.rows, kMeanFCSInput.takeRows, kMeanFCSInput.iterations, stepK)
     })
   }
   def fcsDataFinalClusterFromEllipse(clusterListParam: (List[EllipseClusterId], Array[String])) : KMeansResult = {
