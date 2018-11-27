@@ -122,7 +122,7 @@ class FCSHeader(fcsNameInput: String) {
   println("Size of data: " + nbEvent * nbPar)
 
   // method for constructing FCSInputFull from prompt
-  def getOnlineFCSInput_old: FCSInputFull_old = {
+ /* def getOnlineFCSInput_old: FCSInputFull_old = {
     val tParam = (1 to nbPar).map(param => {
       val paramName = fcsTextSegmentMap("$P" + param + "N") +
         (if (fcsTextSegmentMap.contains("$P" + param + "S")) " -> " + fcsTextSegmentMap("$P" + param + "S") else "")
@@ -160,7 +160,7 @@ class FCSHeader(fcsNameInput: String) {
       }
     }
     FCSInputFull_old(fcsFile, tParam.toList, tNbEvent)
-  }
+  }*/
 
   // method for constructing FCSInputFull from prompt
   def getOnlineFCSInput: FCSInputFull = {
@@ -324,8 +324,8 @@ class FCSParserFull(fcsInput: FCSInputFull) {
   })
   println("Apply function and normalize")
 
-  // parallelize?
-  private val mean_sdCol: Array[(Int, Double, Double)] = fcsInput.takeParameter.zipWithIndex.map(takeParamZipindex => {
+  // parallelize
+  private val mean_sdCol: Array[(Int, Double, Double)] = fcsInput.takeParameter.zipWithIndex.toParArray.map(takeParamZipindex => {
     val nbParam = takenParam.length
     var tmpSum = 0d
     var tmpSumSq = 0d
