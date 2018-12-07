@@ -153,8 +153,12 @@ object ClusterEllipse {
 
   case class ArrowEllipseCluster(source: EllipseClusterId, target: EllipseClusterId) {}
 
-  //careful: the treeEllipseCluster create a new fusion cluster with a maxId above the max of Ids. This could overload the Ids
-  // if the method is applied on a clusterCutList on which some cluster has been removed by another method
+  /**
+    * the treeEllipseCluster create a new fusion cluster with a maxId above the max of Ids. This could overload the Ids
+    * if the method is applied on a clusterCutList on which some cluster has been removed by another method
+    * @param clusterCutList
+    * @return
+    */
   def treeEllipseCluster(clusterCutList: List[EllipseClusterId]): List[ArrowEllipseCluster] = {
     val maxId = clusterCutList.map(x => x.clusterId).max
     val clusterCutListNoOne = clusterCutList.filter(elClId => (elClId.cluster.size > 1))
@@ -178,7 +182,11 @@ object ClusterEllipse {
     }
   }
 
-  // construct tree level by level, from initial cluster as leaves, not tested yet
+  /**
+    * construct tree level by level, from initial cluster as leaves, not tested yet
+    * @param clusterCutList
+    * @return
+    */
   def levelTreeEllipseCluster(clusterCutList: List[EllipseClusterId]): List[ArrowEllipseCluster] = {
     val maxId = clusterCutList.map(x => x.clusterId).max
     val clusterCutListNoOne = clusterCutList.filter(elClId => (elClId.cluster.size > 1))

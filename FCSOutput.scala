@@ -28,8 +28,12 @@ import org.saddle.io.CsvImplicits._
 
 object FCSOutput {
 
-  // cluster and parameters names for 2d plot
   //def clusterForPlot(fcsParsed: FCSParserFull, kMeanR: KMeansResult): (List[EllipseClusterId], Array[String]) = {
+  /**
+    *
+    * @param fcsDataFinalKMean
+    * @return cluster and parameters names for 2d plot
+    */
   def clusterForPlot(fcsDataFinalKMean: FCSDataFinalKMean): (List[EllipseClusterId], Array[String]) = {
     val clusterList = fcsDataFinalKMean.bestKMean.clusters.toSeq.distinct.toParArray.map(clusterId => {
       val indexId = fcsDataFinalKMean.bestKMean.clusters.toSeq.zipWithIndex.filter(x => x._1 == clusterId).map(_._2)
@@ -47,7 +51,13 @@ object FCSOutput {
     (clusterList, labelParam)
   }
 
-  // plot ellipse, from list of EllipseClusterId, minmax based on ellipses
+  /** plot ellipse, from list of EllipseClusterId, minmax based on ellipses
+    *
+    * @param clusterListParam
+    * @param excludeCluster
+    * @param excludeParam
+    * @return
+    */
   def kMeanFCSPlotEllipse2D(clusterListParam: (List[EllipseClusterId], Array[String]),
                             excludeCluster: Array[Int] = Array(), excludeParam: Array[Int] = Array())
   : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
@@ -101,8 +111,14 @@ object FCSOutput {
     sequence(projections.toList, TableLayout(4))
   }
 
-  // 2D scatter plots
   //  def kMeanFCSPlot2D(fcsParsed: FCSParserFull, kMeanR: KMeansResult, excludeCluster: Array[Int] = Array())
+  /** 2D scatter plots
+    *
+    * @param fcsDataFinalKMean
+    * @param excludeCluster
+    * @param excludeParam
+    * @return
+    */
   def kMeanFCSPlot2D(fcsDataFinalKMean: FCSDataFinalKMean, excludeCluster: Array[Int] = Array(), excludeParam: Array[Int] = Array())
   : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
     val keepIndex = (0 until fcsDataFinalKMean.bestKMean.clusters.length).
@@ -141,8 +157,15 @@ object FCSOutput {
     sequence(projections.toList, TableLayout(4))
   }
 
-  // 2D scatter Grid plots
   //def kMeanFCSPlot2DGrid(fcsParsed: FCSParserFull, kMeanR: KMeansResult, grid2D: Int, excludeCluster: Array[Int] = Array())
+  /** 2D scatter Grid plots
+    *
+    * @param fcsDataFinalKMean
+    * @param grid2D
+    * @param excludeCluster
+    * @param excludeParam
+    * @return
+    */
   def kMeanFCSPlot2DGrid(fcsDataFinalKMean: FCSDataFinalKMean, grid2D: Int, excludeCluster: Array[Int] = Array(), excludeParam: Array[Int] = Array())
   : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
 
@@ -190,9 +213,14 @@ object FCSOutput {
     sequence(projections.toList, TableLayout(4))
   }
 
-
-  // 2d plots of kmean cluster centers
   //  def kMeanFCSPlotClusters2D(fcsParsed: FCSParserFull, kMeanR: KMeansResult, excludeCluster: Array[Int] = Array())
+  /** 2d plots of kmean cluster centers
+    *
+    * @param fcsDataFinalKMean
+    * @param excludeCluster
+    * @param excludeParam
+    * @return
+    */
   def kMeanFCSPlotClusters2D(fcsDataFinalKMean: FCSDataFinalKMean, excludeCluster: Array[Int] = Array(), excludeParam: Array[Int] = Array())
   : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
     val keepIndex = (0 until fcsDataFinalKMean.bestKMean.clusters.length).
@@ -237,7 +265,14 @@ object FCSOutput {
     sequence(projections.toList, TableLayout(4))
   }
 
-  // plot ellipse with centers
+  /** plot ellipse with centers
+    *
+    * @param fcsDataFinalKMean
+    * @param clusterListParam
+    * @param excludeCluster
+    * @param excludeParam
+    * @return
+    */
   def kMeanFCSPlotClusterEllipse2D(fcsDataFinalKMean: FCSDataFinalKMean,clusterListParam: (List[EllipseClusterId], Array[String]),
                             excludeCluster: Array[Int] = Array(), excludeParam: Array[Int] = Array())
   : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
