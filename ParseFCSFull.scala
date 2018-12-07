@@ -62,29 +62,28 @@ object KMeanFCSInput {
 /**
   * clusters are based on normalized data.
   * @param textSegmentMap
-  * @param nbEvent
   * @param takenParam
   * @param meanCol
   * @param sdCol
   * @param dataMat
   * @param euclidKResult
   */
-case class FCSDataParKMean(textSegmentMap: Map[String, String], nbEvent: Int,
+case class FCSDataParKMean(textSegmentMap: Map[String, String],
                            takenParam: scala.collection.immutable.IndexedSeq[Int],
                            meanCol: Array[Double], sdCol: Array[Double], dataMat: Mat[Double],
-                           euclidKResult: ParArray[(List[Double], KMeansResult)] ) {}
+                           euclidKResult: ParArray[(List[Double], KMeansResult)] ) {
+}
 
 /**
   * clusters are based on normalized data.
   * @param textSegmentMap
-  * @param nbEvent
   * @param takenParam
   * @param meanCol
   * @param sdCol
   * @param dataMat
   * @param bestKMean
   */
-case class FCSDataFinalKMean(textSegmentMap : Map[String, String],nbEvent: Int,
+case class FCSDataFinalKMean(textSegmentMap : Map[String, String],
                              takenParam: scala.collection.immutable.IndexedSeq[Int],
                              meanCol: Array[Double], sdCol: Array[Double], dataMat: Mat[Double],
                              bestKMean : KMeansResult) {
@@ -94,7 +93,6 @@ case class FCSDataFinalKMean(textSegmentMap : Map[String, String],nbEvent: Int,
     * @return
     */
   def this(fcsDataParKMean : FCSDataParKMean) = this(fcsDataParKMean.textSegmentMap,
-    fcsDataParKMean.nbEvent,
     fcsDataParKMean.takenParam,
     fcsDataParKMean.meanCol,
     fcsDataParKMean.sdCol,
@@ -530,7 +528,8 @@ class FCSParserFull(fcsInput: FCSInputFull) {
       }
     }
 
-    FCSDataParKMean(fcsTextSegmentMap, nbEvent, takenParam, meanColTakenMap, sdColTakenMap, dataTakenMatFCS,
+    FCSDataParKMean(fcsTextSegmentMap, takenParam, meanColTakenMap, sdColTakenMap,
+      dataTakenMatFCS.row(kMeanFCSInput.takeRows),
       seedArrayK.map(seedKFromArray => {
         val rand4K = new Random(seedKFromArray)
         val dataInitK = dataNormalizedTakenMatFCS.row(kMeanFCSInput.takeRows).
@@ -564,7 +563,8 @@ class FCSParserFull(fcsInput: FCSInputFull) {
       }
     }
 
-    new FCSDataParKMean(fcsTextSegmentMap, nbEvent, takenParam, meanColTakenMap, sdColTakenMap, dataTakenMatFCS,
+    new FCSDataParKMean(fcsTextSegmentMap, takenParam, meanColTakenMap, sdColTakenMap,
+      dataTakenMatFCS.row(kMeanFCSInput.takeRows),
       previousEuclid.map(euclid => {
         val listEuclidNew = listEuclid(euclid._2.means, kMeanFCSInput.takeRows, kMeanFCSInput.iterations, stepK)
         (euclid._1 ::: listEuclidNew.map(_._1), listEuclidNew.last._2)
@@ -608,7 +608,8 @@ class FCSParserFull(fcsInput: FCSInputFull) {
           listEuclid(stepKMeans.means, takeRows, iterations, step - 1)
       }
     }
-    FCSDataParKMean(fcsTextSegmentMap, nbEvent, takenParam, meanColTakenMap, sdColTakenMap, dataTakenMatFCS,
+    FCSDataParKMean(fcsTextSegmentMap, takenParam, meanColTakenMap, sdColTakenMap,
+      dataTakenMatFCS.row(kMeanFCSInput.takeRows),
     seedArrayK.map(seedKFromArray => {
       val rand4K = new Random(seedKFromArray)
       val initDataIndex = rand4K.nextInt(kMeanFCSInput.takeRows.length)
@@ -653,7 +654,7 @@ class FCSParserFull(fcsInput: FCSInputFull) {
     * @param clusterListParam
     * @return
     */
-  def fcsDataFinalClusterFromEllipse(clusterListParam: (List[EllipseClusterId], Array[String])) : KMeansResult = {
+  def fcsDataFinalClusterFromEllipse(clusterListParam: (List[EllipseClusterId], Array[String])) : FCSDataFinalKMean = {
     // missing test that param is compatible with ellipse cluster, compare clusterLisParam._2 with takenParam
     val cluster4KMean = (0 until nbEvent).map(event => {
       val elDistIdList = clusterListParam._1.map(elClusterId =>
@@ -667,6 +668,9 @@ class FCSParserFull(fcsInput: FCSInputFull) {
           val size4Mean = clusterIdIndices._2.length
           clusterIdIndices._2.map(index => col(index)).toArray.sum / size4Mean
         })).map(x=> Vec(x.toArray)).toArray
-    new KMeansResult(Vec(cluster4KMean.toArray),mean4KMean)
+FCSDataFinalKMean(fcsTextSegmentMap,
+  takenParam,
+  meanColTakenMap, sdColTakenMap, dataTakenMatFCS,
+    new KMeansResult(Vec(cluster4KMean.toArray),mean4KMean))
   }
 }
