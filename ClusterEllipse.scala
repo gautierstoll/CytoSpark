@@ -39,7 +39,7 @@ object ClusterEllipse {
     }
   }
 
-  /** wriste ellipse clusters to a file
+  /** write ellipse clusters to a file
     *
     * @param ellipseFile
     * @param listEllipse
@@ -52,7 +52,7 @@ object ClusterEllipse {
     bw.close()
   }
 
-  /** cluter defined by mean and variance. Ellipse matrix (inverse of variance) is computed when not provided
+  /** cluster defined by mean and variance. Ellipse matrix (inverse of variance) is computed when not provided
     *
     * @param size
     * @param mean

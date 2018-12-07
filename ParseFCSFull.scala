@@ -650,15 +650,23 @@ class FCSParserFull(fcsInput: FCSInputFull) {
   }
 
   /** clustering from ellipses
-    *
+    * use only paramters with identical names between data and ellipses
     * @param clusterListParam
     * @return
     */
   def fcsDataFinalClusterFromEllipse(clusterListParam: (List[EllipseClusterId], Array[String])) : FCSDataFinalKMean = {
     // missing test that param is compatible with ellipse cluster, compare clusterLisParam._2 with takenParam
+    val paramIndexClData = clusterListParam._2.zipWithIndex.map(ellParamInd =>
+    takenParam.zipWithIndex.map(tParamInd => {
+      if (ellParamInd._1 == fcsTextSegmentMap("$P"+tParamInd._1+"N")) (ellParamInd._2,tParamInd._2) else (-1,-1)
+    })).flatMap(x=>x).filter(ind => (ind._1 > -1))
+    val clIndex = paramIndexClData.map(_._1)
+    val dataIndex = paramIndexClData.map(_._2)
     val cluster4KMean = (0 until nbEvent).map(event => {
-      val elDistIdList = clusterListParam._1.map(elClusterId =>
-        (ClusterEllipse.distEllipseCluster(dataTakenMatFCS.row(event), elClusterId.cluster), elClusterId.clusterId))
+      val elDistIdList = clusterListParam._1.map(elClusterId => {
+        val subCluster = EllipseCluster(elClusterId.cluster.size,
+          clIndex.map(ind => elCluster.mean(ind)).toArray)
+        (ClusterEllipse.distEllipseCluster(dataTakenMatFCS.row(event).col(dataIndex), elClusterId.cluster), elClusterId.clusterId)})
       val minDist = min(elDistIdList.map(_._1))
       elDistIdList.filter(x => (x._1 == minDist)).head._2
     })
