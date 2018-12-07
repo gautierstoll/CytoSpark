@@ -21,6 +21,11 @@ import stat.sparse.SMat
 import scala.collection.parallel.mutable._
 
 object ClusterEllipse {
+
+  /** Exception for cluster of size 1 and/or zero variance
+    *
+    * @param listExceptionClId
+    */
   class EllipseException(listExceptionClId: List[EllipseClusterId]) extends Exception() {
     val sizeId = listExceptionClId.filter(clId => clId.cluster.size == 1).map(clId => (clId.cluster.size, clId.clusterId))
     val zeroVarId = listExceptionClId.filter(clId => ((clId.cluster.ellipseMat == null) && (clId.cluster.size > 1))).
@@ -34,6 +39,12 @@ object ClusterEllipse {
     }
   }
 
+  /** wriste ellipse clusters to a file
+    *
+    * @param ellipseFile
+    * @param listEllipse
+    * @param paramNames
+    */
   def ExportEllipseIdList(ellipseFile : String,listEllipse : List[EllipseClusterId],paramNames: Array[String]) = {
     val file = new File(ellipseFile+".elcl")
     val bw = new BufferedWriter(new FileWriter(file))
@@ -41,6 +52,13 @@ object ClusterEllipse {
     bw.close()
   }
 
+  /** cluter defined by mean and variance. Ellipse matrix (inverse of variance) is computed when not provided
+    *
+    * @param size
+    * @param mean
+    * @param varMat
+    * @param giveEllispeMat
+    */
   case class EllipseCluster(size: Int, mean: Array[Double], varMat: DenseMatrix[Double], giveEllispeMat: DenseMatrix[Double] = null) {
     val ellipseMat = if (giveEllispeMat == null) {
       try (inv(varMat)) catch {
@@ -55,6 +73,11 @@ object ClusterEllipse {
     val zeroVarIndex = (0 until varMat.cols).filter(x => varMat(x, x) == 0)
   }
 
+  /** Ellipse cluster with integer Id, with (mutable) name.
+    *
+    * @param cluster
+    * @param clusterId
+    */
   case class EllipseClusterId(cluster: EllipseCluster, clusterId: Int) {
     def double2Hex(db : Double) : String = java.lang.Double.toHexString(db)
     var nameId : String = clusterId.toString
@@ -67,6 +90,12 @@ object ClusterEllipse {
     }
   }
 
+  /** Reconstruction of ellipse cluster for HexString
+    *
+    * @param hxString
+    * @param id
+    * @return
+    */
   def hexStringToElClusterIdParam(hxString : String ,id : Int) : (EllipseClusterId,Array[String]) = {
     val arrayLines = hxString.split("\n")
     val patternParam = """Parameters=([^;]*);""".r
@@ -125,7 +154,6 @@ object ClusterEllipse {
     }
     (EllipseClusterId(EllipseCluster(clusterSize,clusterMeans,clusterVarMat,clusterEllipseMat),id),parameters)
   }
-
 
   def fusionEllipseCluster(clusterA: EllipseCluster, clusterB: EllipseCluster): EllipseCluster = {
     val sizeFus = clusterA.size + clusterB.size
@@ -230,6 +258,11 @@ object ClusterEllipse {
     }
   }
 
+  /** Construct the minial connected network of ellipse cluster
+    *
+    * @param clusterList
+    * @return
+    */
   def connectedCluster(clusterList: List[EllipseClusterId]): List[ArrowEllipseCluster] = {
     val clusterListNoOne = clusterList.filter(elClId => (elClId.cluster.size > 1))
     if (clusterListNoOne.length == 1) Nil

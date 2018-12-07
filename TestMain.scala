@@ -46,7 +46,14 @@ object Main extends App {
     } else takenInt
   }
 
-  def takeListInt(askingPromp: String, minVal: Int, maxVal: Int): List[Int] = { //seperated by comma, remove unreadable Int
+  /** take a list of Int, separated by comma
+    *
+    * @param askingPromp
+    * @param minVal
+    * @param maxVal
+    * @return
+    */
+  def takeListInt(askingPromp: String, minVal: Int, maxVal: Int): List[Int] = {
     scala.io.StdIn.readLine(askingPromp).
       toCharArray.filter(_ != ' ').mkString("").split(",").
       map(x => try (x.toInt) catch {
@@ -54,15 +61,24 @@ object Main extends App {
       }).toList.filter(x => (x <= maxVal) && (x >= minVal))
   }
 
-  def takeRemoveParam(fcsDataParKMean: FCSDataParKMean): List[Int] = {
-    val askingListParam: String = "Remove Parameters (separated by ',')? " + (for (paramAndIndex <- fcsDataParKMean.takenParam.zipWithIndex) yield {
-      (paramAndIndex._2 + 1).toString + ": " + (try fcsDataParKMean.textSegmentMap("$P" + paramAndIndex._1 + "S") catch {
-        case _: Throwable => fcsDataParKMean.textSegmentMap("$P" + paramAndIndex._1 + "N")
+  /**
+    *
+    * @param fcsDataFinalKMean
+    * @return removed paramters starts at 1
+    */
+  def takeRemoveParam(fcsDataFinalKMean: FCSDataFinalKMean): List[Int] = {
+    val askingListParam: String = "Remove Parameters (separated by ',')? " + (for (paramAndIndex <- fcsDataFinalKMean.takenParam.zipWithIndex) yield {
+      (paramAndIndex._2 + 1).toString + ": " + (try fcsDataFinalKMean.textSegmentMap("$P" + paramAndIndex._1 + "S") catch {
+        case _: Throwable => fcsDataFinalKMean.textSegmentMap("$P" + paramAndIndex._1 + "N")
       })
     }).reduce(_ + ", " + _) + " "
-    takeListInt(askingListParam, 1, fcsDataParKMean.takenParam.length)
+    takeListInt(askingListParam, 1, fcsDataFinalKMean.takenParam.length)
   }
 
+  /**
+    * If file do not exist, ask for retry. If no, return null
+    * @return
+    */
   def askFileOrNull(): String = {
     val fcsFile = scala.io.StdIn.readLine("FCS File: ")
     if (!Files.exists(Paths.get(fcsFile))) {
@@ -73,6 +89,11 @@ object Main extends App {
     else fcsFile
   }
 
+  /**
+    *
+    * @param fcsDataParKMean
+    * @param nbCluster shouldn't be necessary, because it can be obtained for fcsDataParKMean
+    */
   def plottingLoop(fcsDataParKMean: FCSDataParKMean, nbCluster: Int): Unit = {
     val fcsDataFinalKMean: FCSDataFinalKMean = new FCSDataFinalKMean(fcsDataParKMean)
     var bestClusterList: (List[EllipseClusterId], Array[String]) = null
@@ -80,7 +101,7 @@ object Main extends App {
     while (loopPlot) {
       val removeCluster =
         this.takeListInt("Remove clusters (separated by ','): ", 1, nbCluster).map(_ - 1).toArray
-      val removeParam = this.takeRemoveParam(fcsDataParKMean).map(_ - 1).toArray //removeParam start at 0
+      val removeParam = this.takeRemoveParam(fcsDataFinalKMean).map(_ - 1).toArray //removeParam start at 0
       scala.io.StdIn.readLine("- [Scatter], potential large png file\n" +
         "- Scatter with virtual (g)rid, lighter than scatter, pdf file\n" +
         "- (c)luster center, pdf file \n" +
