@@ -155,6 +155,12 @@ object ClusterEllipse {
     (EllipseClusterId(EllipseCluster(clusterSize,clusterMeans,clusterVarMat,clusterEllipseMat),id),parameters)
   }
 
+  /** fusion of 2 populations defined by size, mean and variance
+    *
+    * @param clusterA
+    * @param clusterB
+    * @return
+    */
   def fusionEllipseCluster(clusterA: EllipseCluster, clusterB: EllipseCluster): EllipseCluster = {
     val sizeFus = clusterA.size + clusterB.size
     val meanFus = (clusterA.mean).zip(clusterB.mean).
@@ -168,9 +174,21 @@ object ClusterEllipse {
     EllipseCluster(sizeFus, meanFus, varFus)
   }
 
+  /** Distance of a point to the center of an ellipse, defined by the ellipse matrix
+    *
+    * @param point
+    * @param ellipseCluster
+    * @return
+    */
   def distEllipseCluster(point : Array[Double],ellipseCluster : EllipseCluster) : Double = {
     (DenseMatrix(point)*(ellipseCluster.ellipseMat)*(DenseMatrix(point).t)).apply(0,0)}
 
+  /** Distance between ellipses
+    * take a point, compute sum of distance to bothe ellipses, take min. Exact formula.
+    * @param clusterA
+    * @param clusterB
+    * @return
+    */
   def distEllipseCluster(clusterA: EllipseCluster, clusterB: EllipseCluster): Double = {
     val minVect = inv(clusterA.ellipseMat + clusterB.ellipseMat) *
       (clusterA.ellipseMat * (DenseMatrix(clusterA.mean).t) + clusterB.ellipseMat * (DenseMatrix(clusterB.mean).t))
@@ -179,6 +197,11 @@ object ClusterEllipse {
       ((minVect - DenseMatrix(clusterB.mean).t).t) * clusterB.ellipseMat * (minVect - DenseMatrix(clusterB.mean).t)).apply(0, 0)
   }
 
+  /** Arrow from an ellipse to another
+    *
+    * @param source
+    * @param target
+    */
   case class ArrowEllipseCluster(source: EllipseClusterId, target: EllipseClusterId) {}
 
   /**
@@ -258,7 +281,7 @@ object ClusterEllipse {
     }
   }
 
-  /** Construct the minial connected network of ellipse cluster
+  /** Construct the minimal connected network of ellipse cluster
     *
     * @param clusterList
     * @return
