@@ -659,12 +659,12 @@ class FCSParserFull(fcsInput: FCSInputFull) {
       takenParam.zipWithIndex.map(tParamInd => {
         if (ellParamInd._1 == fcsTextSegmentMap("$P" + tParamInd._1 + "N")) (ellParamInd._2, tParamInd._2) else (-1, -1)
       })).flatMap(x => x).filter(ind => (ind._1 > -1))
-    val clIndex = paramIndexClData.map(_._1)
+    val clIndex :Array[Int]= paramIndexClData.map(_._1)
     val dataIndex = paramIndexClData.map(_._2)
-    val listSubClusterId = clusterListParam._1.map(elClusterId => EllipseClusterId(
-      EllipseCluster(elClusterId.cluster.size,
+    val listSubClusterId = clusterListParam._1.map(elClusterId =>
+      EllipseClusterId(EllipseCluster(elClusterId.cluster.size,
         clIndex.map(ind => elClusterId.cluster.mean(ind)),
-        elClusterId.cluster.varMat(clIndex, clIndex)), elClusterId.clusterId))
+        elClusterId.cluster.varMat(clIndex.toSeq,clIndex.toSeq).toDenseMatrix), elClusterId.clusterId))
     val cluster4KMean = (0 until nbEvent).map(event => {
       val elDistIdList = listSubClusterId.map(elClusterId => {
         (ClusterEllipse.distEllipseCluster(dataTakenMatFCS.col(dataIndex).row(event), elClusterId.cluster), elClusterId.clusterId)
