@@ -39,8 +39,8 @@ case class TransformParam(index : Int, appFunction : (Double => Double),offset :
   */
 case class FCSInputFull(file: String, takeParameter: List[TransformParam], takeNbEvent: Int) {}
 
-/** old
-  * structure for FCSParserFull, takeParameters are indices (start at 1), log ? , min for Log, deprecated */
+/**
+  * old structure for FCSParserFull, takeParameters are indices (start at 1), log ? , min for Log, deprecated */
 case class FCSInputFull_old(file: String, takeParameter: List[(Int, Boolean, Double)], takeNbEvent: Int) {}
 
 // case class KMeanEuclid() is missing, should do it once
@@ -59,7 +59,7 @@ object KMeanFCSInput {
     new KMeanFCSInput(clusterNb, (0 until nbRows).toArray, iterations: Int, seedK: Int)
 }
 
-/**
+/** Multiple KMean results with data
   * clusters are based on normalized data.
   * @param textSegmentMap
   * @param takenParam
@@ -74,7 +74,7 @@ case class FCSDataParKMean(textSegmentMap: Map[String, String],
                            euclidKResult: ParArray[(List[Double], KMeansResult)] ) {
 }
 
-/**
+/** Final results of KMean with data, used for plotting
   * clusters are based on normalized data.
   * @param textSegmentMap
   * @param takenParam
