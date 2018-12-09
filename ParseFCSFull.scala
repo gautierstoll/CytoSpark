@@ -99,6 +99,15 @@ case class FCSDataFinalKMean(textSegmentMap : Map[String, String],
     fcsDataParKMean.dataMat,
     fcsDataParKMean.euclidKResult.toArray.
       filter(y => (y._1.last == (fcsDataParKMean.euclidKResult.toArray.map(x => x._1.last).min))).head._2)
+
+  def subClustering(subClusterIndex : Int, subCluster : KMeansResult) : FCSDataFinalKMean = {
+    if (subCluster.means.length < 2) sys.error("Sub cluster has les than two elements")
+    val subClusterDataIndices = bestKMean.clusters.toSeq.zipWithIndex.filter(x => (x._1 == subClusterIndex)).map(_._2)
+    if (subClusterDataIndices.length != subCluster.clusters.length) sys.error("Sub clustering has the wrong size")
+    val subClusterIdList : List[Int] = List(subClusterIndex) :::
+      (bestKMean.means.length until (subCluster.means.length + bestKMean.means.length-1)).toList
+    FCSDataFinalKMean(textSegmentMap,takenParam,meanCol,sdCol,dataMat,KMeansResult(,))
+  }
 }
 
 /** companion object for overloading case class constructor
