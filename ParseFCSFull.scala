@@ -100,13 +100,30 @@ case class FCSDataFinalKMean(textSegmentMap : Map[String, String],
     fcsDataParKMean.euclidKResult.toArray.
       filter(y => (y._1.last == (fcsDataParKMean.euclidKResult.toArray.map(x => x._1.last).min))).head._2)
 
-  def subClustering(subClusterIndex : Int, subCluster : KMeansResult) : FCSDataFinalKMean = {
-    if (subCluster.means.length < 2) sys.error("Sub cluster has les than two elements")
+  /** replace cluster by a sub-clustering
+    *
+    * @param subClusterIndex
+    * @param subCluster
+    * @return
+    */
+  def subClustering(subClusterIndex: Int, subCluster: KMeansResult): FCSDataFinalKMean = {
+    // data of sub cluster correponds to Data of cluster-(subClusterIndex) in this
+    if (subCluster.means.length < 2) sys.error("Sub cluster has less than two elements")
     val subClusterDataIndices = bestKMean.clusters.toSeq.zipWithIndex.filter(x => (x._1 == subClusterIndex)).map(_._2)
     if (subClusterDataIndices.length != subCluster.clusters.length) sys.error("Sub clustering has the wrong size")
-    val subClusterIdList : List[Int] = List(subClusterIndex) :::
-      (bestKMean.means.length until (subCluster.means.length + bestKMean.means.length-1)).toList
-    FCSDataFinalKMean(textSegmentMap,takenParam,meanCol,sdCol,dataMat,KMeansResult(,))
+    val subClusterIdList: List[Int] = List(subClusterIndex) :::
+      (bestKMean.means.length until (subCluster.means.length + bestKMean.means.length - 1)).toList
+    val newSubClustersSeqId = subCluster.clusters.map(id => subClusterIdList(id)).toSeq
+    var tmpSubClusterIndex: Int = 0
+    val newClusterId: Array[Int] = (for (id: Int <- bestKMean.clusters.toSeq) yield {
+      if (id != subClusterIndex) (id) else {
+        tmpSubClusterIndex = tmpSubClusterIndex + 1
+        newSubClustersSeqId(tmpSubClusterIndex - 1)
+      }
+    }).toArray
+    val newClusterMean = (bestKMean.means.toList.updated(subClusterIndex, subCluster.means.toList.head) ::: subCluster.means.toList.tail)
+    val newKMean = KMeansResult(Vec(newClusterId), newClusterMean.toIndexedSeq)
+    FCSDataFinalKMean(textSegmentMap, takenParam, meanCol, sdCol, dataMat, newKMean)
   }
 }
 
