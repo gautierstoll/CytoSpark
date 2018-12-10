@@ -290,7 +290,7 @@ object Main extends App {
       plottingLoop(fcsDataFinalKMean)
       while (scala.io.StdIn.readLine("Sub clustering? y/[n]") == "y")
         {
-          val subClusterIndex = takeIntFromLine("Cluster to separate: ",1,fcsDataFinalKMean.bestKMean.means.length) -1
+          val subClusterIndex = takeIntFromLine("Cluster to separate: ",1,0,fcsDataFinalKMean.bestKMean.means.length) -1
           val subClusterDataIndices = fcsDataFinalKMean.bestKMean.clusters.toSeq.zipWithIndex.filter(x => x._1 == subClusterIndex).map(_._2).toArray
           val subCluster = kMeanFCSClustering(parsedFCS,subClusterDataIndices).bestKMean
           val newFCSDataFinalKMean = fcsDataFinalKMean.subClustering(subClusterIndex,subCluster)
