@@ -46,6 +46,29 @@ object Main extends App {
     } else takenInt
   }
 
+  def takeIntFromLine(askingPromp: String, defaultVal: Int, minVal: Int, maxVal: Int): Int = {
+    val takenInt = scala.io.StdIn.readLine(askingPromp) match {
+      case "" => defaultVal
+      case x: String => try {
+        x.toInt
+      } catch {
+        case _: Throwable => println("Take default " + defaultVal); defaultVal
+      }
+    }
+    takenInt match {
+      case x if (x < minVal) => {
+        println("Take min " + minVal);
+        minVal
+      }
+      case x if (x > maxVal) => {
+        println("Take max " + maxVal);
+        maxVal
+      }
+      case x => x
+    }
+  }
+
+
   /** take a list of Int, separated by comma
     *
     * @param askingPromp
@@ -263,10 +286,20 @@ object Main extends App {
           } else y
         }
       val fcsDataFinalKMean = kMeanFCSClustering(parsedFCS, (0 until nbRow).toArray)
+      println("Now, let's see how these clusters look like...")
       plottingLoop(fcsDataFinalKMean)
-      clusterLoop = scala.io.StdIn.readLine("New cluster? [y]/n: ") match {
-        case "n" => false
-        case _: String => true
+      while (scala.io.StdIn.readLine("Sub clustering? y/[n]") == "y")
+        {
+          val subClusterIndex = takeIntFromLine("Cluster to separate: ",1,fcsDataFinalKMean.bestKMean.means.length) -1
+          val subClusterDataIndices = fcsDataFinalKMean.bestKMean.clusters.toSeq.zipWithIndex.filter(x => x._1 == subClusterIndex).map(_._2).toArray
+          val subCluster = kMeanFCSClustering(parsedFCS,subClusterDataIndices).bestKMean
+          val newFCSDataFinalKMean = fcsDataFinalKMean.subClustering(subClusterIndex,subCluster)
+          println("Now, let's see if it looks better")
+          plottingLoop(newFCSDataFinalKMean)
+        }
+      clusterLoop = scala.io.StdIn.readLine("New cluster? y/[n]") match {
+        case "y" => true
+        case _: String => false
       }
     }
     loopFile = scala.io.StdIn.readLine("New file? y/[n]: ") match {
