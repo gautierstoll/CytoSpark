@@ -137,7 +137,7 @@ object Main extends App {
         case "e" => {
           if (bestClusterList == null) {
             bestClusterList = FCSOutput.clusterForPlot(fcsDataFinalKMean); println("Compute ellipses\n")
-            if (scala.io.StdIn.readLine("Export ellipses to file? y,[n]: ")=="y") {
+            if (scala.io.StdIn.readLine("Export ellipses to file? y/[n]: ")=="y") {
               val file = scala.io.StdIn.readLine("file: ")
               ClusterEllipse.ExportEllipseIdList(file,bestClusterList._1,bestClusterList._2)
             }
@@ -155,7 +155,7 @@ object Main extends App {
         case "a" => {
           if (bestClusterList == null) {
             bestClusterList = FCSOutput.clusterForPlot(fcsDataFinalKMean); println("Compute ellipses\n")
-            if (scala.io.StdIn.readLine("Export ellipses to file? y,[n]: ")=="y") {
+            if (scala.io.StdIn.readLine("Export ellipses to file? y/[n]: ")=="y") {
               val file = scala.io.StdIn.readLine("file: ")
               ClusterEllipse.ExportEllipseIdList(file,bestClusterList._1,bestClusterList._2)
             }
@@ -289,7 +289,7 @@ object Main extends App {
             inputParser.takeNbEvent
           } else y
         }
-      val fcsDataFinalKMean = kMeanFCSClustering(parsedFCS, (0 until nbRow).toArray)
+      var fcsDataFinalKMean = kMeanFCSClustering(parsedFCS, (0 until nbRow).toArray) //var because possible subclustering
       println("Now, let's see how these clusters look like...")
       plottingLoop(fcsDataFinalKMean)
       while (scala.io.StdIn.readLine("Sub clustering? y/[n]: ") == "y")
@@ -297,9 +297,9 @@ object Main extends App {
           val subClusterIndex = takeIntFromLine("Cluster to separate: ",1,0,fcsDataFinalKMean.bestKMean.means.length) -1
           val subClusterDataIndices = fcsDataFinalKMean.bestKMean.clusters.toSeq.zipWithIndex.filter(x => x._1 == subClusterIndex).map(_._2).toArray
           val subCluster = kMeanFCSClustering(parsedFCS,subClusterDataIndices).bestKMean
-          val newFCSDataFinalKMean = fcsDataFinalKMean.subClustering(subClusterIndex,subCluster)
+          fcsDataFinalKMean = fcsDataFinalKMean.subClustering(subClusterIndex,subCluster)
           println("Now, let's see if it looks better")
-          plottingLoop(newFCSDataFinalKMean)
+          plottingLoop(fcsDataFinalKMean)
         }
       clusterLoop = scala.io.StdIn.readLine("New cluster? y/[n]: ") match {
         case "y" => true
