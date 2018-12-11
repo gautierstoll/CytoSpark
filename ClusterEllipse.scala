@@ -80,7 +80,7 @@ object ClusterEllipse {
     */
   case class EllipseClusterId(cluster: EllipseCluster, clusterId: Int) {
     def double2Hex(db : Double) : String = java.lang.Double.toHexString(db)
-    var nameId : String = clusterId.toString
+    var nameId : String = (clusterId+1).toString
     def toHexString(paramNames : Array[String]): String = {
       "Parameters=" + paramNames.mkString(":") + ";Name=" + nameId + ";Size=" + cluster.size.toString +
         "\nMeans=" + cluster.mean.map(x => double2Hex(x)).mkString(":") +
@@ -88,8 +88,12 @@ object ClusterEllipse {
         "\nEllispe=" + cluster.varMat.toArray.map(x => double2Hex(x)).mkString(":") +
         "\n"
     }
-    def promptName() =  {
-      nameId = scala.io.StdIn.readLine("Name for cluster "+ nameId +" :")
+
+    def promptName() = {
+      nameId = {
+        val nm = scala.io.StdIn.readLine("Name for cluster " + nameId + " :")
+        if (nm == "") nameId else nm
+      }
     }
   }
 

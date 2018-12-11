@@ -138,8 +138,8 @@ object Main extends App {
           if (bestClusterList == null) {
             bestClusterList = FCSOutput.clusterForPlot(fcsDataFinalKMean); println("Compute ellipses\n")
             if (scala.io.StdIn.readLine("Export ellipses to elcl file? y/[n]: ")=="y") {
-              bestClusterList._1.map(cl => cl.promptName())
-              val file = scala.io.StdIn.readLine("File: ")
+              bestClusterList._1.sortWith(_.clusterId < _.clusterId).foreach(cl => cl.promptName())
+              val file = scala.io.StdIn.readLine("Export file: ")
               ClusterEllipse.ExportEllipseIdList(file,bestClusterList._1,bestClusterList._2)
             }
           }
@@ -157,8 +157,8 @@ object Main extends App {
           if (bestClusterList == null) {
             bestClusterList = FCSOutput.clusterForPlot(fcsDataFinalKMean); println("Compute ellipses\n")
             if (scala.io.StdIn.readLine("Export ellipses to elcl file? y/[n]: ")=="y") {
-              bestClusterList._1.map(cl => cl.promptName())
-              val file = scala.io.StdIn.readLine("file: ")
+              bestClusterList._1.sortWith(_.clusterId < _.clusterId).foreach(cl => cl.promptName())
+              val file = scala.io.StdIn.readLine("Export file: ")
               ClusterEllipse.ExportEllipseIdList(file,bestClusterList._1,bestClusterList._2)
             }
           }
@@ -229,7 +229,9 @@ object Main extends App {
       }
       if (scala.io.StdIn.readLine("Write cluster sizes to csv file? y/[n]: ") == "y") {
         val outCsv = scala.io.StdIn.readLine("Csv file: ") + ".csv"
-        FCSOutput.writeClusterSizeCsv(fcsDataFinalKMean.bestKMean.clusters, outCsv)
+        if (bestClusterList == null) FCSOutput.writeClusterSizeCsv(fcsDataFinalKMean.bestKMean.clusters, outCsv) else {
+          FCSOutput.writeClusterSizeCsv(fcsDataFinalKMean.bestKMean.clusters, outCsv,bestClusterList._1.sortWith(_.clusterId < _.clusterId).map(_.nameId).toArray)
+        }
       }
       loopPlot = scala.io.StdIn.readLine("New plot? [y]/n: ") match {
         case "n" => false
