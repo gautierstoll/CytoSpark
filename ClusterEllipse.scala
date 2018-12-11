@@ -88,6 +88,9 @@ object ClusterEllipse {
         "\nEllispe=" + cluster.varMat.toArray.map(x => double2Hex(x)).mkString(":") +
         "\n"
     }
+    def promptName() =  {
+      nameId = scala.io.StdIn.readLine("Name for cluster "+ nameId +" :")
+    }
   }
 
   /** Reconstruction of ellipse cluster for HexString
@@ -102,7 +105,7 @@ object ClusterEllipse {
     val paramCatch = patternParam.findAllIn(arrayLines(0)).matchData.toArray
     val parameters : Array[String] = if (paramCatch.length > 0) {
       paramCatch.head.group(1).split(":")
-    } else throw new MatchError("Do not find Paramteers")
+    } else throw new MatchError("Do not find Parameters")
 
     val patternName = """Name=([^;]*);""".r
     val nameCatch = patternName.findAllIn(arrayLines(0)).matchData.toArray
