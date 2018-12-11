@@ -112,11 +112,13 @@ object Main extends App {
     else fcsFile
   }
 
-  def askFileFromType(type : String) : String = {
-  val typePattern = ("\\." + type + "$").r
+  def askFileFromType(fileType: String): String = {
+    val typePattern = ("\\." + fileType + "$").r
     val filesInDir = new File(".")
-    val listFiles = filesIndDir.listFiles.filter(file => !pettern.findAllMatchIn(file.toString).isEmpty)
-
+    val listFiles = filesInDir.listFiles.filter(file => typePattern.findAllMatchIn(file.toString).nonEmpty).map(_.toString)
+    listFiles.zipWithIndex.foreach(fileInd => println((fileInd._2+1) + " " + fileInd._1))
+    val fileIndex = takeIntFromLine("File number: ", 1, 1, listFiles.length)
+    listFiles(fileIndex - 1)
   }
 
   /**
@@ -144,11 +146,6 @@ object Main extends App {
         case "e" => {
           if (bestClusterList == null) {
             bestClusterList = FCSOutput.clusterForPlot(fcsDataFinalKMean); println("Compute ellipses\n")
-            if (scala.io.StdIn.readLine("Export ellipses to elcl file? y/[n]: ")=="y") {
-              bestClusterList._1.sortWith(_.clusterId < _.clusterId).foreach(cl => cl.promptName())
-              val file = scala.io.StdIn.readLine("Export file: ")
-              ClusterEllipse.ExportEllipseIdList(file,bestClusterList._1,bestClusterList._2)
-            }
           }
           val outPdf = scala.io.StdIn.readLine("Ellipse file: ") + ".pdf"
           val ellipsePdf = try (FCSOutput.kMeanFCSPlotEllipse2D(bestClusterList, removeCluster, removeParam)) catch {
@@ -159,15 +156,15 @@ object Main extends App {
           }
           if (ellipsePdf != null)
             FCSOutput.plotKSeqToPdf(ellipsePdf, outPdf)
+          if (scala.io.StdIn.readLine("Export ellipses to elcl file? y/[n]: ")=="y") {
+            bestClusterList._1.sortWith(_.clusterId < _.clusterId).foreach(cl => cl.promptName())
+            val file = scala.io.StdIn.readLine("Export file: ")
+            ClusterEllipse.ExportEllipseIdList(file,bestClusterList._1,bestClusterList._2)
+          }
         }
         case "a" => {
           if (bestClusterList == null) {
             bestClusterList = FCSOutput.clusterForPlot(fcsDataFinalKMean); println("Compute ellipses\n")
-            if (scala.io.StdIn.readLine("Export ellipses to elcl file? y/[n]: ")=="y") {
-              bestClusterList._1.sortWith(_.clusterId < _.clusterId).foreach(cl => cl.promptName())
-              val file = scala.io.StdIn.readLine("Export file: ")
-              ClusterEllipse.ExportEllipseIdList(file,bestClusterList._1,bestClusterList._2)
-            }
           }
           val outPdf = scala.io.StdIn.readLine("Ellipse and center pdf file: ") + ".pdf"
           val ellipseCenterPdf = try (FCSOutput.kMeanFCSPlotClusterEllipse2D(fcsDataFinalKMean, bestClusterList, removeCluster, removeParam)) catch {
@@ -178,6 +175,11 @@ object Main extends App {
           }
           if (ellipseCenterPdf != null)
             FCSOutput.plotKSeqToPdf(ellipseCenterPdf, outPdf)
+          if (scala.io.StdIn.readLine("Export ellipses to elcl file? y/[n]: ")=="y") {
+            bestClusterList._1.sortWith(_.clusterId < _.clusterId).foreach(cl => cl.promptName())
+            val file = scala.io.StdIn.readLine("Export file: ")
+            ClusterEllipse.ExportEllipseIdList(file, bestClusterList._1, bestClusterList._2)
+          }
         }
         case "t" => {
           if (bestClusterList == null) {
@@ -282,11 +284,12 @@ object Main extends App {
   var loopFile = true
   var fcsFile: String = ""
   while (loopFile) {
-    fcsFile = askFileOrNull()
-    if (fcsFile == null) {
-      println("Bye Bye \n");
-      System.exit(0)
-    }
+    //fcsFile = askFileOrNull()
+    //if (fcsFile == null) {
+    //  println("Bye Bye \n");
+    //  System.exit(0)
+    //}
+    fcsFile = askFileFromType("fcs")
     val fcsHeader = new FCSHeader(fcsFile)
     val inputParser = fcsHeader.getOnlineFCSInput
     val parsedFCS = new FCSParserFull(inputParser)
