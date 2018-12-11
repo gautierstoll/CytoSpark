@@ -112,6 +112,13 @@ object Main extends App {
     else fcsFile
   }
 
+  def askFileFromType(type : String) : String = {
+  val typePattern = ("\\." + type + "$").r
+    val filesInDir = new File(".")
+    val listFiles = filesIndDir.listFiles.filter(file => !pettern.findAllMatchIn(file.toString).isEmpty)
+
+  }
+
   /**
     *
     * @param fcsDataFinalKMean
