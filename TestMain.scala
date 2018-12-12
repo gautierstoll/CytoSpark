@@ -99,7 +99,7 @@ object Main extends App {
   }
 
   /**
-    * If file do not exist, ask for retry. If no, return null
+    * If file do not exist, ask for retry. If no, return null. Not used anymore
     * @return
     */
   def askFileOrNull(): String = {
@@ -119,6 +119,20 @@ object Main extends App {
     listFiles.zipWithIndex.foreach(fileInd => println((fileInd._2+1) + " " + fileInd._1))
     val fileIndex = takeIntFromLine("File number: ", 1, 1, listFiles.length)
     listFiles(fileIndex - 1)
+  }
+
+  /**
+    *
+    * @param fileType
+    * @return
+    */
+  def askListFileFromType(fileType: String): List[String] = {
+    val typePattern = ("\\." + fileType + "$").r
+    val filesInDir = new File(".")
+    val listFiles = filesInDir.listFiles.filter(file => typePattern.findAllMatchIn(file.toString).nonEmpty).map(_.toString)
+    listFiles.zipWithIndex.foreach(fileInd => println((fileInd._2+1) + " " + fileInd._1))
+    val fileListIndex = takeListInt("File numbers, separated by ,: ", 1, listFiles.length)
+    fileListIndex.map(index => listFiles(index-1))
   }
 
   /**
@@ -159,7 +173,9 @@ object Main extends App {
           if (scala.io.StdIn.readLine("Export ellipses to elcl file? y/[n]: ")=="y") {
             bestClusterList._1.sortWith(_.clusterId < _.clusterId).foreach(cl => cl.promptName())
             val file = scala.io.StdIn.readLine("Export file: ")
-            ClusterEllipse.ExportEllipseIdList(file,bestClusterList._1,bestClusterList._2)
+            ClusterEllipse.ExportEllipseIdList(file,
+              bestClusterList._1.filter(cl => scala.io.StdIn.readLine("Take "+cl.nameId+" ? [y]/n: ") != "n"),
+              bestClusterList._2)
           }
         }
         case "a" => {
@@ -178,7 +194,9 @@ object Main extends App {
           if (scala.io.StdIn.readLine("Export ellipses to elcl file? y/[n]: ")=="y") {
             bestClusterList._1.sortWith(_.clusterId < _.clusterId).foreach(cl => cl.promptName())
             val file = scala.io.StdIn.readLine("Export file: ")
-            ClusterEllipse.ExportEllipseIdList(file, bestClusterList._1, bestClusterList._2)
+            ClusterEllipse.ExportEllipseIdList(file,
+              bestClusterList._1.filter(cl => scala.io.StdIn.readLine("Take "+cl.nameId+" ? [y]/n: ") != "n"),
+              bestClusterList._2)
           }
         }
         case "t" => {
@@ -281,49 +299,45 @@ object Main extends App {
   println("Code: https://github.com/gautierstoll/CytoSpark, version 0.9. Because I am not a professional, I think my code is quite ugly...")
   println("Written in Scala because it is fun. Hope it is also fast.")
 
-  var loopFile = true
-  var fcsFile: String = ""
-  while (loopFile) {
-    //fcsFile = askFileOrNull()
-    //if (fcsFile == null) {
-    //  println("Bye Bye \n");
-    //  System.exit(0)
-    //}
-    fcsFile = askFileFromType("fcs")
-    val fcsHeader = new FCSHeader(fcsFile)
-    val inputParser = fcsHeader.getOnlineFCSInput
-    val parsedFCS = new FCSParserFull(inputParser)
+  if (scala.io.StdIn.readLine("Generate cluster or use them? [g]/u: ") == "u") {
+    val elclFileList = askListFileFromType("elcl")
+  elclFileList.map(file => )
 
-    var clusterLoop = true
-    while (clusterLoop) {
-      val nbRow =
-        takeIntFromLine("Number of used rows [" + inputParser.takeNbEvent + "]: ", inputParser.takeNbEvent, 1) match {
-          case y: Int => if (y > inputParser.takeNbEvent) {
-            println("Take " + inputParser.takeNbEvent)
-            inputParser.takeNbEvent
-          } else y
-        }
-      var fcsDataFinalKMean = kMeanFCSClustering(parsedFCS, (0 until nbRow).toArray) //var because possible subclustering
-      println("Now, let's see how these clusters look like...")
-      plottingLoop(fcsDataFinalKMean)
-      while (scala.io.StdIn.readLine("Sub-clustering? y/[n]: ") == "y")
-        {
-          val subClusterIndex = takeIntFromLine("Cluster to separate: ",1,0,fcsDataFinalKMean.bestKMean.means.length) -1
+  }
+  else {
+    var loopFile = true
+    var fcsFile: String = ""
+    while (loopFile) {
+      fcsFile = askFileFromType("fcs")
+      val fcsHeader = new FCSHeader(fcsFile)
+      val inputParser = fcsHeader.getOnlineFCSInput
+      val parsedFCS = new FCSParserFull(inputParser)
+
+      var clusterLoop = true
+      while (clusterLoop) {
+        val nbRow =
+          takeIntFromLine("Number of used rows [" + inputParser.takeNbEvent + "]: ", inputParser.takeNbEvent, 1,inputParser.takeNbEvent)
+        var fcsDataFinalKMean = kMeanFCSClustering(parsedFCS, (0 until nbRow).toArray) //var because possible subclustering
+        println("Now, let's see how these clusters look like...")
+        plottingLoop(fcsDataFinalKMean)
+        while (scala.io.StdIn.readLine("Sub-clustering? y/[n]: ") == "y") {
+          val subClusterIndex = takeIntFromLine("Cluster to separate: ", 1, 0, fcsDataFinalKMean.bestKMean.means.length) - 1
           val subClusterDataIndices = fcsDataFinalKMean.bestKMean.clusters.toSeq.zipWithIndex.filter(x => x._1 == subClusterIndex).map(_._2).toArray
-          val subCluster = kMeanFCSClustering(parsedFCS,subClusterDataIndices).bestKMean
-          val newFCSDataFinalKMean = fcsDataFinalKMean.subClustering(subClusterIndex,subCluster)
+          val subCluster = kMeanFCSClustering(parsedFCS, subClusterDataIndices).bestKMean
+          val newFCSDataFinalKMean = fcsDataFinalKMean.subClustering(subClusterIndex, subCluster)
           println("Now, let's see if it looks better")
           plottingLoop(newFCSDataFinalKMean)
           if (scala.io.StdIn.readLine("Happy with this sub-clustering, apply it? [y]/n: ") != "n") fcsDataFinalKMean = newFCSDataFinalKMean
         }
-      clusterLoop = scala.io.StdIn.readLine("New cluster? y/[n]: ") match {
+        clusterLoop = scala.io.StdIn.readLine("New cluster? y/[n]: ") match {
+          case "y" => true
+          case _: String => false
+        }
+      }
+      loopFile = scala.io.StdIn.readLine("New file? y/[n]: ") match {
         case "y" => true
         case _: String => false
       }
-    }
-    loopFile = scala.io.StdIn.readLine("New file? y/[n]: ") match {
-      case "y" => true
-      case _: String => false
     }
   }
   println("Bye bye")
