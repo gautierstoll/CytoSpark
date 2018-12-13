@@ -12,6 +12,7 @@ import scala.collection.parallel.mutable._
 import org.saddle._
 import stat._
 import java.nio.file.{Files, Paths}
+import scala.io.Source
 
 import ClusterEllipse.EllipseClusterId
 
@@ -301,7 +302,17 @@ object Main extends App {
 
   if (scala.io.StdIn.readLine("Generate cluster or use them? [g]/u: ") == "u") {
     val elclFileList = askListFileFromType("elcl")
-  elclFileList.map(file => )
+    val readEllispeClustersParam: List[(EllipseClusterId, Array[String])] = elclFileList.flatMap(file => Source.fromFile(file).
+      getLines.toList.zipWithIndex.groupBy(_._2 / 5).toSeq.sortWith(_._1 < _._1).map(_._2.map(_._1))).
+      zipWithIndex.map(fiveLinesId => ClusterEllipse.hexStringToElClusterIdParam(fiveLinesId._1, fiveLinesId._2))
+    val commonParam = readEllispeClustersParam.map(_._2.toSet).reduce(_.intersect(_))
+    if (commonParam.size < readEllispeClustersParam.map(_._2.length).max) println("incompatible elcl files")
+    else {
+      // reorder ellipses
+      val listParam : Array[String] = readEllispeClustersParam.head._2
+      val listNameId = readEllispeClustersParam.map(_._1.nameId) // probably a recirsive function for multiple names.
+      val listEllipseCluster = readEllispeClustersParam.map
+    }
 
   }
   else {

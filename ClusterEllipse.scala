@@ -86,7 +86,7 @@ object ClusterEllipse {
         "\nMeans=" + cluster.mean.map(x => double2Hex(x)).mkString(":") +
         "\nVar=" + cluster.varMat.toArray.map(x => double2Hex(x)).mkString(":") +
         "\nEllispe=" + cluster.varMat.toArray.map(x => double2Hex(x)).mkString(":") +
-        "\n"
+        "\n\\**\\"
     }
 
     def promptName() = {
