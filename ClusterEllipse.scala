@@ -19,6 +19,9 @@ import stat.kmeans._
 import stat.sparse.SMat
 
 import scala.collection.parallel.mutable._
+import LinePromptData._
+
+import scala.io.Source
 
 object ClusterEllipse {
 
@@ -80,7 +83,7 @@ object ClusterEllipse {
     */
   case class EllipseClusterId(cluster: EllipseCluster, clusterId: Int) {
     def double2Hex(db : Double) : String = java.lang.Double.toHexString(db)
-    var nameId : String = (clusterId+1).toString
+    var nameId : String = (clusterId+1).toString // ugly, will disapear
     def toHexString(paramNames : Array[String]): String = {
       "Parameters=" + paramNames.mkString(":") + ";Name=" + nameId + ";Size=" + cluster.size.toString +
         "\nMeans=" + cluster.mean.map(x => double2Hex(x)).mkString(":") +
@@ -95,6 +98,29 @@ object ClusterEllipse {
         if (nm == "") nameId else nm
       }
     }
+  }
+
+  case class EllipseClustering(listEllipse : List[EllipseClusterId],param : Array[String],names : List[String])
+  {
+ def this(listFileNames : List[String]) = this(EllipseClustering.hexFilesToEllipses(listFileNames))
+  }
+  object EllipseClustering {
+    def hexFilesToEllipses(listFileNames : List[String]) : (List[EllipseClusterId],Array[String],List[String]) = {
+      val elclFileList = askListFileFromType("elcl")
+      val readEllispeClustersParam: List[(EllipseClusterId, Array[String])] = elclFileList.flatMap(file => Source.fromFile(file).
+        getLines.toList.zipWithIndex.groupBy(_._2 / 5).toSeq.sortWith(_._1 < _._1).map(_._2.map(_._1))).
+        zipWithIndex.map(fiveLinesId => ClusterEllipse.hexStringToElClusterIdParam(fiveLinesId._1, fiveLinesId._2))
+      val commonParam = readEllispeClustersParam.map(_._2.toSet).reduce(_.intersect(_))
+      if (commonParam.size < readEllispeClustersParam.map(_._2.length).max) {println("incompatible elcl files");(null,null,null)}
+      else {
+        // reorder ellipses
+        val listParam : Array[String] = readEllispeClustersParam.head._2
+        val listNameId = readEllispeClustersParam.map(_._1.nameId) // probably a recirsive function for multiple names.
+        val listEllipseCluster = readEllispeClustersParam.map
+      }
+
+    }
+
   }
 
   /** Reconstruction of ellipse cluster for HexString
