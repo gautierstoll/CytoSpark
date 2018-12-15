@@ -21,6 +21,7 @@ import stat.sparse.SMat
 import scala.collection.parallel.mutable._
 import LinePromptData._
 
+import scala.annotation.meta.param
 import scala.io.Source
 
 object ClusterEllipse {
@@ -30,7 +31,7 @@ object ClusterEllipse {
     * @param listExceptionClId
     */
   class EllipseException(listExceptionClId: List[EllipseClusterId]) extends Exception() {
-    val sizeId = listExceptionClId.filter(clId => clId.cluster.size == 1).map(clId => (clId.cluster.size, clId.clusterId))
+    val sizeId : List[(Int,Int)]= listExceptionClId.filter(clId => clId.cluster.size == 1).map(clId => (clId.cluster.size, clId.clusterId))
     val zeroVarId = listExceptionClId.filter(clId => ((clId.cluster.ellipseMat == null) && (clId.cluster.size > 1))).
       map(clId => (clId.cluster.zeroVarIndex, clId.clusterId))
 
@@ -63,8 +64,8 @@ object ClusterEllipse {
     * @param giveEllispeMat
     */
   case class EllipseCluster(size: Int, mean: Array[Double], varMat: DenseMatrix[Double], giveEllispeMat: DenseMatrix[Double] = null) {
-    val ellipseMat = if (giveEllispeMat == null) {
-      try (inv(varMat)) catch {
+    val ellipseMat :DenseMatrix[Double] = if (giveEllispeMat == null) {
+      try inv(varMat) catch {
         case _: Throwable => {
           println("Impossible to invert matrix, may cause problems for ellipse/tree")
           println("Data size: " + size)
@@ -100,36 +101,48 @@ object ClusterEllipse {
     }
   }
 
-  case class EllipseClustering(listEllipse : List[EllipseClusterId],param : Array[String],names : List[String])
-  {
- def this(listFileNames : List[String]) = this(EllipseClustering.hexFilesToEllipses(listFileNames))
+  case class EllipseClustering(listEllipse: List[EllipseClusterId], param: Array[String], names: List[String]) {
+    def this(tElCl : (List[EllipseClusterId],Array[String],List[String])) = this(tElCl._1,tElCl._2,tElCl._3)
+
+    def this(listFileNames: List[String]) = this(EllipseClustering.hexFilesToEllipses(listFileNames))
+    //def this(fcsDataFinalKMean: FCSDataFinalKMean) = this(EllipseClustering.finalKMeanToEllipse(fcsDataFinalKMean))
   }
   object EllipseClustering {
-    def hexFilesToEllipses(listFileNames : List[String]) : (List[EllipseClusterId],Array[String],List[String]) = {
+     private def hexFilesToEllipses(listFileNames: List[String]): (List[EllipseClusterId], Array[String], List[String]) = {
       val elclFileList = askListFileFromType("elcl")
-      val readEllispeClustersParam: List[(EllipseClusterId, Array[String])] = elclFileList.flatMap(file => Source.fromFile(file).
+      val readEllispeClustersParam: List[(EllipseCluster, Array[String],String)] = elclFileList.flatMap(file => Source.fromFile(file).
         getLines.toList.zipWithIndex.groupBy(_._2 / 5).toSeq.sortWith(_._1 < _._1).map(_._2.map(_._1))).
-        zipWithIndex.map(fiveLinesId => ClusterEllipse.hexStringToElClusterIdParam(fiveLinesId._1, fiveLinesId._2))
+        map(fiveLines => ClusterEllipse.hexStringToElClusterIdParam(fiveLines))
       val commonParam = readEllispeClustersParam.map(_._2.toSet).reduce(_.intersect(_))
-      if (commonParam.size < readEllispeClustersParam.map(_._2.length).max) {println("incompatible elcl files");(null,null,null)}
+      if (commonParam.size < readEllispeClustersParam.map(_._2.length).max) {
+        println("incompatible elcl files"); (null, null, null) // should be less strict?
+      }
       else {
-        // reorder ellipses
-        val listParam : Array[String] = readEllispeClustersParam.head._2
-        val listNameId = readEllispeClustersParam.map(_._1.nameId) // probably a recirsive function for multiple names.
-        val listEllipseCluster = readEllispeClustersParam.map
+        // reorder ellipses,should test it
+        val listParam: Array[String] = readEllispeClustersParam.head._2
+        val listNameId = readEllispeClustersParam.map(_._3)
+        val listEllipseCluster = readEllispeClustersParam.map(elParamName => {
+          val reordIndex = listParam.map(elParamName._2.indexOf(_)).toSeq
+          EllipseCluster(elParamName._1.size,
+            reordIndex.map(elParamName._1.mean(_)).toArray,
+            elParamName._1.varMat(reordIndex,reordIndex).toDenseMatrix,
+          elParamName._1.giveEllispeMat(reordIndex,reordIndex).toDenseMatrix)
+        })
+        (listEllipseCluster.zipWithIndex.map(x => EllipseClusterId(x._1,x._2)),listParam,listNameId)
       }
 
     }
+   // private def finalKMeanToEllipse(fcsDataFinalKMean : FCSDataFinalKMean) : (List[EllipseClusterId], Array[String], List[String])
+
 
   }
 
   /** Reconstruction of ellipse cluster for HexString
     *
     * @param hxString
-    * @param id
-    * @return
+    * @return cluster, paramters list and name
     */
-  def hexStringToElClusterIdParam(hxString : List[String] ,id : Int) : (EllipseClusterId,Array[String]) = {
+  def hexStringToElClusterIdParam(hxString : List[String]) : (EllipseCluster,Array[String],String) = {
     val patternParam = """Parameters=([^;]*);""".r
     val paramCatch = patternParam.findAllIn(hxString(0)).matchData.toArray
     val parameters : Array[String] = if (paramCatch.length > 0) {
@@ -140,7 +153,7 @@ object ClusterEllipse {
     val nameCatch = patternName.findAllIn(hxString(0)).matchData.toArray
     val nameId : String = if (nameCatch.length > 0) {
       nameCatch.head.group(1)
-    } else throw new MatchError("Do not find Size")
+    } else throw new MatchError("Do not find Name")
 
 
     val sizeName = """Size=([^;]*);""".r
@@ -184,7 +197,7 @@ object ClusterEllipse {
     val clusterEllipseMat = try new DenseMatrix[Double](parameters.length, parameters.length, clusterEllipse) catch {
       case _: Throwable => throw new MatchError("Wrong dimension of var matrix")
     }
-    (EllipseClusterId(EllipseCluster(clusterSize,clusterMeans,clusterVarMat,clusterEllipseMat),id),parameters)
+    (EllipseCluster(clusterSize,clusterMeans,clusterVarMat,clusterEllipseMat),parameters,nameId)
   }
 
   /** fusion of 2 populations defined by size, mean and variance
