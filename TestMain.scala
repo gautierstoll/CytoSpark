@@ -39,7 +39,7 @@ object Main extends App {
     * @param fcsDataFinalKMean
     */
   def plottingLoop(fcsDataFinalKMean: FCSDataFinalKMean): Unit = {
-    var bestClusterList: (List[EllipseClusterId], Array[String]) = null
+    var bestClusterList: ClusterEllipse.EllipseClustering = null
     var loopPlot = true
     while (loopPlot) {
       val removeCluster =
@@ -58,7 +58,7 @@ object Main extends App {
         }
         case "e" => {
           if (bestClusterList == null) {
-            bestClusterList = FCSOutput.clusterForPlot(fcsDataFinalKMean); println("Compute ellipses\n")
+            bestClusterList = new ClusterEllipse.EllipseClustering(fcsDataFinalKMean); println("Compute ellipses\n")
           }
           val outPdf = scala.io.StdIn.readLine("Ellipse file: ") + ".pdf"
           val ellipsePdf = try (FCSOutput.kMeanFCSPlotEllipse2D(bestClusterList, removeCluster, removeParam)) catch {
@@ -70,34 +70,39 @@ object Main extends App {
           if (ellipsePdf != null)
             FCSOutput.plotKSeqToPdf(ellipsePdf, outPdf)
           if (scala.io.StdIn.readLine("Export ellipses to elcl file? y/[n]: ")=="y") {
-            bestClusterList._1.sortWith(_.clusterId < _.clusterId).foreach(cl => cl.promptName())
+            bestClusterList = new ClusterEllipse.EllipseClustering(bestClusterList.listEllipse,
+              bestClusterList.param,
+              bestClusterList.names.map(nm => {
+                val prompName = scala.io.StdIn.readLine("Name for cluster " + nm + " :")
+                if (prompName == "") nm else prompName
+              }))
             val file = scala.io.StdIn.readLine("Export file: ")
             ClusterEllipse.ExportEllipseIdList(file,
               bestClusterList._1.filter(cl => scala.io.StdIn.readLine("Take "+cl.nameId+" ? [y]/n: ") != "n"),
               bestClusterList._2)
           }
         }
-        case "a" => {
-          if (bestClusterList == null) {
-            bestClusterList = FCSOutput.clusterForPlot(fcsDataFinalKMean); println("Compute ellipses\n")
-          }
-          val outPdf = scala.io.StdIn.readLine("Ellipse and center pdf file: ") + ".pdf"
-          val ellipseCenterPdf = try (FCSOutput.kMeanFCSPlotClusterEllipse2D(fcsDataFinalKMean, bestClusterList, removeCluster, removeParam)) catch {
-            case ex: ClusterEllipse.EllipseException => {
-              println(ex.errMessage());
-              null
-            }
-          }
-          if (ellipseCenterPdf != null)
-            FCSOutput.plotKSeqToPdf(ellipseCenterPdf, outPdf)
-          if (scala.io.StdIn.readLine("Export ellipses to elcl file? y/[n]: ")=="y") {
-            bestClusterList._1.sortWith(_.clusterId < _.clusterId).foreach(cl => cl.promptName())
-            val file = scala.io.StdIn.readLine("Export file: ")
-            ClusterEllipse.ExportEllipseIdList(file,
-              bestClusterList._1.filter(cl => scala.io.StdIn.readLine("Take "+cl.nameId+" ? [y]/n: ") != "n"),
-              bestClusterList._2)
-          }
-        }
+//        case "a" => {
+//          if (bestClusterList == null) {
+//            bestClusterList = FCSOutput.clusterForPlot(fcsDataFinalKMean); println("Compute ellipses\n")
+//          }
+//          val outPdf = scala.io.StdIn.readLine("Ellipse and center pdf file: ") + ".pdf"
+//          val ellipseCenterPdf = try (FCSOutput.kMeanFCSPlotClusterEllipse2D(fcsDataFinalKMean, bestClusterList, removeCluster, removeParam)) catch {
+//            case ex: ClusterEllipse.EllipseException => {
+//              println(ex.errMessage());
+//              null
+//            }
+//          }
+//          if (ellipseCenterPdf != null)
+//            FCSOutput.plotKSeqToPdf(ellipseCenterPdf, outPdf)
+//          if (scala.io.StdIn.readLine("Export ellipses to elcl file? y/[n]: ")=="y") {
+//            bestClusterList._1.sortWith(_.clusterId < _.clusterId).foreach(cl => cl.promptName())
+//            val file = scala.io.StdIn.readLine("Export file: ")
+//            ClusterEllipse.ExportEllipseIdList(file,
+//              bestClusterList._1.filter(cl => scala.io.StdIn.readLine("Take "+cl.nameId+" ? [y]/n: ") != "n"),
+//              bestClusterList._2)
+//          }
+//        }
         case "t" => {
           if (bestClusterList == null) {
             bestClusterList = FCSOutput.clusterForPlot(fcsDataFinalKMean); println("Compute ellipses\n")

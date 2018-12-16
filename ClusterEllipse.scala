@@ -3,6 +3,7 @@ import java.io._
 
 import breeze.linalg._
 import breeze.numerics._
+import breeze.stats._
 import java.nio.ByteBuffer
 
 import org.saddle._
@@ -20,6 +21,7 @@ import stat.sparse.SMat
 
 import scala.collection.parallel.mutable._
 import LinePromptData._
+
 
 import scala.annotation.meta.param
 import scala.io.Source
@@ -105,7 +107,7 @@ object ClusterEllipse {
     def this(tElCl : (List[EllipseClusterId],Array[String],List[String])) = this(tElCl._1,tElCl._2,tElCl._3)
 
     def this(listFileNames: List[String]) = this(EllipseClustering.hexFilesToEllipses(listFileNames))
-    //def this(fcsDataFinalKMean: FCSDataFinalKMean) = this(EllipseClustering.finalKMeanToEllipse(fcsDataFinalKMean))
+    def this(fcsDataFinalKMean: FCSDataFinalKMean) = this(EllipseClustering.finalKMeanToEllipse(fcsDataFinalKMean))
   }
   object EllipseClustering {
      private def hexFilesToEllipses(listFileNames: List[String]): (List[EllipseClusterId], Array[String], List[String]) = {
@@ -132,8 +134,22 @@ object ClusterEllipse {
       }
 
     }
-   // private def finalKMeanToEllipse(fcsDataFinalKMean : FCSDataFinalKMean) : (List[EllipseClusterId], Array[String], List[String])
-
+   private def finalKMeanToEllipse(fcsDataFinalKMean : FCSDataFinalKMean) : (List[EllipseClusterId], Array[String], List[String]) = {
+    val clusterList = fcsDataFinalKMean.bestKMean.clusters.toSeq.distinct.toParArray.map(clusterId => {
+      val indexId = fcsDataFinalKMean.bestKMean.clusters.toSeq.zipWithIndex.filter(x => x._1 == clusterId).map(_._2)
+      val dataMat = fcsDataFinalKMean.dataMat.row(indexId.toArray)
+      ClusterEllipse.EllipseClusterId(ClusterEllipse.EllipseCluster(indexId.length,
+        dataMat.cols.map(x => breeze.stats.mean(x.toArray)).toArray,
+        covmat(new DenseMatrix(dataMat.numCols, dataMat.numRows, dataMat.toArray).t)
+      ), clusterId)
+    }).toList.sortWith(_.clusterId < _.clusterId)
+    val labelParam = fcsDataFinalKMean.takenParam.map(param =>
+      try fcsDataFinalKMean.textSegmentMap("$P" + param + "S") catch {
+        case _: Throwable => fcsDataFinalKMean.textSegmentMap("$P" + param + "N")
+      }
+    ).toArray
+    (clusterList, labelParam,clusterList.map(cl => cl.clusterId.toString))
+  }
 
   }
 

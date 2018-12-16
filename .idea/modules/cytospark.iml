@@ -12,11 +12,11 @@
       <sourceFolder url="file://$MODULE_DIR$/.." isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/../../target" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/../../src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/../.." isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/../../target/scala-2.10" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/../../target/scala-2.11" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/../../target/scala-2.12" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/../../target/streams" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/../.." isTestSource="false" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
