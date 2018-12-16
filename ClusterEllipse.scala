@@ -86,7 +86,7 @@ object ClusterEllipse {
     */
   case class EllipseClusterId(cluster: EllipseCluster, clusterId: Int) {
     def double2Hex(db : Double) : String = java.lang.Double.toHexString(db)
-    var nameId : String = (clusterId+1).toString // ugly, will disapear
+    //var nameId : String = (clusterId+1).toString // ugly, will disapear
     def toHexString(paramNames : Array[String]): String = {
       "Parameters=" + paramNames.mkString(":") + ";Name=" + nameId + ";Size=" + cluster.size.toString +
         "\nMeans=" + cluster.mean.map(x => double2Hex(x)).mkString(":") +
@@ -95,12 +95,12 @@ object ClusterEllipse {
         "\n\\**\\"
     }
 
-    def promptName() = {
-      nameId = {
-        val nm = scala.io.StdIn.readLine("Name for cluster " + nameId + " :")
-        if (nm == "") nameId else nm
-      }
-    }
+//    def promptName() = {
+//      nameId = {
+//        val nm = scala.io.StdIn.readLine("Name for cluster " + nameId + " :")
+//        if (nm == "") nameId else nm
+//      }
+//    }
   }
 
   case class EllipseClustering(listEllipse: List[EllipseClusterId], param: Array[String], names: List[String]) {
@@ -108,6 +108,15 @@ object ClusterEllipse {
 
     def this(listFileNames: List[String]) = this(EllipseClustering.hexFilesToEllipses(listFileNames))
     def this(fcsDataFinalKMean: FCSDataFinalKMean) = this(EllipseClustering.finalKMeanToEllipse(fcsDataFinalKMean))
+    private def double2Hex(db : Double) : String = java.lang.Double.toHexString(db)
+    def toHexString(exportNames : List[String]): String = {
+      listEllipse.zip(names).filter(elName => exportNames.contains(elName._2)).map(elName =>
+      "Parameters=" + param.mkString(":") + ";Name=" + elName._2 + ";Size=" + elName._1.cluster.size.toString +
+        "\nMeans=" + elName._1.cluster.mean.map(x => double2Hex(x)).mkString(":") +
+        "\nVar=" + elName._1.cluster.varMat.toArray.map(x => double2Hex(x)).mkString(":") +
+        "\nEllispe=" + elName._1.cluster.varMat.toArray.map(x => double2Hex(x)).mkString(":") +
+        "\n\\**\\").mkString("\n")
+    }
   }
   object EllipseClustering {
      private def hexFilesToEllipses(listFileNames: List[String]): (List[EllipseClusterId], Array[String], List[String]) = {
