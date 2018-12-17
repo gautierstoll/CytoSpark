@@ -356,32 +356,32 @@ object FCSOutput {
       ylim = Option(min4Plot, max4Plot), xlim = Option(0.0, (mat4Plot.numRows - 1).toDouble))
   }
 
-  def treeKmeanClust(clusterListParam: (List[EllipseClusterId], Array[String]), excludeCluster: Array[Int] = Array(), excludeParam: Array[Int] = Array()):
+  def treeKmeanClust(clusterListParam: EllipseClustering, excludeCluster: Array[Int] = Array(), excludeParam: Array[Int] = Array()):
   List[ClusterEllipse.ArrowEllipseCluster] = {
 
-    val errCluster = clusterListParam._1.
+    val errCluster = clusterListParam.listEllipse.
       filter(clId => (!excludeCluster.contains(clId.clusterId) && (
         (clId.cluster.size == 1) ||
           (clId.cluster.zeroVarIndex.filter(zeroVar => !excludeParam.contains(zeroVar)).nonEmpty))))
     if (errCluster.length > 0) throw new ClusterEllipse.EllipseException(errCluster)
-    val keepParam = (0 until clusterListParam._1.head.cluster.mean.length).filter(i => !excludeParam.contains(i))
-    val clusterList4Tree = clusterListParam._1.filter(clId => !excludeCluster.contains(clId.clusterId)).
+    val keepParam = (0 until clusterListParam.listEllipse.head.cluster.mean.length).filter(i => !excludeParam.contains(i))
+    val clusterList4Tree = clusterListParam.listEllipse.filter(clId => !excludeCluster.contains(clId.clusterId)).
       map(clId => EllipseClusterId(ClusterEllipse.EllipseCluster(clId.cluster.size,
         clId.cluster.mean.zipWithIndex.filter(x => keepParam.contains(x._2)).map(_._1),
         clId.cluster.varMat(keepParam, keepParam).toDenseMatrix), clId.clusterId))
     ClusterEllipse.treeEllipseCluster(clusterList4Tree)
   }
 
-  def connNetworkClust(clusterListParam: (List[EllipseClusterId], Array[String]), excludeCluster: Array[Int] = Array(), excludeParam: Array[Int] = Array()):
+  def connNetworkClust(clusterListParam: EllipseClustering, excludeCluster: Array[Int] = Array(), excludeParam: Array[Int] = Array()):
   List[ClusterEllipse.ArrowEllipseCluster] = {
 
-    val errCluster = clusterListParam._1.
+    val errCluster = clusterListParam.listEllipse.
       filter(clId => (!excludeCluster.contains(clId.clusterId) && (
         (clId.cluster.size == 1) ||
           (clId.cluster.zeroVarIndex.filter(zeroVar => !excludeParam.contains(zeroVar)).length > 0))))
     if (errCluster.length > 0) throw new ClusterEllipse.EllipseException(errCluster)
-    val keepParam = (0 until clusterListParam._1.head.cluster.mean.length).filter(i => !excludeParam.contains(i))
-    val clusterList4Tree = clusterListParam._1.filter(clId => !excludeCluster.contains(clId.clusterId)).
+    val keepParam = (0 until clusterListParam.listEllipse.head.cluster.mean.length).filter(i => !excludeParam.contains(i))
+    val clusterList4Tree = clusterListParam.listEllipse.filter(clId => !excludeCluster.contains(clId.clusterId)).
       map(clId => EllipseClusterId(ClusterEllipse.EllipseCluster(clId.cluster.size,
         clId.cluster.mean.zipWithIndex.filter(x => keepParam.contains(x._2)).map(_._1),
         clId.cluster.varMat(keepParam, keepParam).toDenseMatrix), clId.clusterId))
@@ -441,7 +441,7 @@ object FCSOutput {
     val clusterNames: Array[String] = if (clusterINames == null) {
       clusterSize.map(cl => {
         val nm = scala.io.StdIn.readLine("Name of cluster " + (cl._1+1) + " :")
-        if (nm == "") (cl._1+1).toString() else nm
+        if (nm == "") (cl._1+1).toString else nm
       }).toArray
     } else clusterINames
     val clusterFrame = Frame("Cluster" -> Vec(clusterSize.map(_._1 + 1).toArray.map(_.toString)),

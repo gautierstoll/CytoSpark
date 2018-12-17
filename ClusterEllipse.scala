@@ -45,18 +45,18 @@ object ClusterEllipse {
     }
   }
 
-  /** write ellipse clusters to a file
-    *
-    * @param ellipseFile
-    * @param listEllipse
-    * @param paramNames
-    */
-  def ExportEllipseIdList(ellipseFile : String,listEllipse : List[EllipseClusterId],paramNames: Array[String]) = {
-    val file = new File(ellipseFile+".elcl")
-    val bw = new BufferedWriter(new FileWriter(file))
-    bw.write(listEllipse.map(_.toHexString(paramNames)).mkString("\n"))
-    bw.close()
-  }
+//  /** write ellipse clusters to a file
+//    *
+//    * @param ellipseFile
+//    * @param listEllipse
+//    * @param paramNames
+//    */
+//  def ExportEllipseIdList(ellipseFile : String,listEllipse : List[EllipseClusterId],paramNames: Array[String]) = {
+//    val file = new File(ellipseFile+".elcl")
+//    val bw = new BufferedWriter(new FileWriter(file))
+//    bw.write(listEllipse.map(_.toHexString(paramNames)).mkString("\n"))
+//    bw.close()
+//  }
 
   /** cluster defined by mean and variance. Ellipse matrix (inverse of variance) is computed when not provided
     *
@@ -87,13 +87,13 @@ object ClusterEllipse {
   case class EllipseClusterId(cluster: EllipseCluster, clusterId: Int) {
     def double2Hex(db : Double) : String = java.lang.Double.toHexString(db)
     //var nameId : String = (clusterId+1).toString // ugly, will disapear
-    def toHexString(paramNames : Array[String]): String = {
-      "Parameters=" + paramNames.mkString(":") + ";Name=" + nameId + ";Size=" + cluster.size.toString +
-        "\nMeans=" + cluster.mean.map(x => double2Hex(x)).mkString(":") +
-        "\nVar=" + cluster.varMat.toArray.map(x => double2Hex(x)).mkString(":") +
-        "\nEllispe=" + cluster.varMat.toArray.map(x => double2Hex(x)).mkString(":") +
-        "\n\\**\\"
-    }
+//    def toHexString(paramNames : Array[String]): String = {
+//      "Parameters=" + paramNames.mkString(":") + ";Name=" + nameId + ";Size=" + cluster.size.toString +
+//        "\nMeans=" + cluster.mean.map(x => double2Hex(x)).mkString(":") +
+//        "\nVar=" + cluster.varMat.toArray.map(x => double2Hex(x)).mkString(":") +
+//        "\nEllispe=" + cluster.varMat.toArray.map(x => double2Hex(x)).mkString(":") +
+//        "\n\\**\\"
+//    }
 
 //    def promptName() = {
 //      nameId = {
