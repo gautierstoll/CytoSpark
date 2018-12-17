@@ -14,6 +14,7 @@ import stat._
 
 import scala.util._
 import breeze.numerics.constants._
+import org.nspl
 import org.nspl._
 import org.nspl.saddle._
 import org.nspl.data._
@@ -31,7 +32,7 @@ object FCSOutput {
   //def clusterForPlot(fcsParsed: FCSParserFull, kMeanR: KMeansResult): (List[EllipseClusterId], Array[String]) = {
   /**
     *
-    * @param fcsDataFinalKMean
+    * @param fcsDataFinalKMean final KMean cluster and data
     * @return cluster and parameters names for 2d plot
     */
   def clusterForPlot(fcsDataFinalKMean: FCSDataFinalKMean): (List[EllipseClusterId], Array[String]) = {
@@ -53,35 +54,35 @@ object FCSOutput {
 
   /** plot ellipse, from list of EllipseClusterId, minmax based on ellipses
     *
-    * @param clusterListParam
-    * @param excludeCluster
-    * @param excludeParam
+    * @param clusterListParam EllipseClusterrin
+    * @param excludeCluster indices of cluster to exclude
+    * @param excludeParam indices of paramters to exclude
     * @return
     */
   def kMeanFCSPlotEllipse2D(clusterListParam: ClusterEllipse.EllipseClustering,
                             excludeCluster: Array[Int] = Array(), excludeParam: Array[Int] = Array())
   : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
     def ellipsePoints2DVar(cluster: EllipseCluster, index1: Int, index2: Int, segmentNb: Int): org.saddle.Mat[Double] = {
-      def ellipse2DVarCurve(cluster: EllipseCluster, index1: Int, index2: Int): (Double => (Double, Double)) = {
+      def ellipse2DVarCurve(cluster: EllipseCluster, index1: Int, index2: Int): Double => (Double, Double) = {
         val svdCov = svd(cluster.varMat(List(index1, index2), List(index1, index2)).toDenseMatrix)
         val Vt = svdCov.Vt
         val S = svdCov.S
-        (angle => {
+        angle => {
           val vectEllipse = Vt * DenseVector(pow(S(0), .5) * cos(angle), pow(S(1), .5) * sin(angle))
           (vectEllipse(0) + cluster.mean(index1), vectEllipse(1) + cluster.mean(index2))
-        })
+        }
       }
 
       val ellipseD1D2 = ellipse2DVarCurve(cluster, index1, index2)
-      Mat(segmentNb + 1, 2, (0 to (segmentNb)).map(x => x.toDouble / segmentNb * 2 * Pi).map(x => ellipseD1D2(x)).flatMap(x => Array(x._1, x._2)).toArray)
+      Mat(segmentNb + 1, 2, (0 to segmentNb).map(x => x.toDouble / segmentNb * 2 * Pi).map(x => ellipseD1D2(x)).flatMap(x => Array(x._1, x._2)).toArray)
     }
 
     //clusterListParam._1.filter(eClId => (eClId.cluster.size < 2) ).foreach(eClId => println("Cluster "+(eClId.clusterId+1)+" has size 1"))
-    val clusterListParam4Plot = (clusterListParam.listEllipse.filter(x => (!excludeCluster.contains(x.clusterId))), clusterListParam.param)
+    val clusterListParam4Plot = (clusterListParam.listEllipse.filter(x => !excludeCluster.contains(x.clusterId)), clusterListParam.param)
     val errCluster = clusterListParam4Plot._1.
       filter(clId => (clId.cluster.size == 1) ||
         (clId.cluster.zeroVarIndex.filter(zeroVar => !excludeParam.contains(zeroVar)).length > 0))
-    if (errCluster.length > 0) throw new ClusterEllipse.EllipseException(errCluster)
+    if (errCluster.nonEmpty) throw new ClusterEllipse.EllipseException(errCluster)
 
     val param4Plot = clusterListParam.param.indices.filter(x => !excludeParam.contains(x))
     val projections = param4Plot.combinations(2).map { g =>
@@ -89,8 +90,8 @@ object FCSOutput {
       val c2 = g(1)
       print(c1 + " x " + c2 + "     \r")
       val clusterEllipseMatForPlot = Mat(clusterListParam4Plot._1.flatMap(ellClustId =>
-        (ellipsePoints2DVar(ellClustId.cluster, c1, c2, 100).cols.toList :::
-          List(Vec(Array.fill(100 + 1)(ellClustId.clusterId.toDouble))))).toArray)
+        ellipsePoints2DVar(ellClustId.cluster, c1, c2, 100).cols.toList :::
+          List(Vec(Array.fill(100 + 1)(ellClustId.clusterId.toDouble)))).toArray)
       val indexX = (0 until (clusterEllipseMatForPlot.numCols / 3)).map(x => x * 3).toArray
       val indexY = (0 until (clusterEllipseMatForPlot.numCols / 3)).map(x => x * 3 + 1).toArray
       val xMinMax = Option(clusterEllipseMatForPlot.col(indexX).toArray.min - abs(clusterEllipseMatForPlot.col(indexX).toArray.min) * .05,
@@ -122,10 +123,10 @@ object FCSOutput {
   def kMeanFCSPlot2D(fcsDataFinalKMean: FCSDataFinalKMean, excludeCluster: Array[Int] = Array(), excludeParam: Array[Int] = Array())
   : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
     val keepIndex = (0 until fcsDataFinalKMean.bestKMean.clusters.length).
-      filter(x => (!excludeCluster.contains(fcsDataFinalKMean.bestKMean.clusters(x).toArray.head))).toArray
+      filter(x => !excludeCluster.contains(fcsDataFinalKMean.bestKMean.clusters(x).toArray.head)).toArray
     val dataSubFCS = fcsDataFinalKMean.dataMat.row(keepIndex)
     val subKMeanR = KMeansResult(
-      clusters = fcsDataFinalKMean.bestKMean.clusters.filter(x => !(excludeCluster.contains(x))),
+      clusters = fcsDataFinalKMean.bestKMean.clusters.filter(x => !excludeCluster.contains(x)),
       means = fcsDataFinalKMean.bestKMean.means
     )
     val param4Plot = fcsDataFinalKMean.takenParam.indices.filter(x => !excludeParam.contains(x))
@@ -170,10 +171,10 @@ object FCSOutput {
   : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
 
     val keepIndex = (0 until fcsDataFinalKMean.bestKMean.clusters.length).
-      filter(x => (!excludeCluster.contains(fcsDataFinalKMean.bestKMean.clusters(x).toArray.head))).toArray
+      filter(x => !excludeCluster.contains(fcsDataFinalKMean.bestKMean.clusters(x).toArray.head)).toArray
     val dataSubFCS = fcsDataFinalKMean.dataMat.row(keepIndex)
     val subKMeanR = KMeansResult(
-      clusters = fcsDataFinalKMean.bestKMean.clusters.filter(x => !(excludeCluster.contains(x))),
+      clusters = fcsDataFinalKMean.bestKMean.clusters.filter(x => !excludeCluster.contains(x)),
       means = fcsDataFinalKMean.bestKMean.means
     )
     val param4Plot = fcsDataFinalKMean.takenParam.indices.filter(x => !excludeParam.contains(x))
@@ -224,15 +225,15 @@ object FCSOutput {
   def kMeanFCSPlotClusters2D(fcsDataFinalKMean: FCSDataFinalKMean, excludeCluster: Array[Int] = Array(), excludeParam: Array[Int] = Array())
   : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
     val keepIndex = (0 until fcsDataFinalKMean.bestKMean.clusters.length).
-      filter(x => (!excludeCluster.contains(fcsDataFinalKMean.bestKMean.clusters(x).toArray.head))).toArray
+      filter(x => !excludeCluster.contains(fcsDataFinalKMean.bestKMean.clusters(x).toArray.head)).toArray
     val dataSubFCS = fcsDataFinalKMean.dataMat.row(keepIndex)
     val clusterSize = fcsDataFinalKMean.bestKMean.clusters.toArray.groupBy(x => x).map(x => (x._1, x._2.length)).
-      filter(x => (!excludeCluster.contains(x._1))).toList.sortBy(_._1)
-    val clusterMean = fcsDataFinalKMean.bestKMean.means.zipWithIndex.filter(x => (!excludeCluster.contains(x._2)))
+      filter(x => !excludeCluster.contains(x._1)).toList.sortBy(_._1)
+    val clusterMean = fcsDataFinalKMean.bestKMean.means.zipWithIndex.filter(x => !excludeCluster.contains(x._2))
     val param4Plot = fcsDataFinalKMean.bestKMean.means.head.toArray.indices.filter(x => !excludeParam.contains(x))
     val projections = param4Plot.combinations(2).map { g =>
-      val c1 = (g(0))
-      val c2 = (g(1))
+      val c1 = g(0)
+      val c2 = g(1)
       print(c1 + " x " + c2 + "       " + "\r")
       val xMinMaxFCSComp = Option(dataSubFCS.col(c1).toArray.min, dataSubFCS.col(c1).toArray.max)
       val yMinMaxFCSComp = Option(dataSubFCS.col(c2).toArray.min, dataSubFCS.col(c2).toArray.max)
@@ -303,7 +304,7 @@ object FCSOutput {
     val dataSubFCS = fcsDataFinalKMean.dataMat.row(keepIndex)
     val clusterSize = fcsDataFinalKMean.bestKMean.clusters.toArray.groupBy(x => x).map(x => (x._1, x._2.length)).
       filter(x => !excludeCluster.contains(x._1)).toList.sortBy(_._1)
-    val clusterMean = fcsDataFinalKMean.bestKMean.means.zipWithIndex.filter(x => (!excludeCluster.contains(x._2)))
+    val clusterMean = fcsDataFinalKMean.bestKMean.means.zipWithIndex.filter(x => !excludeCluster.contains(x._2))
 
     val param4Plot = clusterListParam.param.indices.filter(x => !excludeParam.contains(x))
     val projections = param4Plot.combinations(2).map { g =>
@@ -345,10 +346,10 @@ object FCSOutput {
   }
 
 
-  def kMeanFCSPlotSeqEuclid(kmeanEuclid: ParArray[(List[Double], KMeansResult)])
+  def kMeanFCSPlotSeqEuclid(kmeanEuclid: ParArray[(List[Double], KMeansResult)]): org.nspl.Build[Elems2[XYPlotArea, Legend]]
   = {
-    val min4Plot = kmeanEuclid.map(_._1.toArray).toArray.flatMap(x => x).min * .98
-    val max4Plot = kmeanEuclid.map(_._1.toArray).toArray.flatMap(x => x).max * 1.02
+    val min4Plot = kmeanEuclid.map(_._1.toArray).toArray.flatten.min * .98
+    val max4Plot = kmeanEuclid.map(_._1.toArray).toArray.flatten.max * 1.02
     val mat4Plot = Mat((kmeanEuclid.map(_._1.toArray).toList :::
       List((0 until kmeanEuclid.map(_._1.toArray).toArray.head.length).toArray.map(_.toDouble))).toArray)
     xyplot(mat4Plot -> (0 until mat4Plot.numCols - 1).map(x => line(yCol = x, xCol = mat4Plot.numCols - 1,
@@ -360,10 +361,10 @@ object FCSOutput {
   List[ClusterEllipse.ArrowEllipseCluster] = {
 
     val errCluster = clusterListParam.listEllipse.
-      filter(clId => (!excludeCluster.contains(clId.clusterId) && (
+      filter(clId => !excludeCluster.contains(clId.clusterId) && (
         (clId.cluster.size == 1) ||
-          (clId.cluster.zeroVarIndex.filter(zeroVar => !excludeParam.contains(zeroVar)).nonEmpty))))
-    if (errCluster.length > 0) throw new ClusterEllipse.EllipseException(errCluster)
+          clId.cluster.zeroVarIndex.filter(zeroVar => !excludeParam.contains(zeroVar)).nonEmpty))
+    if (errCluster.nonEmpty) throw new ClusterEllipse.EllipseException(errCluster)
     val keepParam = (0 until clusterListParam.listEllipse.head.cluster.mean.length).filter(i => !excludeParam.contains(i))
     val clusterList4Tree = clusterListParam.listEllipse.filter(clId => !excludeCluster.contains(clId.clusterId)).
       map(clId => EllipseClusterId(ClusterEllipse.EllipseCluster(clId.cluster.size,
@@ -376,10 +377,10 @@ object FCSOutput {
   List[ClusterEllipse.ArrowEllipseCluster] = {
 
     val errCluster = clusterListParam.listEllipse.
-      filter(clId => (!excludeCluster.contains(clId.clusterId) && (
+      filter(clId => !excludeCluster.contains(clId.clusterId) && (
         (clId.cluster.size == 1) ||
-          (clId.cluster.zeroVarIndex.filter(zeroVar => !excludeParam.contains(zeroVar)).length > 0))))
-    if (errCluster.length > 0) throw new ClusterEllipse.EllipseException(errCluster)
+          (clId.cluster.zeroVarIndex.filter(zeroVar => !excludeParam.contains(zeroVar)).length > 0)))
+    if (errCluster.nonEmpty) throw new ClusterEllipse.EllipseException(errCluster)
     val keepParam = (0 until clusterListParam.listEllipse.head.cluster.mean.length).filter(i => !excludeParam.contains(i))
     val clusterList4Tree = clusterListParam.listEllipse.filter(clId => !excludeCluster.contains(clId.clusterId)).
       map(clId => EllipseClusterId(ClusterEllipse.EllipseCluster(clId.cluster.size,
@@ -391,19 +392,19 @@ object FCSOutput {
   def networkKmeanClustPlot2D(paramName: Array[String], // length of paramName = length of cluster means, parameter coudl be excluded in treeKmeanClust
                               treeArrow: List[ClusterEllipse.ArrowEllipseCluster], excludeParam: Array[Int] = Array())
   : Build[ElemList[Elems2[XYPlotArea, Legend]]] = {
-    val matArrow4Plot = Mat(treeArrow.length, (paramName.length) * 2 + 1,
+    val matArrow4Plot = Mat(treeArrow.length, paramName.length * 2 + 1,
       treeArrow.
-        flatMap(x => Array(x.source.cluster.mean, x.target.cluster.mean, Array(x.source.clusterId.toDouble + 1))).flatMap(x => x).
+        flatMap(x => Array(x.source.cluster.mean, x.target.cluster.mean, Array(x.source.clusterId.toDouble + 1))).flatten.
         toArray)
     val distinctCluster = treeArrow.flatMap(x => List(x.source, x.target)).distinct
     val matCluster4Plot = Mat(distinctCluster.length, paramName.length + 1,
-      distinctCluster.flatMap(x => Array(x.cluster.mean, Array(x.clusterId.toDouble + 1))).flatMap(x => x).toArray)
+      distinctCluster.flatMap(x => Array(x.cluster.mean, Array(x.clusterId.toDouble + 1))).flatten.toArray)
     val projections = paramName.indices.combinations(2).map { g =>
       val cx = g(0)
       val cy = g(1)
       val c2x = g(0) + paramName.length
       val c2y = g(1) + paramName.length
-      val overCol = (paramName.length) * 2 + 1
+      val overCol = paramName.length * 2 + 1
       print(cx + " x " + cy + "       " + "\r")
       val xMinMaxFCSComp: Option[(Double, Double)] = Option(matCluster4Plot.col(Array(cx)).toArray.min - abs(matCluster4Plot.col(Array(cx)).toArray.min) * .05,
         matCluster4Plot.col(Array(cx)).toArray.max + abs(matCluster4Plot.col(Array(cx)).toArray.max) * .05)
@@ -424,19 +425,19 @@ object FCSOutput {
 
 
   def plotKSeqToPng(plotSeq: Build[ElemList[Elems2[org.nspl.XYPlotArea, org.nspl.Legend]]],
-                    fileName: String, widthPng: Int = 1000) = {
+                    fileName: String, widthPng: Int = 1000): File = {
     val filePng = new File(fileName)
     pngToFile(filePng, plotSeq.build, widthPng)
   }
 
   def plotKSeqToPdf(plotSeq: Build[ElemList[Elems2[org.nspl.XYPlotArea, org.nspl.Legend]]],
-                    fileName: String) = {
+                    fileName: String) : File = {
     val filePdf = new File(fileName)
     pdfToFile(filePdf, plotSeq.build)
   }
 
 
-  def writeClusterSizeCsv(kMeanCluster: org.saddle.Vec[Int], fileName: String, clusterINames: Array[String] = null) = {
+  def writeClusterSizeCsv(kMeanCluster: org.saddle.Vec[Int], fileName: String, clusterINames: Array[String] = null) : Unit = {
     val clusterSize = kMeanCluster.toSeq.groupBy(identity).map(x => (x._1, x._2.size)).toList.sortWith(_._1 < _._1)
     val clusterNames: Array[String] = if (clusterINames == null) {
       clusterSize.map(cl => {
@@ -449,11 +450,12 @@ object FCSOutput {
     clusterFrame.writeCsvFile(fileName)
   }
 
-  def writeClusterTreeSizeCsv(treeClust: List[ClusterEllipse.ArrowEllipseCluster], fileName: String) = {
+  def writeClusterTreeSizeCsv(treeClust: List[ClusterEllipse.ArrowEllipseCluster], fileName: String) : Unit = {
     val clusterSize = treeClust.map(arrow => arrow.source.cluster.size).toArray
     val clusterId = treeClust.map(arrow => arrow.source.clusterId + 1).toArray // +1 because cluster nb start at 1
     val clusterTarget = treeClust.map(arrow => arrow.target.clusterId + 1).toArray // +1 because cluster nb start at 1
-    val treeFrame = Frame("Cluster" -> Vec(clusterId), "Size" -> Vec(clusterSize), "Target" -> Vec(clusterTarget))
+    val treeFrame =
+      Frame("Cluster" -> Vec(clusterId), "Size" -> Vec(clusterSize), "Target" -> Vec(clusterTarget))
     treeFrame.writeCsvFile(fileName)
   }
 }

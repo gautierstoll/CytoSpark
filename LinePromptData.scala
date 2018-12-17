@@ -12,7 +12,7 @@ object LinePromptData {
       }
     }
     if (takenInt < minVal) {
-      println("Take min: " + minVal);
+      println("Take min: " + minVal)
       minVal
     } else takenInt
   }
@@ -27,14 +27,12 @@ object LinePromptData {
       }
     }
     takenInt match {
-      case x if (x < minVal) => {
-        println("Take min: " + minVal);
+      case x if x < minVal =>
+        println("Take min: " + minVal)
         minVal
-      }
-      case x if (x > maxVal) => {
-        println("Take max: " + maxVal);
+      case x if x > maxVal =>
+        println("Take max: " + maxVal)
         maxVal
-      }
       case x => x
     }
   }
@@ -42,30 +40,30 @@ object LinePromptData {
 
   /** take a list of Int, separated by comma
     *
-    * @param askingPromp
-    * @param minVal
-    * @param maxVal
+    * @param askingPromp asking text
+    * @param minVal minimum value
+    * @param maxVal maximum value
     * @return
     */
   def takeListInt(askingPromp: String, minVal: Int, maxVal: Int): List[Int] = {
     scala.io.StdIn.readLine(askingPromp).
       toCharArray.filter(_ != ' ').mkString("").split(",").
-      map(x => try (x.toInt) catch {
-        case _: Throwable => (minVal - 1)
+      map(x => try x.toInt catch {
+        case _: Throwable => minVal - 1
       }).toList.filter(x => (x <= maxVal) && (x >= minVal))
   }
 
-  /**
+  /** list of indices parameters to remove, given by prompt
     *
-    * @param fcsDataFinalKMean
-    * @return removed paramters starts at 1
+    * @param fcsDataFinalKMean final kmean and data
+    * @return removed parameter indices starts at 1
     */
   def takeRemoveParam(fcsDataFinalKMean: FCSDataFinalKMean): List[Int] = {
     val askingListParam: String = "Remove Parameters (separated by ','): " + (for (paramAndIndex <- fcsDataFinalKMean.takenParam.zipWithIndex) yield {
       (paramAndIndex._2 + 1).toString + ": " + (try fcsDataFinalKMean.textSegmentMap("$P" + paramAndIndex._1 + "S") catch {
         case _: Throwable => fcsDataFinalKMean.textSegmentMap("$P" + paramAndIndex._1 + "N")
       })
-    }).reduce(_ + ", " + _) + " "
+    }).reduce(_ + ", " + _) + ": "
     takeListInt(askingListParam, 1, fcsDataFinalKMean.takenParam.length)
   }
 
@@ -83,6 +81,11 @@ object LinePromptData {
     else fcsFile
   }
 
+  /** look for file type un current dierectly, show an indexed list and ask for an index
+    *
+    * @param fileType file end
+    * @return
+    */
   def askFileFromType(fileType: String): String = {
     val typePattern = ("\\." + fileType + "$").r
     val filesInDir = new File(".")
@@ -92,9 +95,9 @@ object LinePromptData {
     listFiles(fileIndex - 1)
   }
 
-  /**
+  /** look for file type un current dierectly, show an indexed list and ask for an indices separated by ','
     *
-    * @param fileType
+    * @param fileType file end
     * @return
     */
   def askListFileFromType(fileType: String): List[String] = {
@@ -105,5 +108,4 @@ object LinePromptData {
     val fileListIndex = takeListInt("File numbers, separated by ,: ", 1, listFiles.length)
     fileListIndex.map(index => listFiles(index-1))
   }
-
 }

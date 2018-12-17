@@ -120,7 +120,7 @@ object Main extends App {
           }
           val ellipseNetwork = try FCSOutput.connNetworkClust(bestClusterList, removeCluster, removeParam) catch {
             case ex: ClusterEllipse.EllipseException => {
-              println(ex.errMessage());
+              println(ex.errMessage())
               null
             }
           }

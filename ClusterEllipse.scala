@@ -102,10 +102,15 @@ object ClusterEllipse {
 //    }
   }
 
+  /** Set of ellipse cluster, given in a list, with paramter names and list of cluster names
+    *
+    * @param listEllipse
+    * @param param
+    * @param names
+    */
   case class EllipseClustering(listEllipse: List[EllipseClusterId], param: Array[String], names: List[String]) {
     def this(tElCl : (List[EllipseClusterId],Array[String],List[String])) = this(tElCl._1,tElCl._2,tElCl._3)
-
-    def this(listFileNames: List[String]) = this(EllipseClustering.hexFilesToEllipses(listFileNames))
+    def this() = this(EllipseClustering.hexFilesToEllipses())
     def this(fcsDataFinalKMean: FCSDataFinalKMean) = this(EllipseClustering.finalKMeanToEllipse(fcsDataFinalKMean))
     private def double2Hex(db : Double) : String = java.lang.Double.toHexString(db)
     def toHexString(exportNames : List[String]): String = {
@@ -116,13 +121,18 @@ object ClusterEllipse {
         "\nEllipse=" + elName._1.cluster.varMat.toArray.map(x => double2Hex(x)).mkString(":") +
         "\n\\**\\").mkString("\n")
     }
+
+    /** new Ellipse clustering with new names asked from prompt
+      *
+      * @return
+      */
     def updateNames : EllipseClustering = new EllipseClustering(this.listEllipse,
       this.param,
       this.names.map(nm => {
         val prompName = scala.io.StdIn.readLine("Name for cluster " + nm + " :")
         if (prompName == "") nm else prompName
       }))
-    def saveToFile(fileName : String) = {
+    def saveToFile(fileName : String): Unit = {
       val file = new File(fileName+".elcl")
       val bw = new BufferedWriter(new FileWriter(file))
       bw.write(this.
@@ -130,7 +140,11 @@ object ClusterEllipse {
       bw.close()}
   }
   object EllipseClustering {
-     private def hexFilesToEllipses(listFileNames: List[String]): (List[EllipseClusterId], Array[String], List[String]) = {
+    /** Construct list of ellipse cluster Id, with param names and cluster names, from list of elcl files asked by prompt
+      *
+      * @return
+      */
+     private def hexFilesToEllipses(): (List[EllipseClusterId], Array[String], List[String]) = {
       val elclFileList = askListFileFromType("elcl")
       val readEllipseClustersParam: List[(EllipseCluster, Array[String],String)] = elclFileList.flatMap(file => Source.fromFile(file).
         getLines.toList.zipWithIndex.groupBy(_._2 / 5).toSeq.sortWith(_._1 < _._1).map(_._2.map(_._1))).
@@ -152,8 +166,14 @@ object ClusterEllipse {
         })
         (listEllipseCluster.zipWithIndex.map(x => EllipseClusterId(x._1,x._2)),listParam,listNameId)
       }
-
     }
+
+    /** Construct list of ellipse cluster Id, with param names, from KMean clustering
+      * List is ordered by cluster Id (Int), names are (Id+1).toString
+      *
+      * @param fcsDataFinalKMean
+      * @return
+      */
    private def finalKMeanToEllipse(fcsDataFinalKMean : FCSDataFinalKMean) : (List[EllipseClusterId], Array[String], List[String]) = {
     val clusterList = fcsDataFinalKMean.bestKMean.clusters.toSeq.distinct.toParArray.map(clusterId => {
       val indexId = fcsDataFinalKMean.bestKMean.clusters.toSeq.zipWithIndex.filter(x => x._1 == clusterId).map(_._2)
@@ -168,7 +188,7 @@ object ClusterEllipse {
         case _: Throwable => fcsDataFinalKMean.textSegmentMap("$P" + param + "N")
       }
     ).toArray
-    (clusterList, labelParam,clusterList.map(cl => cl.clusterId.toString))
+    (clusterList, labelParam,clusterList.map(cl => (cl.clusterId+1).toString))
   }
 
   }
@@ -217,7 +237,7 @@ object ClusterEllipse {
         case _: Throwable => throw new MatchError("Cannot produce Means double")
       }
     }
-    else throw new MatchError("Do not find Means")
+    else throw new MatchError("Do not find Var")
     val clusterVarMat = try new DenseMatrix[Double](parameters.length, parameters.length, clusterVar) catch {
       case _: Throwable => throw new MatchError("Wrong dimension of var matrix")
     }
@@ -229,7 +249,7 @@ object ClusterEllipse {
         case _: Throwable => throw new MatchError("Cannot produce Means double")
       }
     }
-    else throw new MatchError("Do not find Means")
+    else throw new MatchError("Do not find Ellipse")
     val clusterEllipseMat = try new DenseMatrix[Double](parameters.length, parameters.length, clusterEllipse) catch {
       case _: Throwable => throw new MatchError("Wrong dimension of var matrix")
     }
