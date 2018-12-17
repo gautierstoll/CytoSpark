@@ -36,7 +36,7 @@ object Main extends App {
 
   /**
     *
-    * @param fcsDataFinalKMean
+    * @param fcsDataFinalKMean a single object FCSDataFinalKMean is enough
     */
   def plottingLoop(fcsDataFinalKMean: FCSDataFinalKMean): Unit = {
     var bestClusterList: ClusterEllipse.EllipseClustering = null
@@ -61,27 +61,17 @@ object Main extends App {
             bestClusterList = new ClusterEllipse.EllipseClustering(fcsDataFinalKMean); println("Compute ellipses\n")
           }
           val outPdf = scala.io.StdIn.readLine("Ellipse file: ") + ".pdf"
-          val ellipsePdf = try (FCSOutput.kMeanFCSPlotEllipse2D(bestClusterList, removeCluster, removeParam)) catch {
+          val ellipsePdf = try FCSOutput.kMeanFCSPlotEllipse2D(bestClusterList, removeCluster, removeParam) catch {
             case ex: ClusterEllipse.EllipseException => {
-              println(ex.errMessage());
+              println(ex.errMessage())
               null
             }
           }
           if (ellipsePdf != null)
             FCSOutput.plotKSeqToPdf(ellipsePdf, outPdf)
           if (scala.io.StdIn.readLine("Export ellipses to elcl file? y/[n]: ")=="y") {
-            bestClusterList = new ClusterEllipse.EllipseClustering(bestClusterList.listEllipse,
-              bestClusterList.param,
-              bestClusterList.names.map(nm => {
-                val prompName = scala.io.StdIn.readLine("Name for cluster " + nm + " :")
-                if (prompName == "") nm else prompName
-              }))
-            val fileName = scala.io.StdIn.readLine("Export file: ")
-            val file = new File(fileName+".elcl")
-            val bw = new BufferedWriter(new FileWriter(file))
-            bw.write(bestClusterList.
-              toHexString(bestClusterList.names.filter(nm => scala.io.StdIn.readLine("Take "+nm+" ? [y]/n: ") != "n")))
-            bw.close()
+            bestClusterList = bestClusterList.updateNames
+            bestClusterList.saveToFile(scala.io.StdIn.readLine("Export file: "))
           }
         }
         case "a" => {
@@ -89,36 +79,26 @@ object Main extends App {
             bestClusterList = new ClusterEllipse.EllipseClustering(fcsDataFinalKMean); println("Compute ellipses\n")
           }
           val outPdf = scala.io.StdIn.readLine("Ellipse and center pdf file: ") + ".pdf"
-          val ellipseCenterPdf = try (FCSOutput.kMeanFCSPlotClusterEllipse2D(fcsDataFinalKMean, bestClusterList, removeCluster, removeParam)) catch {
+          val ellipseCenterPdf = try FCSOutput.kMeanFCSPlotClusterEllipse2D(fcsDataFinalKMean, bestClusterList, removeCluster, removeParam) catch {
             case ex: ClusterEllipse.EllipseException => {
-              println(ex.errMessage());
+              println(ex.errMessage())
               null
             }
           }
           if (ellipseCenterPdf != null)
             FCSOutput.plotKSeqToPdf(ellipseCenterPdf, outPdf)
           if (scala.io.StdIn.readLine("Export ellipses to elcl file? y/[n]: ")=="y") {
-            bestClusterList = new ClusterEllipse.EllipseClustering(bestClusterList.listEllipse,
-              bestClusterList.param,
-              bestClusterList.names.map(nm => {
-                val prompName = scala.io.StdIn.readLine("Name for cluster " + nm + " :")
-                if (prompName == "") nm else prompName
-              }))
-            val fileName = scala.io.StdIn.readLine("Export file: ")
-            val file = new File(fileName+".elcl")
-            val bw = new BufferedWriter(new FileWriter(file))
-            bw.write(bestClusterList.
-              toHexString(bestClusterList.names.filter(nm => scala.io.StdIn.readLine("Take "+nm+" ? [y]/n: ") != "n")))
-            bw.close()
+            bestClusterList = bestClusterList.updateNames
+            bestClusterList.saveToFile(scala.io.StdIn.readLine("Export file: "))
           }
         }
         case "t" => {
           if (bestClusterList == null) {
             bestClusterList = new ClusterEllipse.EllipseClustering(fcsDataFinalKMean); println("Compute ellipses\n")
           }
-          val ellipseTree = try (FCSOutput.treeKmeanClust(bestClusterList, removeCluster, removeParam)) catch {
+          val ellipseTree = try FCSOutput.treeKmeanClust(bestClusterList, removeCluster, removeParam) catch {
             case ex: ClusterEllipse.EllipseException => {
-              println(ex.errMessage());
+              println(ex.errMessage())
               null
             }
           }
@@ -138,7 +118,7 @@ object Main extends App {
           if (bestClusterList == null) {
             bestClusterList = new ClusterEllipse.EllipseClustering(fcsDataFinalKMean); println("Compute ellipses\n")
           }
-          val ellipseNetwork = try (FCSOutput.connNetworkClust(bestClusterList, removeCluster, removeParam)) catch {
+          val ellipseNetwork = try FCSOutput.connNetworkClust(bestClusterList, removeCluster, removeParam) catch {
             case ex: ClusterEllipse.EllipseException => {
               println(ex.errMessage());
               null
