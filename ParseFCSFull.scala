@@ -638,7 +638,7 @@ class FCSParserFull(fcsInput: FCSInputFull) {
       dataTakenMatFCS.row(kMeanFCSInput.takeRows),
     seedArrayK.map(seedKFromArray => {
       val rand4K = new Random(seedKFromArray)
-      val initDataIndex = rand4K.nextInt(kMeanFCSInput.takeRows.length)
+      val initDataIndex = kMeanFCSInput.takeRows(rand4K.nextInt(kMeanFCSInput.takeRows.length))
       val clusterIndices = initClust(List(initDataIndex),
         kMeanFCSInput.takeRows.filter(x => x != initDataIndex).toArray,
         kMeanFCSInput.clusterNb - 1, rand4K).toArray

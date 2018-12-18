@@ -161,10 +161,17 @@ object Main extends App {
     }
   }
 
+  /**
+    *
+    * @param parsedFCS
+    * @param takeRows
+    * @return
+    */
   def kMeanFCSClustering(parsedFCS : FCSParserFull, takeRows : Array[Int]) : FCSDataFinalKMean = {
     println("Clustering parameters:")
     val nbCluster =
       takeIntFromLine("Number of clusters [6] (large number takes more time to compute, but associated potatoes are easier to cook): ", 6, 1)
+    println("ClusterNumber: "+nbCluster)
     val nbIteration =
       takeIntFromLine("Number of K-Mean iterations [10]: ", 10, 1)
     val nbStep = takeIntFromLine("Number of K-Mean steps (ie blocks of K-mean iterations) [5]: ", 5, 2)
@@ -172,12 +179,13 @@ object Main extends App {
     val seed: Int =
       takeIntFromLine("Pseudo-random generator initial condition [10]: ", 10, 0)
     val rand4K = new Random(seed)
-    val parArrayForKEuclid = (seed :: (for (index <- (1 until nbAttemp)) yield rand4K.nextInt(maxSeedParralel)).toList).
+    val parArrayForKEuclid = (seed :: (for (index <- 1 until nbAttemp) yield rand4K.nextInt(maxSeedParralel)).toList).
       toParArray
     var fcsDataParKMean =
       parsedFCS.kmeanPPFCSEuclidConv(KMeanFCSInput(nbCluster, takeRows, nbIteration, 0), nbStep, parArrayForKEuclid)
     println("Cluster seed: \t" + parArrayForKEuclid.mkString("\t"))
     println("Cluster quality:\t" + fcsDataParKMean.euclidKResult.map(x => x._1.last).mkString("\t"))
+
     show(FCSOutput.kMeanFCSPlotSeqEuclid(fcsDataParKMean.euclidKResult))
     while (scala.io.StdIn.readLine("Continue clustering? y/[n]") == "y") {
           fcsDataParKMean = parsedFCS.kmeanFCSEuclidConvContinue(KMeanFCSInput(nbCluster, takeRows, nbIteration, 0), nbStep, fcsDataParKMean.euclidKResult)
