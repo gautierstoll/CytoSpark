@@ -12,9 +12,9 @@ import scala.collection.parallel.mutable._
 import org.saddle._
 import stat._
 import java.nio.file.{Files, Paths}
-import scala.io.Source
 
-import ClusterEllipse.EllipseClusterId
+import scala.io.Source
+import ClusterEllipse.{EllipseClusterId, EllipseClustering}
 import LinePromptData._
 
 import scala.util._
@@ -39,29 +39,29 @@ object Main extends App {
     * @param fcsDataFinalKMean a single object FCSDataFinalKMean is enough
     */
   def plottingLoop(fcsDataFinalKMean: FCSDataFinalKMean): Unit = {
-    var bestClusterList: ClusterEllipse.EllipseClustering = null
+    var bestEllipseClustering: ClusterEllipse.EllipseClustering = null
     var loopPlot = true
     while (loopPlot) {
       val removeCluster =
         takeListInt("Remove clusters (separated by ','): ", 1, fcsDataFinalKMean.bestKMean.means.length).map(_ - 1).toArray
       val removeParam = takeRemoveParam(fcsDataFinalKMean).map(_ - 1).toArray //removeParam start at 0
       scala.io.StdIn.readLine("- [Scatter], potential large png file\n" +
-        "- Scatter with virtual (g)rid, lighter than scatter, pdf file\n" +
-        "- (c)luster centers (proportional to size), pdf file \n" +
-        "- (e)llipses or potatoes, easy to cook pdf file\n" +
-        "- cluster centers (a)nd ellipses pdf file\n " +
-        "- (t)ree of clusters, nice organic pdf file\n" +
-        "- (n)etwork of clusters, avoiding a poor cluster to be alone, pdf file\n? ") match {
+        "- (g)rid: Scatter with virtual (g)rid, lighter than scatter, pdf file\n" +
+        "- (c)enters: cluster centers (proportional to size), pdf file \n" +
+        "- (e)llipses: ellipses or potatoes, easy to cook, pdf file\n" +
+        "- (a)ll: cluster centers and ellipses, pdf file\n " +
+        "- (t)ree: tree of clusters, nice organic pdf file\n" +
+        "- (n)etwork: network of clusters, avoiding a poor cluster to be alone, pdf file\n? ") match {
         case "c" => {
-          val outPdf = scala.io.StdIn.readLine("Cluster center pdf file: ") + ".pdf"
+          val outPdf = scala.io.StdIn.readLine("Cluster center file: ") + ".pdf"
           FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlotClusters2D(fcsDataFinalKMean, removeCluster, removeParam), outPdf)
         }
         case "e" => {
-          if (bestClusterList == null) {
-            bestClusterList = new ClusterEllipse.EllipseClustering(fcsDataFinalKMean); println("Compute ellipses\n")
+          if (bestEllipseClustering == null) {
+            bestEllipseClustering = new ClusterEllipse.EllipseClustering(fcsDataFinalKMean); println("Compute ellipses\n")
           }
           val outPdf = scala.io.StdIn.readLine("Ellipse file: ") + ".pdf"
-          val ellipsePdf = try FCSOutput.kMeanFCSPlotEllipse2D(bestClusterList, removeCluster, removeParam) catch {
+          val ellipsePdf = try FCSOutput.kMeanFCSPlotEllipse2D(bestEllipseClustering, removeCluster, removeParam) catch {
             case ex: ClusterEllipse.EllipseException => {
               println(ex.errMessage())
               null
@@ -70,16 +70,16 @@ object Main extends App {
           if (ellipsePdf != null)
             FCSOutput.plotKSeqToPdf(ellipsePdf, outPdf)
           if (scala.io.StdIn.readLine("Export ellipses to elcl file? y/[n]: ")=="y") {
-            bestClusterList = bestClusterList.updateNames
-            bestClusterList.saveToFile(scala.io.StdIn.readLine("Export file: "))
+            bestEllipseClustering = bestEllipseClustering.updateNames
+            bestEllipseClustering.saveToFile(scala.io.StdIn.readLine("Export file: "))
           }
         }
         case "a" => {
-          if (bestClusterList == null) {
-            bestClusterList = new ClusterEllipse.EllipseClustering(fcsDataFinalKMean); println("Compute ellipses\n")
+          if (bestEllipseClustering == null) {
+            bestEllipseClustering = new ClusterEllipse.EllipseClustering(fcsDataFinalKMean); println("Compute ellipses\n")
           }
-          val outPdf = scala.io.StdIn.readLine("Ellipse and center pdf file: ") + ".pdf"
-          val ellipseCenterPdf = try FCSOutput.kMeanFCSPlotClusterEllipse2D(fcsDataFinalKMean, bestClusterList, removeCluster, removeParam) catch {
+          val outPdf = scala.io.StdIn.readLine("Ellipse and center file: ") + ".pdf"
+          val ellipseCenterPdf = try FCSOutput.kMeanFCSPlotClusterEllipse2D(fcsDataFinalKMean, bestEllipseClustering, removeCluster, removeParam) catch {
             case ex: ClusterEllipse.EllipseException => {
               println(ex.errMessage())
               null
@@ -88,70 +88,70 @@ object Main extends App {
           if (ellipseCenterPdf != null)
             FCSOutput.plotKSeqToPdf(ellipseCenterPdf, outPdf)
           if (scala.io.StdIn.readLine("Export ellipses to elcl file? y/[n]: ")=="y") {
-            bestClusterList = bestClusterList.updateNames
-            bestClusterList.saveToFile(scala.io.StdIn.readLine("Export file: "))
+            bestEllipseClustering = bestEllipseClustering.updateNames
+            bestEllipseClustering.saveToFile(scala.io.StdIn.readLine("Export file: "))
           }
         }
         case "t" => {
-          if (bestClusterList == null) {
-            bestClusterList = new ClusterEllipse.EllipseClustering(fcsDataFinalKMean); println("Compute ellipses\n")
+          if (bestEllipseClustering == null) {
+            bestEllipseClustering = new ClusterEllipse.EllipseClustering(fcsDataFinalKMean); println("Compute ellipses\n")
           }
-          val ellipseTree = try FCSOutput.treeKmeanClust(bestClusterList, removeCluster, removeParam) catch {
+          val ellipseTree = try FCSOutput.treeKmeanClust(bestEllipseClustering, removeCluster, removeParam) catch {
             case ex: ClusterEllipse.EllipseException => {
               println(ex.errMessage())
               null
             }
           }
           if (ellipseTree != null) {
-            val outPdf = scala.io.StdIn.readLine("Tree pdf file: ") + ".pdf"
+            val outPdf = scala.io.StdIn.readLine("Tree file: ") + ".pdf"
             FCSOutput.plotKSeqToPdf(
-              FCSOutput.networkKmeanClustPlot2D(bestClusterList.param.zipWithIndex.filter(x => !removeParam.contains(x._2)).map(x => x._1), ellipseTree),
+              FCSOutput.networkKmeanClustPlot2D(bestEllipseClustering.param.zipWithIndex.filter(x => !removeParam.contains(x._2)).map(x => x._1), ellipseTree),
               outPdf)
 
             if (scala.io.StdIn.readLine("Write tree to csv file? y/[n]: ") == "y") {
-              val outCsv = scala.io.StdIn.readLine("Csv file: ") + ".csv"
+              val outCsv = scala.io.StdIn.readLine("File: ") + ".csv"
               FCSOutput.writeClusterTreeSizeCsv(ellipseTree, outCsv)
             }
           }
         }
         case "n" => {
-          if (bestClusterList == null) {
-            bestClusterList = new ClusterEllipse.EllipseClustering(fcsDataFinalKMean); println("Compute ellipses\n")
+          if (bestEllipseClustering == null) {
+            bestEllipseClustering = new ClusterEllipse.EllipseClustering(fcsDataFinalKMean); println("Compute ellipses\n")
           }
-          val ellipseNetwork = try FCSOutput.connNetworkClust(bestClusterList, removeCluster, removeParam) catch {
+          val ellipseNetwork = try FCSOutput.connNetworkClust(bestEllipseClustering, removeCluster, removeParam) catch {
             case ex: ClusterEllipse.EllipseException => {
               println(ex.errMessage())
               null
             }
           }
           if (ellipseNetwork != null) {
-            val outPdf = scala.io.StdIn.readLine("Network pdf File: ") + ".pdf"
+            val outPdf = scala.io.StdIn.readLine("Network file: ") + ".pdf"
             FCSOutput.plotKSeqToPdf(
-              FCSOutput.networkKmeanClustPlot2D(bestClusterList.param.zipWithIndex.filter(x => !removeParam.contains(x._2)).map(x => x._1), ellipseNetwork),
+              FCSOutput.networkKmeanClustPlot2D(bestEllipseClustering.param.zipWithIndex.filter(x => !removeParam.contains(x._2)).map(x => x._1), ellipseNetwork),
               outPdf)
 
             if (scala.io.StdIn.readLine("Write network to csv file? y/[n]: ") == "y") {
-              val outCsv = scala.io.StdIn.readLine("Csv file: ") + ".csv"
+              val outCsv = scala.io.StdIn.readLine("File: ") + ".csv"
               FCSOutput.writeClusterTreeSizeCsv(ellipseNetwork, outCsv)
             }
           }
         }
         case "g" => {
-          val outPdf = scala.io.StdIn.readLine("Grid pdf file: ") + ".pdf"
+          val outPdf = scala.io.StdIn.readLine("Grid file: ") + ".pdf"
           val gridWidth = takeIntFromLine("Grid size[50]: ", 50, 2)
           FCSOutput.plotKSeqToPdf(FCSOutput.kMeanFCSPlot2DGrid(fcsDataFinalKMean, gridWidth, removeCluster, removeParam), outPdf)
         }
         case _: String => {
-          val outPng = scala.io.StdIn.readLine("Scatter png file: ") + ".png"
+          val outPng = scala.io.StdIn.readLine("Scatter file: ") + ".png"
           val pngWidth = takeIntFromLine("Png width[2000]: ", 2000, 1000)
           FCSOutput.plotKSeqToPng(FCSOutput.kMeanFCSPlot2D(fcsDataFinalKMean, removeCluster, removeParam), outPng, pngWidth)
         }
       }
       if (scala.io.StdIn.readLine("Write cluster sizes to csv file? y/[n]: ") == "y") {
-        val outCsv = scala.io.StdIn.readLine("Csv file: ") + ".csv"
-        if (bestClusterList == null) FCSOutput.writeClusterSizeCsv(fcsDataFinalKMean.bestKMean.clusters, outCsv) else {
+        val outCsv = scala.io.StdIn.readLine("File: ") + ".csv"
+        if (bestEllipseClustering == null) FCSOutput.writeClusterSizeCsv(fcsDataFinalKMean.bestKMean.clusters, outCsv) else {
           FCSOutput.writeClusterSizeCsv(fcsDataFinalKMean.bestKMean.clusters, outCsv,
-            bestClusterList.listEllipse.zip(bestClusterList.names).sortWith(_._1.clusterId < _._1.clusterId).map(_._2).toArray)
+            bestEllipseClustering.listEllipse.zip(bestEllipseClustering.names).sortWith(_._1.clusterId < _._1.clusterId).map(_._2).toArray)
         }
       }
       loopPlot = scala.io.StdIn.readLine("New plot? [y]/n: ") match {
@@ -215,8 +215,9 @@ object Main extends App {
 
       var clusterLoop = true
       while (clusterLoop) {
+        println("So, let's do a KMean clustering...")
         val nbRow =
-          takeIntFromLine("Number of used rows [" + inputParser.takeNbEvent + "]: ", inputParser.takeNbEvent, 1,inputParser.takeNbEvent)
+          takeIntFromLine("Number of events for clustering [" + inputParser.takeNbEvent + "]: ", inputParser.takeNbEvent, 1,inputParser.takeNbEvent)
         var fcsDataFinalKMean = kMeanFCSClustering(parsedFCS, (0 until nbRow).toArray) //var because possible subclustering
         println("Now, let's see how these clusters look like...")
         plottingLoop(fcsDataFinalKMean)
@@ -227,9 +228,9 @@ object Main extends App {
           val newFCSDataFinalKMean = fcsDataFinalKMean.subClustering(subClusterIndex, subCluster)
           println("Now, let's see if it looks better")
           plottingLoop(newFCSDataFinalKMean)
-          if (scala.io.StdIn.readLine("Happy with this sub-clustering, apply it? [y]/n: ") != "n") fcsDataFinalKMean = newFCSDataFinalKMean
+          if (scala.io.StdIn.readLine("Happy with this sub-clustering, apply it (for sub-sub-clustering))? [y]/n: ") != "n") fcsDataFinalKMean = newFCSDataFinalKMean
         }
-        clusterLoop = scala.io.StdIn.readLine("New cluster? y/[n]: ") match {
+        clusterLoop = scala.io.StdIn.readLine("New clustering? y/[n]: ") match {
           case "y" => true
           case _: String => false
         }
