@@ -58,7 +58,8 @@ object Main extends App {
         }
         case "e" => {
           if (bestEllipseClustering == null) {
-            bestEllipseClustering = new ClusterEllipse.EllipseClustering(fcsDataFinalKMean); println("Compute ellipses\n")
+            bestEllipseClustering = new ClusterEllipse.EllipseClustering(fcsDataFinalKMean);
+            println("Compute ellipses\n")
           }
           val outPdf = scala.io.StdIn.readLine("Ellipse file: ") + ".pdf"
           val ellipsePdf = try FCSOutput.kMeanFCSPlotEllipse2D(bestEllipseClustering, removeCluster, removeParam) catch {
@@ -69,14 +70,15 @@ object Main extends App {
           }
           if (ellipsePdf != null)
             FCSOutput.plotKSeqToPdf(ellipsePdf, outPdf)
-          if (scala.io.StdIn.readLine("Export ellipses to elcl file? y/[n]: ")=="y") {
+          if (scala.io.StdIn.readLine("Export ellipses to elcl file? y/[n]: ") == "y") {
             bestEllipseClustering = bestEllipseClustering.updateNames
             bestEllipseClustering.saveToFile(scala.io.StdIn.readLine("Export file: "))
           }
         }
         case "a" => {
           if (bestEllipseClustering == null) {
-            bestEllipseClustering = new ClusterEllipse.EllipseClustering(fcsDataFinalKMean); println("Compute ellipses\n")
+            bestEllipseClustering = new ClusterEllipse.EllipseClustering(fcsDataFinalKMean);
+            println("Compute ellipses\n")
           }
           val outPdf = scala.io.StdIn.readLine("Ellipse and center file: ") + ".pdf"
           val ellipseCenterPdf = try FCSOutput.kMeanFCSPlotClusterEllipse2D(fcsDataFinalKMean, bestEllipseClustering, removeCluster, removeParam) catch {
@@ -87,14 +89,15 @@ object Main extends App {
           }
           if (ellipseCenterPdf != null)
             FCSOutput.plotKSeqToPdf(ellipseCenterPdf, outPdf)
-          if (scala.io.StdIn.readLine("Export ellipses to elcl file? y/[n]: ")=="y") {
+          if (scala.io.StdIn.readLine("Export ellipses to elcl file? y/[n]: ") == "y") {
             bestEllipseClustering = bestEllipseClustering.updateNames
             bestEllipseClustering.saveToFile(scala.io.StdIn.readLine("Export file: "))
           }
         }
         case "t" => {
           if (bestEllipseClustering == null) {
-            bestEllipseClustering = new ClusterEllipse.EllipseClustering(fcsDataFinalKMean); println("Compute ellipses\n")
+            bestEllipseClustering = new ClusterEllipse.EllipseClustering(fcsDataFinalKMean);
+            println("Compute ellipses\n")
           }
           val ellipseTree = try FCSOutput.treeKmeanClust(bestEllipseClustering, removeCluster, removeParam) catch {
             case ex: ClusterEllipse.EllipseException => {
@@ -116,7 +119,8 @@ object Main extends App {
         }
         case "n" => {
           if (bestEllipseClustering == null) {
-            bestEllipseClustering = new ClusterEllipse.EllipseClustering(fcsDataFinalKMean); println("Compute ellipses\n")
+            bestEllipseClustering = new ClusterEllipse.EllipseClustering(fcsDataFinalKMean);
+            println("Compute ellipses\n")
           }
           val ellipseNetwork = try FCSOutput.connNetworkClust(bestEllipseClustering, removeCluster, removeParam) catch {
             case ex: ClusterEllipse.EllipseException => {
@@ -163,15 +167,15 @@ object Main extends App {
 
   /**
     *
-    * @param parsedFCS
-    * @param takeRows
+    * @param parsedFCS fcs data parsed
+    * @param takeRows  Array of indices to be used for clustering
     * @return
     */
-  def kMeanFCSClustering(parsedFCS : FCSParserFull, takeRows : Array[Int]) : FCSDataFinalKMean = {
+  def kMeanFCSClustering(parsedFCS: FCSParserFull, takeRows: Array[Int]): FCSDataFinalKMean = {
     println("Clustering parameters:")
     val nbCluster =
       takeIntFromLine("Number of clusters [6] (large number takes more time to compute, but associated potatoes are easier to cook): ", 6, 1)
-    println("ClusterNumber: "+nbCluster)
+    println("ClusterNumber: " + nbCluster)
     val nbIteration =
       takeIntFromLine("Number of K-Mean iterations [10]: ", 10, 1)
     val nbStep = takeIntFromLine("Number of K-Mean steps (ie blocks of K-mean iterations) [5]: ", 5, 2)
@@ -188,9 +192,9 @@ object Main extends App {
 
     show(FCSOutput.kMeanFCSPlotSeqEuclid(fcsDataParKMean.euclidKResult))
     while (scala.io.StdIn.readLine("Continue clustering? y/[n]") == "y") {
-          fcsDataParKMean = parsedFCS.kmeanFCSEuclidConvContinue(KMeanFCSInput(nbCluster, takeRows, nbIteration, 0), nbStep, fcsDataParKMean.euclidKResult)
-          println("Cluster quality:\t" + fcsDataParKMean.euclidKResult.map(x => x._1.last).mkString("\t"))
-          show(FCSOutput.kMeanFCSPlotSeqEuclid(fcsDataParKMean.euclidKResult))
+      fcsDataParKMean = parsedFCS.kmeanFCSEuclidConvContinue(KMeanFCSInput(nbCluster, takeRows, nbIteration, 0), nbStep, fcsDataParKMean.euclidKResult)
+      println("Cluster quality:\t" + fcsDataParKMean.euclidKResult.map(x => x._1.last).mkString("\t"))
+      show(FCSOutput.kMeanFCSPlotSeqEuclid(fcsDataParKMean.euclidKResult))
     }
     FCSDataFinalKMean(fcsDataParKMean)
   }
@@ -201,10 +205,6 @@ object Main extends App {
   println("Code: https://github.com/gautierstoll/CytoSpark, version 0.9. Because I am not a professional, I think my code is quite ugly...")
   println("Written in Scala because it is fun. Hope it is also fast.")
 
-  if (scala.io.StdIn.readLine("Generate cluster or use them? [g]/u: ") == "u") {
-
-  }
-  else {
     var loopFile = true
     var fcsFile: String = ""
     while (loopFile) {
@@ -212,35 +212,52 @@ object Main extends App {
       val fcsHeader = new FCSHeader(fcsFile)
       val inputParser = fcsHeader.getOnlineFCSInput
       val parsedFCS = new FCSParserFull(inputParser)
-
-      var clusterLoop = true
-      while (clusterLoop) {
-        println("So, let's do a KMean clustering...")
-        val nbRow =
-          takeIntFromLine("Number of events for clustering [" + inputParser.takeNbEvent + "]: ", inputParser.takeNbEvent, 1,inputParser.takeNbEvent)
-        var fcsDataFinalKMean = kMeanFCSClustering(parsedFCS, (0 until nbRow).toArray) //var because possible subclustering
-        println("Now, let's see how these clusters look like...")
-        plottingLoop(fcsDataFinalKMean)
-        while (scala.io.StdIn.readLine("Sub-clustering? y/[n]: ") == "y") {
-          val subClusterIndex = takeIntFromLine("Cluster to separate: ", 1, 0, fcsDataFinalKMean.bestKMean.means.length) - 1
-          val subClusterDataIndices = fcsDataFinalKMean.bestKMean.clusters.toSeq.zipWithIndex.filter(x => x._1 == subClusterIndex).map(_._2).toArray
-          val subCluster = kMeanFCSClustering(parsedFCS, subClusterDataIndices).bestKMean
-          val newFCSDataFinalKMean = fcsDataFinalKMean.subClustering(subClusterIndex, subCluster)
-          println("Now, let's see if it looks better")
-          plottingLoop(newFCSDataFinalKMean)
-          if (scala.io.StdIn.readLine("Happy with this sub-clustering, apply it (for sub-sub-clustering))? [y]/n: ") != "n") fcsDataFinalKMean = newFCSDataFinalKMean
+      var elClustering : ClusterEllipse.EllipseClustering = null
+      if (scala.io.StdIn.readLine("Generate cluster or use them? [g]/u: ") == "u") { // not tested yet
+        println("Not tested yet")
+        if (elClustering != null) {
+          if (scala.io.StdIn.readLine("New cluster from elcl files ? y/[n]") == "y") {
+            elClustering = new ClusterEllipse.EllipseClustering()
+            println("Cluster table:")
+            println(elClustering.names.zipWithIndex.map(x=> x._2.toString + ": " + x._2.toString).mkString("\n"))
+          }
         }
-        clusterLoop = scala.io.StdIn.readLine("New clustering? y/[n]: ") match {
+        else {
+          elClustering = new ClusterEllipse.EllipseClustering()
+          println(elClustering.names.zipWithIndex.map(x=> x._2.toString + ": " + x._2.toString).mkString("\n"))
+        }
+        val fcsDataFinalKMean = parsedFCS.fcsDataFinalClusterFromEllipse(elClustering.listEllipse,elClustering.param)
+        plottingLoop(fcsDataFinalKMean)
+      }
+      else {
+        var clusterLoop = true
+        while (clusterLoop) {
+          println("So, let's do a KMean clustering...")
+          val nbRow =
+            takeIntFromLine("Number of events for clustering [" + inputParser.takeNbEvent + "]: ", inputParser.takeNbEvent, 1, inputParser.takeNbEvent)
+          var fcsDataFinalKMean = kMeanFCSClustering(parsedFCS, (0 until nbRow).toArray) //var because possible subclustering
+          println("Now, let's see how these clusters look like...")
+          plottingLoop(fcsDataFinalKMean)
+          while (scala.io.StdIn.readLine("Sub-clustering? y/[n]: ") == "y") {
+            val subClusterIndex = takeIntFromLine("Cluster to separate: ", 1, 0, fcsDataFinalKMean.bestKMean.means.length) - 1
+            val subClusterDataIndices = fcsDataFinalKMean.bestKMean.clusters.toSeq.zipWithIndex.filter(x => x._1 == subClusterIndex).map(_._2).toArray
+            val subCluster = kMeanFCSClustering(parsedFCS, subClusterDataIndices).bestKMean
+            val newFCSDataFinalKMean = fcsDataFinalKMean.subClustering(subClusterIndex, subCluster)
+            println("Now, let's see if it looks better")
+            plottingLoop(newFCSDataFinalKMean)
+            if (scala.io.StdIn.readLine("Happy with this sub-clustering, apply it (for sub-sub-clustering))? [y]/n: ") != "n") fcsDataFinalKMean = newFCSDataFinalKMean
+          }
+          clusterLoop = scala.io.StdIn.readLine("New clustering ? y/[n]: ") match {
+            case "y" => true
+            case _: String => false
+          }
+        }
+        loopFile = scala.io.StdIn.readLine("New file? y/[n]: ") match {
           case "y" => true
           case _: String => false
         }
       }
-      loopFile = scala.io.StdIn.readLine("New file? y/[n]: ") match {
-        case "y" => true
-        case _: String => false
-      }
     }
+    println("Bye bye")
+    System.exit(0)
   }
-  println("Bye bye")
-  System.exit(0)
-}
