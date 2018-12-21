@@ -677,27 +677,47 @@ class FCSParserFull(fcsInput: FCSInputFull) {
 
   /** clustering from given ellipses
     * use only parameters with identical names between data and ellipses
-    * @param clusterListParam Param given in an Array[String]
+    *
+    * @param clusterList
+    * @param clusterParam
     * @return
     */
-  def fcsDataFinalClusterFromEllipse(clusterListParam: (List[EllipseClusterId], Array[String])): FCSDataFinalKMean = {
-    val paramIndexClData = clusterListParam._2.zipWithIndex.flatMap(ellParamInd =>
+  def fcsDataFinalClusterFromEllipse(clusterList: List[EllipseClusterId], clusterParam : Array[String]): FCSDataFinalKMean = {
+    println("Cluster parameters:"+clusterParam.mkString(","))
+    println("listKeys Segmet map"+ fcsTextSegmentMap.keys.mkString(" "))
+    println("Data parameters:"+takenParam.map(x => try fcsTextSegmentMap("$P" + x + "S")  catch {
+      case _: Throwable => fcsTextSegmentMap("$P" + x + "N")
+    }).mkString(","))
+    val paramIndexClData = clusterParam.zipWithIndex.flatMap(ellParamInd =>
       takenParam.zipWithIndex.map(tParamInd => {
-        if (ellParamInd._1 == fcsTextSegmentMap("$P" + tParamInd._1 + "N")) (ellParamInd._2, tParamInd._2) else (-1, -1)
+        val paramName = try fcsTextSegmentMap("$P" + tParamInd._1 + "S")  catch {
+          case _: Throwable => fcsTextSegmentMap("$P" + tParamInd._1 + "N")
+        }
+        if (ellParamInd._1 == paramName) (ellParamInd._2, tParamInd._2) else (-1, -1)
       })).filter(ind => ind._1 > -1)
+    println("Corresponding indices of parameters: "+ paramIndexClData.map(x=> x._1.toString + ":"+x._2.toString).mkString(","))
     val clIndex :Array[Int]= paramIndexClData.map(_._1)
     val dataIndex = paramIndexClData.map(_._2)
-    val listSubClusterId = clusterListParam._1.map(elClusterId =>
+    val listSubClusterId = clusterList.map(elClusterId =>
       EllipseClusterId(EllipseCluster(elClusterId.cluster.size,
         clIndex.map(ind => elClusterId.cluster.mean(ind)),
-        elClusterId.cluster.varMat(clIndex.toSeq,clIndex.toSeq).toDenseMatrix), elClusterId.clusterId))
-    val cluster4KMean = (0 until nbEvent).map(event => {
-      val elDistIdList = listSubClusterId.map(elClusterId => {
+        elClusterId.cluster.varMat(clIndex.toSeq,clIndex.toSeq).toDenseMatrix,
+        elClusterId.cluster.ellipseMat(clIndex.toSeq,clIndex.toSeq).toDenseMatrix), elClusterId.clusterId))
+    val cluster4KMean: Seq[Int] = (0 until nbEvent).map(event => {
+      val elDistIdList : List[(Double,Int)]= listSubClusterId.map(elClusterId => {
         (ClusterEllipse.distEllipseCluster(dataTakenMatFCS.col(dataIndex).row(event), elClusterId.cluster), elClusterId.clusterId)
       })
-      val minDist = min(elDistIdList.map(_._1))
-      elDistIdList.filter(x => x._1 == minDist).head._2
+      println("Distances: "+elDistIdList.map(_._1).mkString(":"))
+      println("Sorted distances: "+elDistIdList.map(_._1).sortWith((x,y) => x<y).mkString(":"))
+
+      println("Ids: "+elDistIdList.map(_._2).mkString(":"))
+
+      println("Take "+ elDistIdList.sortWith(_._1 < _._1).head._2)
+
+      elDistIdList.sorted.head._2
+
     })
+    println("List of cluster sizes: "+cluster4KMean.toArray.groupBy( x=> x).map(_._2.length.toString).mkString(" "))
     val mean4KMean = cluster4KMean.zipWithIndex.groupBy(_._1).map(x => (x._1, x._2.map(y => y._2))).
       map(clusterIdIndices => takenParam.indices.map(param => dataNormalizedTakenMatFCS.col(param).toArray).
         map(col => {
