@@ -72,6 +72,7 @@ object Main extends App {
             FCSOutput.plotKSeqToPdf(ellipsePdf, outPdf)
           if (scala.io.StdIn.readLine("Export ellipses to elcl file? y/[n]: ") == "y") {
             bestEllipseClustering = bestEllipseClustering.updateNames
+            bestEllipseClustering.print()
             bestEllipseClustering.saveToFile(scala.io.StdIn.readLine("Export file: "))
           }
         }
@@ -91,6 +92,7 @@ object Main extends App {
             FCSOutput.plotKSeqToPdf(ellipseCenterPdf, outPdf)
           if (scala.io.StdIn.readLine("Export ellipses to elcl file? y/[n]: ") == "y") {
             bestEllipseClustering = bestEllipseClustering.updateNames
+            bestEllipseClustering.print()
             bestEllipseClustering.saveToFile(scala.io.StdIn.readLine("Export file: "))
           }
         }
@@ -213,18 +215,16 @@ object Main extends App {
       val inputParser = fcsHeader.getOnlineFCSInput
       val parsedFCS = new FCSParserFull(inputParser)
       var elClustering : ClusterEllipse.EllipseClustering = null
+
       if (scala.io.StdIn.readLine("Generate cluster or use them? [g]/u: ") == "u") { // not tested yet
         println("Not tested yet")
         if (elClustering != null) {
           if (scala.io.StdIn.readLine("New cluster from elcl files ? y/[n]") == "y") {
             elClustering = new ClusterEllipse.EllipseClustering()
-            println("Cluster table:")
-            println(elClustering.names.zipWithIndex.map(x=> x._2.toString + ": " + x._2.toString).mkString("\n"))
           }
         }
         else {
           elClustering = new ClusterEllipse.EllipseClustering()
-          println(elClustering.names.zipWithIndex.map(x=> x._2.toString + ": " + x._2.toString).mkString("\n"))
         }
         val fcsDataFinalKMean = parsedFCS.fcsDataFinalClusterFromEllipse(elClustering.listEllipse,elClustering.param)
         plottingLoop(fcsDataFinalKMean)
@@ -252,12 +252,13 @@ object Main extends App {
             case _: String => false
           }
         }
-        loopFile = scala.io.StdIn.readLine("New file? y/[n]: ") match {
-          case "y" => true
-          case _: String => false
-        }
+      }
+      loopFile = scala.io.StdIn.readLine("New file? y/[n]: ") match {
+        case "y" => true
+        case _: String => false
       }
     }
-    println("Bye bye")
-    System.exit(0)
-  }
+
+  println("Bye bye")
+  System.exit(0)
+}

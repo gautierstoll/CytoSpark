@@ -138,6 +138,10 @@ object ClusterEllipse {
       bw.write(this.
         toHexString(this.names.filter(nm => scala.io.StdIn.readLine("Take "+nm+" ? [y]/n: ") != "n")))
       bw.close()}
+    def print() = {
+      println("Cluster names: "+ names.zipWithIndex.map(x=>"Id: "+x._2.toString+" name:"+x._1.toString).mkString(", "))
+        println("Cluster means: "+ listEllipse.map(x=> "Id: "+x.clusterId.toString + " val: "+x.cluster.mean.mkString(",")))
+    }
   }
   object EllipseClustering {
     /** Construct list of ellipse cluster Id, with param names and cluster names, from list of elcl files asked by prompt
@@ -212,7 +216,7 @@ object ClusterEllipse {
     } else throw new MatchError("Do not find Name")
 
 
-    val sizeName = """Size=([^;]*);""".r
+    val sizeName = """Size=([^;]*)""".r
     val sizeCatch = sizeName.findAllIn(hxString.head).matchData.toArray
     val clusterSize : Int = if (sizeCatch.length > 0) {
       try sizeCatch.head.group(1).toInt catch {
@@ -221,16 +225,16 @@ object ClusterEllipse {
     }
     else throw new MatchError("Do not find Size")
 
-    val meansName = """Means=([^;]*);""".r
+    val meansName = """Means=([^;]*)$""".r
     val meansCatch = meansName.findAllIn(hxString(1)).matchData.toArray
     val clusterMeans : Array[Double] = if (meansCatch.length > 0) {
       try meansCatch.head.group(1).split(":").map(s => java.lang.Double.valueOf(s).toDouble) catch {
         case _: Throwable => throw new MatchError("Cannot produce Means double")
       }
     }
-    else throw new MatchError("Do not find Means")
+    else throw new MatchError("Do not find Means in line " + hxString(1))
 
-    val varName = """Var=([^;]*);""".r
+    val varName = """Var=([^;]*)$""".r
     val varCatch = varName.findAllIn(hxString(2)).matchData.toArray
     val clusterVar : Array[Double] = if (varCatch.length > 0) {
       try varCatch.head.group(1).split(":").map(s => java.lang.Double.valueOf(s).toDouble) catch {
@@ -242,7 +246,7 @@ object ClusterEllipse {
       case _: Throwable => throw new MatchError("Wrong dimension of var matrix")
     }
 
-    val ellipseName = """Ellipse=([^;]*);""".r
+    val ellipseName = """Ellipse=([^;]*)$""".r
     val ellipseCatch = ellipseName.findAllIn(hxString(3)).matchData.toArray
     val clusterEllipse : Array[Double] = if (ellipseCatch.length > 0) {
       try ellipseCatch.head.group(1).split(":").map(s => java.lang.Double.valueOf(s).toDouble) catch {
@@ -282,7 +286,7 @@ object ClusterEllipse {
     * @return
     */
   def distEllipseCluster(point : Array[Double],ellipseCluster : EllipseCluster) : Double = {
-    (DenseMatrix(point)*ellipseCluster.ellipseMat*DenseMatrix(point).t).apply(0,0)}
+    ((DenseMatrix(point)-DenseMatrix(ellipseCluster.mean)).t)*ellipseCluster.ellipseMat*(DenseMatrix(point).t-DenseMatrix(ellipseCluster.mean)).apply(0,0)}
 
   /** Distance between ellipses
     * take a point, compute sum of distance to bothe ellipses, take min. Exact formula.

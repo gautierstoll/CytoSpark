@@ -705,17 +705,11 @@ class FCSParserFull(fcsInput: FCSInputFull) {
         elClusterId.cluster.ellipseMat(clIndex.toSeq,clIndex.toSeq).toDenseMatrix), elClusterId.clusterId))
     val cluster4KMean: Seq[Int] = (0 until nbEvent).map(event => {
       val elDistIdList : List[(Double,Int)]= listSubClusterId.map(elClusterId => {
+        println("Event: "+dataTakenMatFCS.col(dataIndex).row(event).map(_.toString).toSeq.mkString(":"))
         (ClusterEllipse.distEllipseCluster(dataTakenMatFCS.col(dataIndex).row(event), elClusterId.cluster), elClusterId.clusterId)
       })
-      println("Distances: "+elDistIdList.map(_._1).mkString(":"))
-      println("Sorted distances: "+elDistIdList.map(_._1).sortWith((x,y) => x<y).mkString(":"))
-
-      println("Ids: "+elDistIdList.map(_._2).mkString(":"))
-
-      println("Take "+ elDistIdList.sortWith(_._1 < _._1).head._2)
-
-      elDistIdList.sorted.head._2
-
+      val tmpDist : List[Double] = elDistIdList.map(_._1)
+      elDistIdList.sortWith(_._1 < _._1).head._2
     })
     println("List of cluster sizes: "+cluster4KMean.toArray.groupBy( x=> x).map(_._2.length.toString).mkString(" "))
     val mean4KMean = cluster4KMean.zipWithIndex.groupBy(_._1).map(x => (x._1, x._2.map(y => y._2))).
