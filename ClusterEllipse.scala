@@ -118,7 +118,7 @@ object ClusterEllipse {
       "Parameters=" + param.mkString(":") + ";Name=" + elName._2 + ";Size=" + elName._1.cluster.size.toString +
         "\nMeans=" + elName._1.cluster.mean.map(x => double2Hex(x)).mkString(":") +
         "\nVar=" + elName._1.cluster.varMat.toArray.map(x => double2Hex(x)).mkString(":") +
-        "\nEllipse=" + elName._1.cluster.varMat.toArray.map(x => double2Hex(x)).mkString(":") +
+        "\nEllipse=" + elName._1.cluster.ellipseMat.toArray.map(x => double2Hex(x)).mkString(":") +
         "\n\\**\\").mkString("\n")
     }
 
@@ -139,8 +139,15 @@ object ClusterEllipse {
         toHexString(this.names.filter(nm => scala.io.StdIn.readLine("Take "+nm+" ? [y]/n: ") != "n")))
       bw.close()}
     def print() = {
-      println("Cluster names: "+ names.zipWithIndex.map(x=>"Id: "+x._2.toString+" name:"+x._1.toString).mkString(", "))
-        println("Cluster means: "+ listEllipse.map(x=> "Id: "+x.clusterId.toString + " val: "+x.cluster.mean.mkString(",")))
+
+      listEllipse.zip(names).map(elName =>
+        "Parameters=" + param.mkString(":") + ";Name=" + elName._2 + ";Size=" + elName._1.cluster.size.toString +
+          "\nMeans=" + elName._1.cluster.mean.map(x => double2Hex(x)).mkString(":") +
+          "\nVar\n"+
+          elName._1.cluster.varMat.toString +
+          "\nEllipse\n" +
+          elName._1.cluster.ellipseMat.toString +
+          "\n\\**\\").mkString("\n")
     }
   }
   object EllipseClustering {
@@ -168,6 +175,9 @@ object ClusterEllipse {
             elParamName._1.varMat(reordIndex,reordIndex).toDenseMatrix,
           elParamName._1.giveEllipseMat(reordIndex,reordIndex).toDenseMatrix)
         })
+
+
+
         (listEllipseCluster.zipWithIndex.map(x => EllipseClusterId(x._1,x._2)),listParam,listNameId)
       }
     }
@@ -286,7 +296,7 @@ object ClusterEllipse {
     * @return
     */
   def distEllipseCluster(point : Array[Double],ellipseCluster : EllipseCluster) : Double = {
-    ((DenseMatrix(point)-DenseMatrix(ellipseCluster.mean)).t)*ellipseCluster.ellipseMat*(DenseMatrix(point).t-DenseMatrix(ellipseCluster.mean)).apply(0,0)}
+    ((DenseMatrix(point)-DenseMatrix(ellipseCluster.mean))*ellipseCluster.ellipseMat*(DenseMatrix(point).t-DenseMatrix(ellipseCluster.mean).t)).apply(0,0)}
 
   /** Distance between ellipses
     * take a point, compute sum of distance to bothe ellipses, take min. Exact formula.

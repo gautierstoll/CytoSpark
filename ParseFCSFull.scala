@@ -684,7 +684,6 @@ class FCSParserFull(fcsInput: FCSInputFull) {
     */
   def fcsDataFinalClusterFromEllipse(clusterList: List[EllipseClusterId], clusterParam : Array[String]): FCSDataFinalKMean = {
     println("Cluster parameters:"+clusterParam.mkString(","))
-    println("listKeys Segmet map"+ fcsTextSegmentMap.keys.mkString(" "))
     println("Data parameters:"+takenParam.map(x => try fcsTextSegmentMap("$P" + x + "S")  catch {
       case _: Throwable => fcsTextSegmentMap("$P" + x + "N")
     }).mkString(","))
@@ -704,8 +703,8 @@ class FCSParserFull(fcsInput: FCSInputFull) {
         elClusterId.cluster.varMat(clIndex.toSeq,clIndex.toSeq).toDenseMatrix,
         elClusterId.cluster.ellipseMat(clIndex.toSeq,clIndex.toSeq).toDenseMatrix), elClusterId.clusterId))
     val cluster4KMean: Seq[Int] = (0 until nbEvent).map(event => {
+      if ((event % 100) ==0) print("Event: "+event.toString+"  ")
       val elDistIdList : List[(Double,Int)]= listSubClusterId.map(elClusterId => {
-        println("Event: "+dataTakenMatFCS.col(dataIndex).row(event).map(_.toString).toSeq.mkString(":"))
         (ClusterEllipse.distEllipseCluster(dataTakenMatFCS.col(dataIndex).row(event), elClusterId.cluster), elClusterId.clusterId)
       })
       val tmpDist : List[Double] = elDistIdList.map(_._1)
@@ -718,6 +717,7 @@ class FCSParserFull(fcsInput: FCSInputFull) {
           val size4Mean = clusterIdIndices._2.length
           clusterIdIndices._2.map(index => col(index)).toArray.sum / size4Mean
         })).map(x => Vec(x.toArray)).toArray
+    mean4KMean.foreach(mean => println("Cluster Mean: "+mean.toSeq.map(_.toString).mkString(":")))
     FCSDataFinalKMean(fcsTextSegmentMap,
       takenParam,
       meanColTakenMap, sdColTakenMap, dataTakenMatFCS,
