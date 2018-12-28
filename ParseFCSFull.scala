@@ -139,6 +139,23 @@ object FCSDataFinalKMean {
   def apply(fcsDataParKMean : FCSDataParKMean): FCSDataFinalKMean = {new FCSDataFinalKMean(fcsDataParKMean)}
 }
 
+/** class of centers with normalization, to be applied to other data not good, should construct a list
+  *
+  * @param fcsDataFinalKMean
+  */
+class ClusterCenterNormalized(fcsDataFinalKMean : FCSDataFinalKMean) {
+  val centers : IndexedSeq[Vec[Double]] = fcsDataFinalKMean.bestKMean.means
+  val dataNormMean : Array[Double] = fcsDataFinalKMean.meanCol
+  val dataNormSd : Array[Double] = fcsDataFinalKMean.sdCol
+  val sizes : List[Int] = fcsDataFinalKMean.bestKMean.clusters.toSeq.groupBy(x=>x).map(x=> (x._1,x._2.length)).toList.sortWith(_._1 < _._1).map(_._2)
+  val parameters : scala.collection.immutable.IndexedSeq[String] = fcsDataFinalKMean.takenParam.map(index => {
+    try fcsDataFinalKMean.textSegmentMap("$P" + index + "S") catch {
+      case _: Throwable => fcsDataFinalKMean.textSegmentMap("$P" + index + "N")
+    }
+  })
+  def euclidDistancetoPoint(point : Array[Double]) : List[Double] = centers.map(center => center.toSeq.zip(point.toSeq))
+}
+
 /** class for reading header of fcs
   *
   * @param fcsNameInput fcs file
