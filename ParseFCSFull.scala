@@ -143,36 +143,52 @@ object FCSDataFinalKMean {
   }
 }
 
-/** class of centers with normalization, to be applied to other data not good, should construct a list
+/**
   *
-  * @param fcsDataFinalKMean
+  * @param centers
+  * @param dataNormMean
+  * @param dataNormSd
+  * @param sizes
+  * @param parameters
   */
-class ClusterCenterNormalized(fcsDataFinalKMean: FCSDataFinalKMean) {
-  val centers: IndexedSeq[Vec[Double]] = fcsDataFinalKMean.bestKMean.means
-  val dataNormMean: Array[Double] = fcsDataFinalKMean.meanCol
-  val dataNormSd: Array[Double] = fcsDataFinalKMean.sdCol
-  val sizes: List[Int] = fcsDataFinalKMean.bestKMean.clusters.toSeq.groupBy(x => x).map(x => (x._1, x._2.length)).toList.sortWith(_._1 < _._1).map(_._2)
-  val parameters: scala.collection.immutable.IndexedSeq[String] = fcsDataFinalKMean.takenParam.map(index => {
-    try fcsDataFinalKMean.textSegmentMap("$P" + index + "S") catch {
-      case _: Throwable => fcsDataFinalKMean.textSegmentMap("$P" + index + "N")
-    }
-  })
-
+case class ClusterCenterNormalized(centers: IndexedSeq[Vec[Double]], dataNormMean: Array[Double],
+                                   dataNormSd: Array[Double], sizes: List[Int],
+                                   parameters: scala.collection.immutable.IndexedSeq[String])  {
+  def this(fcsDataFinalKMean: FCSDataFinalKMean) = this(ClusterCenterNormalized.finalKMeanToCenter(fcsDataFinalKMean))
   def euclidDistanceToPoint(point: Array[Double]): List[Double] = centers.map(center => {
     val normPoint = point.zip(dataNormMean.zip(dataNormSd)).map(x => (x._1 - x._2._1) / x._2._2)
     center.toSeq.zip(normPoint.toSeq).map(x => pow(x._1 - x._2, 2)).sum
   }).toList
-
   def writeToHexString: String = {
     def double2Hex(db: Double): String = java.lang.Double.toHexString(db)
-
     "NormMean=" + dataNormMean.map(d => double2Hex(d)).mkString(":") + "\n" +
       "NormSd=" + dataNormSd.map(d => double2Hex(d)).mkString(":") + "\n" +
       "Parameters=" + parameters.mkString(":") + "\n" +
-      "Sizes=" + sizes.map(_.toString).mkString(":") + ("\n") +
+      "Sizes=" + sizes.map(_.toString).mkString(":") + "\n" +
       centers.map(center => center.toSeq.map(d => double2Hex(d)).mkString(":")).mkString("\n")
   }
+  def writeToHexFile(file : String) = {
+
+  }
 }
+object ClusterCenterNormalized {
+  def hexFileToCenter() = {
+  }
+  def finalKMeanToCenter(fcsDataFinalKMean: FCSDataFinalKMean) :
+    (IndexedSeq[Vec[Double]],Array[Double],Array[Double],List[Int],scala.collection.immutable.IndexedSeq[String]) = {
+    (fcsDataFinalKMean.bestKMean.means,
+      fcsDataFinalKMean.meanCol,
+      fcsDataFinalKMean.sdCol,
+      fcsDataFinalKMean.bestKMean.clusters.toSeq.groupBy(x => x).map(x => (x._1, x._2.length)).toList.sortWith(_._1 < _._1).map(_._2),
+      fcsDataFinalKMean.takenParam.map(index => {
+        try fcsDataFinalKMean.textSegmentMap("$P" + index + "S") catch {
+          case _: Throwable => fcsDataFinalKMean.textSegmentMap("$P" + index + "N")
+        }
+      })
+    )
+  }
+}
+
 
 /** class for reading header of fcs
   *
